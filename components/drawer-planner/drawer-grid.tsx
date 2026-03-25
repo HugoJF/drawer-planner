@@ -34,12 +34,8 @@ interface DrawerGridProps {
 
 interface DragState {
   itemId: string
-  startX: number
-  startY: number
-  currentX: number
-  currentY: number
-  offsetX: number
-  offsetY: number
+  grabPxX: number  // pixel offset within the item where the drag started
+  grabPxY: number
   gridWidth: number
   gridDepth: number
 }
@@ -78,67 +74,57 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
     return map
   }, [items, state.config, dragState])
 
+  const cellStep = cellSize + 1 // cell width + 1px gap
+
+  const computeDropPosition = useCallback((clientX: number, clientY: number) => {
+    if (!dragState || !gridRef.current) return null
+    const gridRect = gridRef.current.getBoundingClientRect()
+    // Item origin in px relative to grid, snapped to nearest cell
+    const cellX = Math.round((clientX - gridRect.left - dragState.grabPxX) / cellStep)
+    const cellY = Math.round((clientY - gridRect.top  - dragState.grabPxY) / cellStep)
+    return {
+      x: Math.max(0, Math.min(cellX, drawer.gridCols - dragState.gridWidth)),
+      y: Math.max(0, Math.min(cellY, drawer.gridRows - dragState.gridDepth)),
+    }
+  }, [dragState, drawer.gridCols, drawer.gridRows, cellStep])
+
+  const handleGridDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const pos = computeDropPosition(e.clientX, e.clientY)
+    if (pos) setDropTarget(pos)
+  }, [computeDropPosition])
+
   const handleGridDragLeave = useCallback((e: React.DragEvent) => {
-    // Only clear when leaving the grid container entirely
     if (!gridRef.current?.contains(e.relatedTarget as Node)) {
       setDropTarget(null)
     }
   }, [])
 
-  const handleCellDragOver = useCallback((e: React.DragEvent, cellX: number, cellY: number) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    if (dragState) {
-      setDropTarget({
-        x: Math.max(0, Math.min(cellX - dragState.offsetX, drawer.gridCols - dragState.gridWidth)),
-        y: Math.max(0, Math.min(cellY - dragState.offsetY, drawer.gridRows - dragState.gridDepth)),
-      })
-    }
-  }, [dragState, drawer.gridCols, drawer.gridRows])
-
-  const handleCellDrop = useCallback((e: React.DragEvent, cellX: number, cellY: number) => {
+  const handleGridDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     const itemId = e.dataTransfer.getData('text/plain')
-    
-    if (itemId) {
-      const item = state.items.find(i => i.id === itemId)
-      if (item) {
-        const dims = calculateItemGridDimensions(item, state.config)
-        const ox = dragState?.offsetX ?? 0
-        const oy = dragState?.offsetY ?? 0
-        const adjustedX = Math.max(0, Math.min(cellX - ox, drawer.gridCols - dims.gridWidth))
-        const adjustedY = Math.max(0, Math.min(cellY - oy, drawer.gridRows - dims.gridDepth))
-        moveItem(itemId, drawer.id, adjustedX, adjustedY)
-      }
+    const pos = computeDropPosition(e.clientX, e.clientY)
+    if (itemId && pos) {
+      moveItem(itemId, drawer.id, pos.x, pos.y)
     }
-    
     setDropTarget(null)
     setDragState(null)
-  }, [state.items, state.config, drawer, moveItem, dragState])
+  }, [computeDropPosition, drawer.id, moveItem])
 
   const handleItemDragStart = useCallback((e: React.DragEvent, item: Item) => {
     e.dataTransfer.setData('text/plain', item.id)
     e.dataTransfer.effectAllowed = 'move'
-    
-    // Get cursor position relative to the item div (not a child element)
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const cellStep = cellSize + 1 // cell width + 1px gap
-    const offsetX = Math.floor((e.clientX - rect.left) / cellStep)
-    const offsetY = Math.floor((e.clientY - rect.top) / cellStep)
     const dims = calculateItemGridDimensions(item, state.config)
-    
     setDragState({
       itemId: item.id,
-      startX: item.gridX,
-      startY: item.gridY,
-      currentX: item.gridX,
-      currentY: item.gridY,
-      offsetX,
-      offsetY,
+      grabPxX: e.clientX - rect.left,
+      grabPxY: e.clientY - rect.top,
       gridWidth: dims.gridWidth,
       gridDepth: dims.gridDepth,
     })
-  }, [cellSize, state.config])
+  }, [state.config])
 
   const handleDragEnd = useCallback(() => {
     setDragState(null)
@@ -177,6 +163,8 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
         <div
           ref={gridRef}
           className="relative"
+          onDragOver={handleGridDragOver}
+          onDrop={handleGridDrop}
           onDragLeave={handleGridDragLeave}
           style={{
             display: 'grid',
@@ -208,8 +196,6 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
                     isInDropPreview && "bg-primary/20 border-primary/50",
                     !isOccupied && !isInDropPreview && "hover:bg-accent/30"
                   )}
-                  onDragOver={(e) => handleCellDragOver(e, x, y)}
-                  onDrop={(e) => handleCellDrop(e, x, y)}
                   onDoubleClick={() => {
                     if (!isOccupied) {
                       onAddItemAtCell(x, y)
