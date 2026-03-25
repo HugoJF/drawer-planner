@@ -64,6 +64,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [dropTarget, setDropTarget] = useState<{ x: number; y: number } | null>(null)
+  const [contextItem, setContextItem] = useState<Item | null>(null)
   const gridRef = React.useRef<HTMLDivElement>(null)
 
   const items = getItemsInDrawer(drawer.id)
@@ -170,6 +171,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         <ContextMenuTrigger asChild>
           <div
             className="relative bg-secondary/30 rounded-lg p-2 overflow-auto"
+            onContextMenu={() => setContextItem(null)}
             style={{
               maxWidth: '100%',
               maxHeight: 'calc(100vh - 300px)',
@@ -236,14 +238,14 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const suitableDrawers = oversized ? getSuitableDrawers(item) : []
 
             return (
-              <ContextMenu key={item.id}>
-                <ContextMenuTrigger asChild>
               <div
+                key={item.id}
                 draggable
                 onDragStart={(e) => handleItemDragStart(e, item)}
                 onDragEnd={handleDragEnd}
                 onClick={() => selectItem(item.id)}
                 onDoubleClick={() => onEditItem(item)}
+                onContextMenu={(e) => { e.stopPropagation(); setContextItem(item) }}
                 className={cn(
                   "absolute rounded-sm cursor-move transition-all",
                   "flex flex-col items-center justify-center gap-0.5",
@@ -328,64 +330,65 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   </Tooltip>
                 )}
               </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-48">
-                  <ContextMenuItem onClick={() => onEditItem(item)}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </ContextMenuItem>
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>
-                      <ArrowRightLeft className="h-4 w-4 mr-2" />
-                      Move to
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="max-h-60 overflow-auto">
-                      <ContextMenuItem
-                        onClick={() => moveItem(item.id, null, 0, 0)}
-                        disabled={!item.drawerId}
-                      >
-                        <Package className="h-4 w-4 mr-2" />
-                        Unassigned
-                      </ContextMenuItem>
-                      <ContextMenuSeparator />
-                      {state.drawers.map(d => (
-                        <ContextMenuItem
-                          key={d.id}
-                          onClick={() => moveItem(item.id, d.id, 0, 0)}
-                          disabled={d.id === item.drawerId}
-                        >
-                          <FolderOpen className="h-4 w-4 mr-2" />
-                          {d.name}
-                          {isItemOversized(item, d) && (
-                            <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />
-                          )}
-                        </ContextMenuItem>
-                      ))}
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem variant="destructive" onClick={() => deleteItem(item.id)}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
             )
           })}
         </div>
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-40">
-          <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit drawer
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem variant="destructive" onClick={() => deleteDrawer(drawer.id)}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete drawer
-          </ContextMenuItem>
-        </ContextMenuContent>
+        {contextItem ? (
+          <ContextMenuContent className="w-48">
+            <ContextMenuItem onClick={() => onEditItem(contextItem)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </ContextMenuItem>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                Move to
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="max-h-60 overflow-auto">
+                <ContextMenuItem
+                  onClick={() => moveItem(contextItem.id, null, 0, 0)}
+                  disabled={!contextItem.drawerId}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Unassigned
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                {state.drawers.map(d => (
+                  <ContextMenuItem
+                    key={d.id}
+                    onClick={() => moveItem(contextItem.id, d.id, 0, 0)}
+                    disabled={d.id === contextItem.drawerId}
+                  >
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    {d.name}
+                    {isItemOversized(contextItem, d) && (
+                      <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />
+                    )}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={() => deleteItem(contextItem.id)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </ContextMenuItem>
+          </ContextMenuContent>
+        ) : (
+          <ContextMenuContent className="w-44">
+            <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit drawer
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={() => deleteDrawer(drawer.id)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete drawer
+            </ContextMenuItem>
+          </ContextMenuContent>
+        )}
       </ContextMenu>
 
       {/* Grid legend */}
