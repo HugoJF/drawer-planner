@@ -120,10 +120,11 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
     e.dataTransfer.setData('text/plain', item.id)
     e.dataTransfer.effectAllowed = 'move'
     
-    // Get cursor position relative to item
-    const rect = (e.target as HTMLElement).getBoundingClientRect()
-    const offsetX = Math.floor((e.clientX - rect.left) / cellSize)
-    const offsetY = Math.floor((e.clientY - rect.top) / cellSize)
+    // Get cursor position relative to the item div (not a child element)
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const cellStep = cellSize + 1 // cell width + 1px gap
+    const offsetX = Math.floor((e.clientX - rect.left) / cellStep)
+    const offsetY = Math.floor((e.clientY - rect.top) / cellStep)
     const dims = calculateItemGridDimensions(item, state.config)
     
     setDragState({
