@@ -10,7 +10,7 @@ import {
   findOverlappingItems,
   getRotatedDimensions,
 } from '@/lib/gridfinity'
-import { AlertTriangle, RotateCw, Move } from 'lucide-react'
+import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -23,11 +23,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import type { Drawer, Item, ItemRotation } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
 
 interface DrawerGridProps {
   drawer: Drawer
+  onEditDrawer: (drawer: Drawer) => void
   onEditItem: (item: Item) => void
   onAddItemAtCell: (gridX: number, gridY: number) => void
 }
@@ -40,13 +51,15 @@ interface DragState {
   gridDepth: number
 }
 
-export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridProps) {
-  const { 
-    state, 
-    getItemsInDrawer, 
-    moveItem, 
+export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }: DrawerGridProps) {
+  const {
+    state,
+    getItemsInDrawer,
+    moveItem,
+    deleteItem,
+    deleteDrawer,
     updateItem,
-    selectItem 
+    selectItem
   } = useDrawerPlanner()
 
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -153,13 +166,15 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
   return (
     <div className="relative">
       {/* Grid container */}
-      <div 
-        className="relative bg-secondary/30 rounded-lg p-2 overflow-auto"
-        style={{ 
-          maxWidth: '100%',
-          maxHeight: 'calc(100vh - 300px)',
-        }}
-      >
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            className="relative bg-secondary/30 rounded-lg p-2 overflow-auto"
+            style={{
+              maxWidth: '100%',
+              maxHeight: 'calc(100vh - 300px)',
+            }}
+          >
         <div
           ref={gridRef}
           className="relative"
@@ -178,28 +193,27 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
           {Array.from({ length: drawer.gridRows }).map((_, y) =>
             Array.from({ length: drawer.gridCols }).map((_, x) => {
               const isOccupied = occupancyMap.has(`${x},${y}`)
-              
-              // Check if this cell is part of the multi-cell drop preview
+
               const isInDropPreview = dropTarget && dragState && (
-                x >= dropTarget.x && 
+                x >= dropTarget.x &&
                 x < dropTarget.x + dragState.gridWidth &&
-                y >= dropTarget.y && 
+                y >= dropTarget.y &&
                 y < dropTarget.y + dragState.gridDepth
               )
-              
+
               return (
                 <div
                   key={`${x}-${y}`}
                   className={cn(
-                    "border border-border/30 rounded-sm transition-colors",
-                    isOccupied ? "bg-muted/20" : "bg-background/50",
-                    isInDropPreview && "bg-primary/20 border-primary/50",
-                    !isOccupied && !isInDropPreview && "hover:bg-accent/30"
+                    "transition-colors duration-100",
+                    isOccupied
+                      ? "bg-muted/20"
+                      : isInDropPreview
+                        ? "bg-primary/20"
+                        : "bg-border/20 hover:bg-border/40",
                   )}
                   onDoubleClick={() => {
-                    if (!isOccupied) {
-                      onAddItemAtCell(x, y)
-                    }
+                    if (!isOccupied) onAddItemAtCell(x, y)
                   }}
                   style={{
                     width: cellSize,
@@ -222,22 +236,23 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
             const suitableDrawers = oversized ? getSuitableDrawers(item) : []
 
             return (
+              <ContextMenu key={item.id}>
+                <ContextMenuTrigger asChild>
               <div
-                key={item.id}
                 draggable
                 onDragStart={(e) => handleItemDragStart(e, item)}
                 onDragEnd={handleDragEnd}
                 onClick={() => selectItem(item.id)}
                 onDoubleClick={() => onEditItem(item)}
                 className={cn(
-                  "absolute rounded-md cursor-move transition-all",
+                  "absolute rounded-sm cursor-move transition-all",
                   "flex flex-col items-center justify-center gap-0.5",
-                  "border-2 shadow-sm",
-                  isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+                  "border",
+                  isSelected && "ring-1 ring-primary ring-offset-1 ring-offset-background",
                   oversized && "border-destructive",
                   hasOverlap && !oversized && "border-amber-500",
-                  !oversized && !hasOverlap && "border-transparent",
-                  isDragging && "opacity-50 scale-95"
+                  !oversized && !hasOverlap && "border-black/10",
+                  isDragging && "opacity-50"
                 )}
                 style={{
                   left: item.gridX * (cellSize + 1) + 1,
@@ -313,10 +328,65 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
                   </Tooltip>
                 )}
               </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-48">
+                  <ContextMenuItem onClick={() => onEditItem(item)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <ArrowRightLeft className="h-4 w-4 mr-2" />
+                      Move to
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="max-h-60 overflow-auto">
+                      <ContextMenuItem
+                        onClick={() => moveItem(item.id, null, 0, 0)}
+                        disabled={!item.drawerId}
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Unassigned
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      {state.drawers.map(d => (
+                        <ContextMenuItem
+                          key={d.id}
+                          onClick={() => moveItem(item.id, d.id, 0, 0)}
+                          disabled={d.id === item.drawerId}
+                        >
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                          {d.name}
+                          {isItemOversized(item, d) && (
+                            <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />
+                          )}
+                        </ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem variant="destructive" onClick={() => deleteItem(item.id)}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             )
           })}
         </div>
-      </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-40">
+          <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit drawer
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem variant="destructive" onClick={() => deleteDrawer(drawer.id)}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete drawer
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       {/* Grid legend */}
       <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">

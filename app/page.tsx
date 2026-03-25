@@ -158,8 +158,9 @@ function DashboardContent() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <DrawerGrid 
-                      drawer={selectedDrawer} 
+                    <DrawerGrid
+                      drawer={selectedDrawer}
+                      onEditDrawer={handleEditDrawer}
                       onEditItem={handleEditItem}
                       onAddItemAtCell={handleAddItemAtCell}
                     />
