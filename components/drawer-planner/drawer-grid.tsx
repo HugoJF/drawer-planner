@@ -88,8 +88,13 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
   const handleCellDragOver = useCallback((e: React.DragEvent, cellX: number, cellY: number) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    setDropTarget({ x: cellX, y: cellY })
-  }, [])
+    if (dragState) {
+      setDropTarget({
+        x: Math.max(0, Math.min(cellX - dragState.offsetX, drawer.gridCols - dragState.gridWidth)),
+        y: Math.max(0, Math.min(cellY - dragState.offsetY, drawer.gridRows - dragState.gridDepth)),
+      })
+    }
+  }, [dragState, drawer.gridCols, drawer.gridRows])
 
   const handleCellDrop = useCallback((e: React.DragEvent, cellX: number, cellY: number) => {
     e.preventDefault()
@@ -99,16 +104,17 @@ export function DrawerGrid({ drawer, onEditItem, onAddItemAtCell }: DrawerGridPr
       const item = state.items.find(i => i.id === itemId)
       if (item) {
         const dims = calculateItemGridDimensions(item, state.config)
-        // Adjust position to account for item size (center on cursor)
-        const adjustedX = Math.max(0, Math.min(cellX, drawer.gridCols - dims.gridWidth))
-        const adjustedY = Math.max(0, Math.min(cellY, drawer.gridRows - dims.gridDepth))
+        const ox = dragState?.offsetX ?? 0
+        const oy = dragState?.offsetY ?? 0
+        const adjustedX = Math.max(0, Math.min(cellX - ox, drawer.gridCols - dims.gridWidth))
+        const adjustedY = Math.max(0, Math.min(cellY - oy, drawer.gridRows - dims.gridDepth))
         moveItem(itemId, drawer.id, adjustedX, adjustedY)
       }
     }
     
     setDropTarget(null)
     setDragState(null)
-  }, [state.items, state.config, drawer, moveItem])
+  }, [state.items, state.config, drawer, moveItem, dragState])
 
   const handleItemDragStart = useCallback((e: React.DragEvent, item: Item) => {
     e.dataTransfer.setData('text/plain', item.id)
