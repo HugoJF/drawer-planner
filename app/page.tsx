@@ -104,8 +104,8 @@ function DashboardContent() {
         <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/30">
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => setSidebarOpen(true)}
@@ -115,7 +115,18 @@ function DashboardContent() {
             )}
             <div className="flex items-center gap-2">
               <Grid3X3 className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold">Gridfinity Drawer Planner</h1>
+              {selectedDrawer ? (
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-semibold">{selectedDrawer.name}</h1>
+                  <span className="text-sm text-muted-foreground">
+                    {formatDimension(selectedDrawer.width, state.config.displayUnit)} ×{' '}
+                    {formatDimension(selectedDrawer.depth, state.config.displayUnit)} ×{' '}
+                    {formatDimension(selectedDrawer.height, state.config.displayUnit)}
+                  </span>
+                </div>
+              ) : (
+                <h1 className="text-lg font-semibold">Gridfinity Drawer Planner</h1>
+              )}
             </div>
           </div>
           
@@ -138,16 +149,6 @@ function DashboardContent() {
           <div className="p-4">
             {selectedDrawer ? (
               <div className="space-y-4">
-                {/* Drawer Header - simplified */}
-                <div>
-                  <h2 className="text-xl font-semibold">{selectedDrawer.name}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDimension(selectedDrawer.width, state.config.displayUnit)} x{' '}
-                    {formatDimension(selectedDrawer.depth, state.config.displayUnit)} x{' '}
-                    {formatDimension(selectedDrawer.height, state.config.displayUnit)}
-                  </p>
-                </div>
-
                 {/* Grid Visualization */}
                 <Card>
                   <CardHeader className="pb-3">
