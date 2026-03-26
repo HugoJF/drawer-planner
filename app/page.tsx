@@ -64,10 +64,10 @@ function DashboardContent() {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
         deleteItem(selectedItemId)
-      } else if (e.key === 'e' || e.key === 'E') {
+      } else if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
         handleEditItem(item)
-      } else if (e.key === 'r' || e.key === 'R') {
+      } else if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
         const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
         const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
