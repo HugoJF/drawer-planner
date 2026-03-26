@@ -98,14 +98,24 @@ function DashboardContent() {
           <>
             <div className="flex items-center justify-between p-3 border-b border-border">
               <h2 className="text-sm font-semibold">Organization</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={handleAddDrawer}
+                >
+                  <FolderPlus className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="flex-1 overflow-hidden">
               <DrawerTree
