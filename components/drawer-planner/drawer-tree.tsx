@@ -155,7 +155,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-2">
+      <div className="p-2 select-none">
         <div className="flex items-center justify-between px-2 py-1 mb-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
           <div className="flex items-center gap-1">
