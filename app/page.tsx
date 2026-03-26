@@ -7,8 +7,7 @@ import { DrawerForm } from '@/components/drawer-planner/drawer-form'
 import { ItemForm } from '@/components/drawer-planner/item-form'
 import { SettingsPanel } from '@/components/drawer-planner/settings-panel'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import {
   Plus,
@@ -174,28 +173,14 @@ function DashboardContent() {
         </header>
 
         {/* Content Area */}
-        <ScrollArea className="flex-1">
-          <div className="p-4">
+        <div className="flex-1 overflow-auto p-4">
             {selectedDrawer ? (
-              <div className="space-y-4">
-                {/* Grid Visualization */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Grid Layout</CardTitle>
-                    <CardDescription>
-                      Drag items to organize. Double-click empty cells to add items. Double-click items to edit.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <DrawerGrid
-                      drawer={selectedDrawer}
-                      onEditDrawer={handleEditDrawer}
-                      onEditItem={handleEditItem}
-                      onAddItemAtCell={handleAddItemAtCell}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
+              <DrawerGrid
+                drawer={selectedDrawer}
+                onEditDrawer={handleEditDrawer}
+                onEditItem={handleEditItem}
+                onAddItemAtCell={handleAddItemAtCell}
+              />
             ) : (
               <div className="flex items-center justify-center h-[calc(100vh-200px)]">
                 <Card className="max-w-md w-full">
@@ -217,8 +202,7 @@ function DashboardContent() {
                 </Card>
               </div>
             )}
-          </div>
-        </ScrollArea>
+        </div>
       </main>
 
       {/* Dialogs */}
