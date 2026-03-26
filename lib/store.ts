@@ -1,5 +1,5 @@
 import { createStore } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { useStore } from 'zustand'
 import type {
   GridfinityConfig,
@@ -47,7 +47,7 @@ export interface DrawerStore {
 }
 
 // Factory — used by tests to get a fresh isolated instance
-export function createDrawerStore() {
+export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>) {
   return createStore<DrawerStore>()(
     persist(
       (set, get) => ({
@@ -240,7 +240,7 @@ export function createDrawerStore() {
           }
         },
       }),
-      { name: 'gridfinity-drawer-planner' }
+      { name: 'gridfinity-drawer-planner', ...(storage ? { storage } : {}) }
     )
   )
 }
