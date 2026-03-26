@@ -132,7 +132,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
       <div className="p-2">
         <div className="flex items-center justify-between px-2 py-1 mb-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
-          <button onClick={onAddDrawer} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onAddDrawer} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
             <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
