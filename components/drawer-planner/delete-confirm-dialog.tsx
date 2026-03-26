@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,12 +11,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 
 interface DeleteConfirmDialogProps {
   open: boolean
   type: 'drawer' | 'item'
   name: string
-  onConfirm: () => void
+  onConfirm: (deleteContents: boolean) => void
   onCancel: () => void
 }
 
@@ -26,24 +29,43 @@ export function DeleteConfirmDialog({
   onConfirm,
   onCancel,
 }: DeleteConfirmDialogProps) {
-  const title = type === 'drawer' ? 'Delete drawer?' : 'Delete item?'
+  const [deleteContents, setDeleteContents] = useState(false)
+
+  useEffect(() => {
+    if (open) setDeleteContents(false)
+  }, [open])
+
   const description =
     type === 'drawer'
-      ? `"${name}" will be removed and its items will become unassigned. This cannot be undone.`
-      : `"${name}" will be permanently deleted. This cannot be undone.`
+      ? `"${name}" will be removed${deleteContents ? ' along with all its items' : ' and its items will become unassigned'}.`
+      : `"${name}" will be permanently deleted.`
 
   return (
     <AlertDialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onCancel() }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogTitle>{type === 'drawer' ? 'Delete drawer?' : 'Delete item?'}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+
+        {type === 'drawer' && (
+          <div className="flex items-center gap-2 py-1">
+            <Checkbox
+              id="delete-contents"
+              checked={deleteContents}
+              onCheckedChange={(v) => setDeleteContents(!!v)}
+            />
+            <Label htmlFor="delete-contents" className="cursor-pointer">
+              Also delete all items in this drawer
+            </Label>
+          </div>
+        )}
+
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={onConfirm}
+            className="bg-destructive text-white hover:bg-destructive/90"
+            onClick={() => onConfirm(deleteContents)}
           >
             Delete
           </AlertDialogAction>

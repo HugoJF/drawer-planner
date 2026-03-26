@@ -585,9 +585,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         open={pendingDelete !== null}
         type={pendingDelete?.type ?? 'item'}
         name={pendingDelete?.name ?? ''}
-        onConfirm={() => {
+        onConfirm={(deleteContents) => {
           if (!pendingDelete) return
-          if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id)
+          if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id, deleteContents)
           else deleteItem(pendingDelete.id)
           setPendingDelete(null)
         }}

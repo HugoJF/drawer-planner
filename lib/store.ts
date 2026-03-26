@@ -30,7 +30,7 @@ export interface DrawerStore {
   // Actions
   addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows'>) => void
   updateDrawer: (drawer: Drawer) => void
-  deleteDrawer: (id: string) => void
+  deleteDrawer: (id: string, deleteContents?: boolean) => void
   duplicateDrawer: (id: string) => void
   addItem: (item: Omit<Item, 'id'>) => void
   updateItem: (item: Item) => void
@@ -113,15 +113,17 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             }))
           },
 
-          deleteDrawer: (id) => {
+          deleteDrawer: (id, deleteContents = false) => {
             push()
             set((state) => ({
               drawers: state.drawers.filter((d) => d.id !== id),
-              items: state.items.map((item) =>
-                item.drawerId === id
-                  ? { ...item, drawerId: null, gridX: 0, gridY: 0 }
-                  : item
-              ),
+              items: deleteContents
+                ? state.items.filter((item) => item.drawerId !== id)
+                : state.items.map((item) =>
+                    item.drawerId === id
+                      ? { ...item, drawerId: null, gridX: 0, gridY: 0 }
+                      : item
+                  ),
               selectedDrawerId:
                 state.selectedDrawerId === id ? null : state.selectedDrawerId,
             }))
