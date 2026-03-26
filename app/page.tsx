@@ -31,6 +31,7 @@ function DashboardContent() {
   const [editingDrawer, setEditingDrawer] = useState<Drawer | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [newItemPosition, setNewItemPosition] = useState<{ gridX: number; gridY: number } | null>(null)
+  const [newItemDimensions, setNewItemDimensions] = useState<{ width: number; depth: number } | null>(null)
 
   const selectedDrawer = state.selectedDrawerId 
     ? getDrawerById(state.selectedDrawerId) 
@@ -49,12 +50,14 @@ function DashboardContent() {
   const handleAddItem = () => {
     setEditingItem(null)
     setNewItemPosition(null)
+    setNewItemDimensions(null)
     setItemFormOpen(true)
   }
 
-  const handleAddItemAtCell = (gridX: number, gridY: number) => {
+  const handleAddItemAtCell = (gridX: number, gridY: number, initialWidth?: number, initialDepth?: number) => {
     setEditingItem(null)
     setNewItemPosition({ gridX, gridY })
+    setNewItemDimensions(initialWidth && initialDepth ? { width: initialWidth, depth: initialDepth } : null)
     setItemFormOpen(true)
   }
 
@@ -203,6 +206,7 @@ function DashboardContent() {
         onOpenChange={setItemFormOpen}
         item={editingItem}
         initialPosition={newItemPosition}
+        initialDimensions={newItemDimensions}
       />
     </div>
   )

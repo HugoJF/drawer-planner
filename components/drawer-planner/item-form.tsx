@@ -31,9 +31,10 @@ interface ItemFormProps {
   onOpenChange: (open: boolean) => void
   item?: Item | null
   initialPosition?: { gridX: number; gridY: number } | null
+  initialDimensions?: { width: number; depth: number } | null // in mm
 }
 
-export function ItemForm({ open, onOpenChange, item, initialPosition }: ItemFormProps) {
+export function ItemForm({ open, onOpenChange, item, initialPosition, initialDimensions }: ItemFormProps) {
   const { state, addItem, updateItem } = useDrawerPlanner()
   const isEditing = !!item
 
@@ -58,14 +59,14 @@ export function ItemForm({ open, onOpenChange, item, initialPosition }: ItemForm
       setDrawerId(item.drawerId)
     } else {
       setName('')
-      setWidth('')
+      setWidth(initialDimensions ? toDisplayUnit(initialDimensions.width, unit).toString() : '')
       setHeight('')
-      setDepth('')
+      setDepth(initialDimensions ? toDisplayUnit(initialDimensions.depth, unit).toString() : '')
       setColor(ITEM_COLORS[Math.floor(Math.random() * ITEM_COLORS.length)])
       setRotation('normal')
       setDrawerId(state.selectedDrawerId)
     }
-  }, [item, open, state.selectedDrawerId, unit])
+  }, [item, open, state.selectedDrawerId, unit, initialDimensions])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
