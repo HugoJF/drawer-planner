@@ -79,7 +79,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const { toast } = useToast()
   const handleDuplicateItem = useCallback((id: string) => {
     const placed = duplicateItem(id)
-    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.', variant: 'destructive' })
+    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
   }, [duplicateItem, toast])
 
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())

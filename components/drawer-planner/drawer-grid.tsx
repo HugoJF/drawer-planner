@@ -544,7 +544,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             </ContextMenuItem>
             <ContextMenuItem onClick={() => {
               const placed = duplicateItem(contextItem.id)
-              if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.', variant: 'destructive' })
+              if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
             }}>
               <Copy className="h-4 w-4 mr-2" />Duplicate
             </ContextMenuItem>
