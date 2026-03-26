@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useDrawerStore } from '@/lib/store'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
 import { DrawerGrid } from '@/components/drawer-planner/drawer-grid'
@@ -29,7 +29,6 @@ function DashboardContent() {
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
   const drawers = useDrawerStore(s => s.drawers)
   const config = useDrawerStore(s => s.config)
-  const getDrawerById = useDrawerStore(s => s.getDrawerById)
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [drawerFormOpen, setDrawerFormOpen] = useState(false)
@@ -48,7 +47,10 @@ function DashboardContent() {
   const allItems = useDrawerStore(s => s.items)
   const deleteItem = useDrawerStore(s => s.deleteItem)
   const updateItem = useDrawerStore(s => s.updateItem)
-  const selectedDrawer = selectedDrawerId ? getDrawerById(selectedDrawerId) : null
+  const selectedDrawer = useMemo(
+    () => drawers.find(d => d.id === selectedDrawerId) ?? null,
+    [drawers, selectedDrawerId]
+  )
   const { toast } = useToast()
 
   useEffect(() => {
