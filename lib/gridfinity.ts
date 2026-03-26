@@ -92,6 +92,40 @@ export function findSuitableDrawers(item: Item, drawers: Drawer[]): Drawer[] {
 }
 
 /**
+ * Find the first available position in a drawer for an item (row-major scan).
+ * Returns null if no position fits.
+ */
+export function findAvailablePosition(
+  dims: { gridWidth: number; gridDepth: number },
+  drawer: Drawer,
+  existingItems: Item[],
+  config: GridfinityConfig
+): { gridX: number; gridY: number } | null {
+  const occupied = new Set<string>()
+  for (const other of existingItems) {
+    if (other.drawerId !== drawer.id) continue
+    const d = calculateItemGridDimensions(other, config)
+    for (let x = other.gridX; x < other.gridX + d.gridWidth; x++) {
+      for (let y = other.gridY; y < other.gridY + d.gridDepth; y++) {
+        occupied.add(`${x},${y}`)
+      }
+    }
+  }
+  for (let y = 0; y <= drawer.gridRows - dims.gridDepth; y++) {
+    for (let x = 0; x <= drawer.gridCols - dims.gridWidth; x++) {
+      let fits = true
+      outer: for (let dx = 0; dx < dims.gridWidth; dx++) {
+        for (let dy = 0; dy < dims.gridDepth; dy++) {
+          if (occupied.has(`${x + dx},${y + dy}`)) { fits = false; break outer }
+        }
+      }
+      if (fits) return { gridX: x, gridY: y }
+    }
+  }
+  return null
+}
+
+/**
  * Check if item placement is valid (within grid bounds)
  */
 export function isValidPlacement(

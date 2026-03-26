@@ -2,16 +2,17 @@
 
 import React, { useState } from 'react'
 import { 
-  ChevronRight, 
-  ChevronDown, 
-  Package, 
-  Box, 
+  ChevronRight,
+  ChevronDown,
+  Package,
+  Box,
   FolderOpen,
   MoreHorizontal,
   Pencil,
   Trash2,
   AlertTriangle,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Copy
 } from 'lucide-react'
 import { useDrawerPlanner } from './drawer-planner-provider'
 import { cn } from '@/lib/utils'
@@ -47,13 +48,15 @@ interface DrawerTreeProps {
 
 export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
   const { 
-    state, 
-    selectDrawer, 
-    selectItem, 
-    deleteDrawer, 
+    state,
+    selectDrawer,
+    selectItem,
+    deleteDrawer,
+    duplicateDrawer,
     deleteItem,
+    duplicateItem,
     moveItem,
-    getItemsInDrawer, 
+    getItemsInDrawer,
     getUnassignedItems,
     getDrawerById,
   } = useDrawerPlanner()
@@ -176,8 +179,12 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                           <Pencil className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => duplicateDrawer(drawer.id)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Duplicate
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           variant="destructive"
                           onClick={() => deleteDrawer(drawer.id)}
                         >
@@ -207,6 +214,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                               selectItem(item.id)
                             }}
                             onEdit={() => onEditItem(item)}
+                            onDuplicate={() => duplicateItem(item.id)}
                             onDelete={() => deleteItem(item.id)}
                             onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}
@@ -252,6 +260,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                     isDragging={draggedItem === item.id}
                     onSelect={() => selectItem(item.id)}
                     onEdit={() => onEditItem(item)}
+                    onDuplicate={() => duplicateItem(item.id)}
                     onDelete={() => deleteItem(item.id)}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
@@ -275,6 +284,7 @@ interface TreeItemProps {
   isDragging: boolean
   onSelect: () => void
   onEdit: () => void
+  onDuplicate: () => void
   onDelete: () => void
   onDragStart: (e: React.DragEvent, itemId: string) => void
   onDragEnd: () => void
@@ -289,6 +299,7 @@ function TreeItem({
   isDragging,
   onSelect,
   onEdit,
+  onDuplicate,
   onDelete,
   onDragStart,
   onDragEnd,
@@ -346,7 +357,11 @@ function TreeItem({
             <Pencil className="h-4 w-4 mr-2" />
             Edit
           </DropdownMenuItem>
-          
+          <DropdownMenuItem onClick={onDuplicate}>
+            <Copy className="h-4 w-4 mr-2" />
+            Duplicate
+          </DropdownMenuItem>
+
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <ArrowRightLeft className="h-4 w-4 mr-2" />

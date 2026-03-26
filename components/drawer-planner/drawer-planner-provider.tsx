@@ -10,7 +10,7 @@ import type {
   ExportData,
 } from '@/lib/types'
 import { DEFAULT_CONFIG as CONFIG_DEFAULTS } from '@/lib/types'
-import { calculateDrawerGrid, generateId } from '@/lib/gridfinity'
+import { calculateDrawerGrid, calculateItemGridDimensions, generateId, findAvailablePosition } from '@/lib/gridfinity'
 
 const STORAGE_KEY = 'gridfinity-drawer-planner'
 
@@ -155,6 +155,38 @@ function appReducer(state: AppState, action: AppAction): AppState {
       }
     }
 
+    case 'DUPLICATE_DRAWER': {
+      const src = state.drawers.find(d => d.id === action.payload)
+      if (!src) return state
+      const newId = generateId()
+      const newDrawer: Drawer = { ...src, id: newId, name: `${src.name} (copy)` }
+      const newItems = state.items
+        .filter(i => i.drawerId === src.id)
+        .map(i => ({ ...i, id: generateId(), drawerId: newId }))
+      return {
+        ...state,
+        drawers: [...state.drawers, newDrawer],
+        items: [...state.items, ...newItems],
+        selectedDrawerId: newId,
+      }
+    }
+
+    case 'DUPLICATE_ITEM': {
+      const src = state.items.find(i => i.id === action.payload)
+      if (!src) return state
+      const drawer = src.drawerId ? state.drawers.find(d => d.id === src.drawerId) : null
+      const srcDims = calculateItemGridDimensions(src, state.config)
+      const pos = (drawer
+        ? findAvailablePosition(srcDims, drawer, state.items, state.config)
+        : null) ?? { gridX: src.gridX, gridY: src.gridY }
+      const newItem: Item = { ...src, id: generateId(), name: `${src.name} (copy)`, ...pos }
+      return {
+        ...state,
+        items: [...state.items, newItem],
+        selectedItemId: newItem.id,
+      }
+    }
+
     case 'LOAD_STATE': {
       return action.payload
     }
@@ -171,9 +203,11 @@ interface DrawerPlannerContextType {
   addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows'>) => void
   updateDrawer: (drawer: Drawer) => void
   deleteDrawer: (id: string) => void
+  duplicateDrawer: (id: string) => void
   addItem: (item: Omit<Item, 'id'>) => void
   updateItem: (item: Item) => void
   deleteItem: (id: string) => void
+  duplicateItem: (id: string) => void
   moveItem: (itemId: string, drawerId: string | null, gridX: number, gridY: number) => void
   updateConfig: (config: Partial<GridfinityConfig>) => void
   selectDrawer: (id: string | null) => void
@@ -220,6 +254,10 @@ export function DrawerPlannerProvider({ children }: { children: React.ReactNode 
     dispatch({ type: 'DELETE_DRAWER', payload: id })
   }, [])
 
+  const duplicateDrawer = useCallback((id: string) => {
+    dispatch({ type: 'DUPLICATE_DRAWER', payload: id })
+  }, [])
+
   const addItem = useCallback((item: Omit<Item, 'id'>) => {
     dispatch({ type: 'ADD_ITEM', payload: item })
   }, [])
@@ -230,6 +268,10 @@ export function DrawerPlannerProvider({ children }: { children: React.ReactNode 
 
   const deleteItem = useCallback((id: string) => {
     dispatch({ type: 'DELETE_ITEM', payload: id })
+  }, [])
+
+  const duplicateItem = useCallback((id: string) => {
+    dispatch({ type: 'DUPLICATE_ITEM', payload: id })
   }, [])
 
   const moveItem = useCallback((
@@ -302,9 +344,11 @@ export function DrawerPlannerProvider({ children }: { children: React.ReactNode 
         addDrawer,
         updateDrawer,
         deleteDrawer,
+        duplicateDrawer,
         addItem,
         updateItem,
         deleteItem,
+        duplicateItem,
         moveItem,
         updateConfig,
         selectDrawer,

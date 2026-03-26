@@ -75,6 +75,8 @@ export type AppAction =
   | { type: 'SET_SELECTED_DRAWER'; payload: string | null }
   | { type: 'SET_SELECTED_ITEM'; payload: string | null }
   | { type: 'LOAD_STATE'; payload: AppState }
+  | { type: 'DUPLICATE_DRAWER'; payload: string }
+  | { type: 'DUPLICATE_ITEM'; payload: string }
 
 export interface AppState {
   config: GridfinityConfig

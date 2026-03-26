@@ -10,7 +10,7 @@ import {
   findOverlappingItems,
   getRotatedDimensions,
 } from '@/lib/gridfinity'
-import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package } from 'lucide-react'
+import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy } from 'lucide-react'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -75,9 +75,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     getItemsInDrawer,
     moveItem,
     deleteItem,
+    duplicateItem,
     deleteDrawer,
+    duplicateDrawer,
     updateItem,
-    selectItem
+    selectItem,
   } = useDrawerPlanner()
 
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -536,6 +538,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             <ContextMenuItem onClick={() => onEditItem(contextItem)}>
               <Pencil className="h-4 w-4 mr-2" />Edit
             </ContextMenuItem>
+            <ContextMenuItem onClick={() => duplicateItem(contextItem.id)}>
+              <Copy className="h-4 w-4 mr-2" />Duplicate
+            </ContextMenuItem>
             <ContextMenuSub>
               <ContextMenuSubTrigger>
                 <ArrowRightLeft className="h-4 w-4 mr-2" />Move to
@@ -562,6 +567,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           <ContextMenuContent className="w-44">
             <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
               <Pencil className="h-4 w-4 mr-2" />Edit drawer
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => duplicateDrawer(drawer.id)}>
+              <Copy className="h-4 w-4 mr-2" />Duplicate drawer
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => deleteDrawer(drawer.id)}>
