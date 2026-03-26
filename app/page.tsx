@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useDrawerStore } from '@/lib/store'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
 import { DrawerGrid } from '@/components/drawer-planner/drawer-grid'
@@ -17,6 +17,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Grid3X3,
+  Undo2,
+  Redo2,
 } from 'lucide-react'
 import type { Drawer, Item } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
@@ -36,7 +38,22 @@ function DashboardContent() {
   const [newItemPosition, setNewItemPosition] = useState<{ gridX: number; gridY: number } | null>(null)
   const [newItemDimensions, setNewItemDimensions] = useState<{ width: number; depth: number } | null>(null)
 
+  const undo = useDrawerStore(s => s.undo)
+  const redo = useDrawerStore(s => s.redo)
+  const canUndo = useDrawerStore(s => s.past.length > 0)
+  const canRedo = useDrawerStore(s => s.future.length > 0)
+
   const selectedDrawer = selectedDrawerId ? getDrawerById(selectedDrawerId) : null
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [undo, redo])
 
   const handleAddDrawer = () => {
     setEditingDrawer(null)
@@ -135,6 +152,13 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={undo} disabled={!canUndo}>
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={redo} disabled={!canRedo}>
+              <Redo2 className="h-4 w-4" />
+            </Button>
+            <Separator orientation="vertical" className="h-6" />
             <SettingsPanel />
             <Separator orientation="vertical" className="h-6" />
             <Button variant="outline" size="sm" className="gap-2" onClick={handleAddDrawer}>

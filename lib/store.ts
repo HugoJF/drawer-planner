@@ -15,6 +15,8 @@ import {
   findAvailablePosition,
 } from '@/lib/gridfinity'
 
+type Snapshot = { drawers: Drawer[]; items: Item[]; config: GridfinityConfig }
+
 export interface DrawerStore {
   // State
   config: GridfinityConfig
@@ -22,6 +24,8 @@ export interface DrawerStore {
   items: Item[]
   selectedDrawerId: string | null
   selectedItemId: string | null
+  past: Snapshot[]
+  future: Snapshot[]
 
   // Actions
   addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows'>) => void
@@ -36,6 +40,8 @@ export interface DrawerStore {
   updateConfig: (config: Partial<GridfinityConfig>) => void
   selectDrawer: (id: string | null) => void
   selectItem: (id: string | null) => void
+  undo: () => void
+  redo: () => void
 
   // Computed getters
   getDrawerById: (id: string) => Drawer | undefined
@@ -50,197 +56,260 @@ export interface DrawerStore {
 export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>) {
   return createStore<DrawerStore>()(
     persist(
-      (set, get) => ({
-        // Initial state
-        config: DEFAULT_CONFIG,
-        drawers: [],
-        items: [],
-        selectedDrawerId: null,
-        selectedItemId: null,
+      (set, get) => {
+        const snap = (): Snapshot => {
+          const { drawers, items, config } = get()
+          return { drawers, items, config }
+        }
 
-        // Actions
-        addDrawer: (drawer) => {
-          const { gridCols, gridRows } = calculateDrawerGrid(
-            drawer.width,
-            drawer.depth,
-            get().config
-          )
-          const newDrawer: Drawer = {
-            ...drawer,
-            id: generateId(),
-            gridCols,
-            gridRows,
-          }
-          set((state) => ({
-            drawers: [...state.drawers, newDrawer],
-            selectedDrawerId: newDrawer.id,
-          }))
-        },
+        const push = () => {
+          const { past } = get()
+          set({ past: [...past.slice(-49), snap()], future: [] })
+        }
 
-        updateDrawer: (drawer) => {
-          const { gridCols, gridRows } = calculateDrawerGrid(
-            drawer.width,
-            drawer.depth,
-            get().config
-          )
-          set((state) => ({
-            drawers: state.drawers.map((d) =>
-              d.id === drawer.id
-                ? { ...drawer, gridCols, gridRows }
-                : d
-            ),
-          }))
-        },
+        return {
+          // Initial state
+          config: DEFAULT_CONFIG,
+          drawers: [],
+          items: [],
+          selectedDrawerId: null,
+          selectedItemId: null,
+          past: [],
+          future: [],
 
-        deleteDrawer: (id) => {
-          set((state) => ({
-            drawers: state.drawers.filter((d) => d.id !== id),
-            items: state.items.map((item) =>
-              item.drawerId === id
-                ? { ...item, drawerId: null, gridX: 0, gridY: 0 }
-                : item
-            ),
-            selectedDrawerId:
-              state.selectedDrawerId === id ? null : state.selectedDrawerId,
-          }))
-        },
+          // Actions
+          addDrawer: (drawer) => {
+            push()
+            const { gridCols, gridRows } = calculateDrawerGrid(
+              drawer.width,
+              drawer.depth,
+              get().config
+            )
+            const newDrawer: Drawer = {
+              ...drawer,
+              id: generateId(),
+              gridCols,
+              gridRows,
+            }
+            set((state) => ({
+              drawers: [...state.drawers, newDrawer],
+              selectedDrawerId: newDrawer.id,
+            }))
+          },
 
-        duplicateDrawer: (id) => {
-          const state = get()
-          const src = state.drawers.find((d) => d.id === id)
-          if (!src) return
-          const newId = generateId()
-          const newDrawer: Drawer = { ...src, id: newId, name: `${src.name} (copy)` }
-          const newItems = state.items
-            .filter((i) => i.drawerId === src.id)
-            .map((i) => ({ ...i, id: generateId(), drawerId: newId }))
-          set((s) => ({
-            drawers: [...s.drawers, newDrawer],
-            items: [...s.items, ...newItems],
-            selectedDrawerId: newId,
-          }))
-        },
+          updateDrawer: (drawer) => {
+            push()
+            const { gridCols, gridRows } = calculateDrawerGrid(
+              drawer.width,
+              drawer.depth,
+              get().config
+            )
+            set((state) => ({
+              drawers: state.drawers.map((d) =>
+                d.id === drawer.id
+                  ? { ...drawer, gridCols, gridRows }
+                  : d
+              ),
+            }))
+          },
 
-        addItem: (item) => {
-          const newItem: Item = { ...item, id: generateId() }
-          set((state) => ({
-            items: [...state.items, newItem],
-            selectedItemId: newItem.id,
-          }))
-        },
+          deleteDrawer: (id) => {
+            push()
+            set((state) => ({
+              drawers: state.drawers.filter((d) => d.id !== id),
+              items: state.items.map((item) =>
+                item.drawerId === id
+                  ? { ...item, drawerId: null, gridX: 0, gridY: 0 }
+                  : item
+              ),
+              selectedDrawerId:
+                state.selectedDrawerId === id ? null : state.selectedDrawerId,
+            }))
+          },
 
-        updateItem: (item) => {
-          set((state) => ({
-            items: state.items.map((i) => (i.id === item.id ? item : i)),
-          }))
-        },
+          duplicateDrawer: (id) => {
+            push()
+            const state = get()
+            const src = state.drawers.find((d) => d.id === id)
+            if (!src) return
+            const newId = generateId()
+            const newDrawer: Drawer = { ...src, id: newId, name: `${src.name} (copy)` }
+            const newItems = state.items
+              .filter((i) => i.drawerId === src.id)
+              .map((i) => ({ ...i, id: generateId(), drawerId: newId }))
+            set((s) => ({
+              drawers: [...s.drawers, newDrawer],
+              items: [...s.items, ...newItems],
+              selectedDrawerId: newId,
+            }))
+          },
 
-        deleteItem: (id) => {
-          set((state) => ({
-            items: state.items.filter((i) => i.id !== id),
-            selectedItemId:
-              state.selectedItemId === id ? null : state.selectedItemId,
-          }))
-        },
+          addItem: (item) => {
+            push()
+            const newItem: Item = { ...item, id: generateId() }
+            set((state) => ({
+              items: [...state.items, newItem],
+              selectedItemId: newItem.id,
+            }))
+          },
 
-        duplicateItem: (id) => {
-          const state = get()
-          const src = state.items.find((i) => i.id === id)
-          if (!src) return
-          const drawer = src.drawerId
-            ? state.drawers.find((d) => d.id === src.drawerId)
-            : null
-          const srcDims = calculateItemGridDimensions(src, state.config)
-          const pos =
-            (drawer
-              ? findAvailablePosition(srcDims, drawer, state.items, state.config)
-              : null) ?? { gridX: src.gridX, gridY: src.gridY }
-          const newItem: Item = {
-            ...src,
-            id: generateId(),
-            name: `${src.name} (copy)`,
-            ...pos,
-          }
-          set((s) => ({
-            items: [...s.items, newItem],
-            selectedItemId: newItem.id,
-          }))
-        },
+          updateItem: (item) => {
+            push()
+            set((state) => ({
+              items: state.items.map((i) => (i.id === item.id ? item : i)),
+            }))
+          },
 
-        moveItem: (itemId, drawerId, gridX, gridY) => {
-          set((state) => ({
-            items: state.items.map((item) =>
-              item.id === itemId
-                ? { ...item, drawerId, gridX, gridY }
-                : item
-            ),
-          }))
-        },
+          deleteItem: (id) => {
+            push()
+            set((state) => ({
+              items: state.items.filter((i) => i.id !== id),
+              selectedItemId:
+                state.selectedItemId === id ? null : state.selectedItemId,
+            }))
+          },
 
-        updateConfig: (config) => {
-          set((state) => {
-            const newConfig = { ...state.config, ...config }
-            const updatedDrawers = state.drawers.map((drawer) => {
-              const { gridCols, gridRows } = calculateDrawerGrid(
-                drawer.width,
-                drawer.depth,
-                newConfig
-              )
-              return { ...drawer, gridCols, gridRows }
+          duplicateItem: (id) => {
+            push()
+            const state = get()
+            const src = state.items.find((i) => i.id === id)
+            if (!src) return
+            const drawer = src.drawerId
+              ? state.drawers.find((d) => d.id === src.drawerId)
+              : null
+            const srcDims = calculateItemGridDimensions(src, state.config)
+            const pos =
+              (drawer
+                ? findAvailablePosition(srcDims, drawer, state.items, state.config)
+                : null) ?? { gridX: src.gridX, gridY: src.gridY }
+            const newItem: Item = {
+              ...src,
+              id: generateId(),
+              name: `${src.name} (copy)`,
+              ...pos,
+            }
+            set((s) => ({
+              items: [...s.items, newItem],
+              selectedItemId: newItem.id,
+            }))
+          },
+
+          moveItem: (itemId, drawerId, gridX, gridY) => {
+            push()
+            set((state) => ({
+              items: state.items.map((item) =>
+                item.id === itemId
+                  ? { ...item, drawerId, gridX, gridY }
+                  : item
+              ),
+            }))
+          },
+
+          updateConfig: (config) => {
+            push()
+            set((state) => {
+              const newConfig = { ...state.config, ...config }
+              const updatedDrawers = state.drawers.map((drawer) => {
+                const { gridCols, gridRows } = calculateDrawerGrid(
+                  drawer.width,
+                  drawer.depth,
+                  newConfig
+                )
+                return { ...drawer, gridCols, gridRows }
+              })
+              return { config: newConfig, drawers: updatedDrawers }
             })
-            return { config: newConfig, drawers: updatedDrawers }
-          })
-        },
+          },
 
-        selectDrawer: (id) => {
-          set({ selectedDrawerId: id })
-        },
+          selectDrawer: (id) => {
+            set({ selectedDrawerId: id })
+          },
 
-        selectItem: (id) => {
-          set({ selectedItemId: id })
-        },
+          selectItem: (id) => {
+            set({ selectedItemId: id })
+          },
 
-        // Computed getters
-        getDrawerById: (id) => {
-          return get().drawers.find((d) => d.id === id)
-        },
-
-        getItemById: (id) => {
-          return get().items.find((i) => i.id === id)
-        },
-
-        getItemsInDrawer: (drawerId) => {
-          return get().items.filter((item) => item.drawerId === drawerId)
-        },
-
-        getUnassignedItems: () => {
-          return get().items.filter((item) => item.drawerId === null)
-        },
-
-        exportData: (): ExportData => {
-          const state = get()
-          return {
-            version: '1.0',
-            exportDate: new Date().toISOString(),
-            config: state.config,
-            drawers: state.drawers,
-            items: state.items,
-          }
-        },
-
-        importData: (data) => {
-          if (data.version && data.drawers && data.items) {
+          undo: () => {
+            const { past, future, drawers, items, config, selectedDrawerId, selectedItemId } = get()
+            if (past.length === 0) return
+            const prev = past[past.length - 1]
             set({
-              config: { ...DEFAULT_CONFIG, ...data.config },
-              drawers: data.drawers,
-              items: data.items,
-              selectedDrawerId: null,
-              selectedItemId: null,
+              past: past.slice(0, -1),
+              future: [{ drawers, items, config }, ...future.slice(0, 49)],
+              drawers: prev.drawers,
+              items: prev.items,
+              config: prev.config,
+              selectedDrawerId: prev.drawers.some(d => d.id === selectedDrawerId) ? selectedDrawerId : null,
+              selectedItemId: prev.items.some(i => i.id === selectedItemId) ? selectedItemId : null,
             })
-          }
-        },
-      }),
-      { name: 'gridfinity-drawer-planner', ...(storage ? { storage } : {}) }
+          },
+
+          redo: () => {
+            const { past, future, drawers, items, config, selectedDrawerId, selectedItemId } = get()
+            if (future.length === 0) return
+            const next = future[0]
+            set({
+              future: future.slice(1),
+              past: [...past.slice(-49), { drawers, items, config }],
+              drawers: next.drawers,
+              items: next.items,
+              config: next.config,
+              selectedDrawerId: next.drawers.some(d => d.id === selectedDrawerId) ? selectedDrawerId : null,
+              selectedItemId: next.items.some(i => i.id === selectedItemId) ? selectedItemId : null,
+            })
+          },
+
+          // Computed getters
+          getDrawerById: (id) => {
+            return get().drawers.find((d) => d.id === id)
+          },
+
+          getItemById: (id) => {
+            return get().items.find((i) => i.id === id)
+          },
+
+          getItemsInDrawer: (drawerId) => {
+            return get().items.filter((item) => item.drawerId === drawerId)
+          },
+
+          getUnassignedItems: () => {
+            return get().items.filter((item) => item.drawerId === null)
+          },
+
+          exportData: (): ExportData => {
+            const state = get()
+            return {
+              version: '1.0',
+              exportDate: new Date().toISOString(),
+              config: state.config,
+              drawers: state.drawers,
+              items: state.items,
+            }
+          },
+
+          importData: (data) => {
+            if (data.version && data.drawers && data.items) {
+              push()
+              set({
+                config: { ...DEFAULT_CONFIG, ...data.config },
+                drawers: data.drawers,
+                items: data.items,
+                selectedDrawerId: null,
+                selectedItemId: null,
+              })
+            }
+          },
+        }
+      },
+      {
+        name: 'gridfinity-drawer-planner',
+        partialize: (state) => ({
+          config: state.config,
+          drawers: state.drawers,
+          items: state.items,
+        }),
+        ...(storage ? { storage } : {}),
+      }
     )
   )
 }
