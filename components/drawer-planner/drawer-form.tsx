@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -29,26 +29,12 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
   const updateDrawer = useDrawerStore(s => s.updateDrawer)
   const isEditing = !!drawer
 
-  const [name, setName] = useState('')
-  const [width, setWidth] = useState('')
-  const [height, setHeight] = useState('')
-  const [depth, setDepth] = useState('')
-
   const unit = config.displayUnit
 
-  useEffect(() => {
-    if (drawer) {
-      setName(drawer.name)
-      setWidth(toDisplayUnit(drawer.width, unit).toString())
-      setHeight(toDisplayUnit(drawer.height, unit).toString())
-      setDepth(toDisplayUnit(drawer.depth, unit).toString())
-    } else {
-      setName('')
-      setWidth('')
-      setHeight('')
-      setDepth('')
-    }
-  }, [drawer, open, unit])
+  const [name, setName] = useState(drawer?.name ?? '')
+  const [width, setWidth] = useState(drawer ? toDisplayUnit(drawer.width, unit).toString() : '')
+  const [height, setHeight] = useState(drawer ? toDisplayUnit(drawer.height, unit).toString() : '')
+  const [depth, setDepth] = useState(drawer ? toDisplayUnit(drawer.depth, unit).toString() : '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

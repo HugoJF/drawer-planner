@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -42,35 +42,25 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialDim
   const updateItem = useDrawerStore(s => s.updateItem)
   const isEditing = !!item
 
-  const [name, setName] = useState('')
-  const [width, setWidth] = useState('')
-  const [height, setHeight] = useState('')
-  const [depth, setDepth] = useState('')
-  const [color, setColor] = useState(ITEM_COLORS[0])
-  const [rotation, setRotation] = useState<ItemRotation>('normal')
-  const [drawerId, setDrawerId] = useState<string | null>(null)
-
   const unit = config.displayUnit
 
-  useEffect(() => {
-    if (item) {
-      setName(item.name)
-      setWidth(toDisplayUnit(item.width, unit).toString())
-      setHeight(toDisplayUnit(item.height, unit).toString())
-      setDepth(toDisplayUnit(item.depth, unit).toString())
-      setColor(item.color)
-      setRotation(item.rotation)
-      setDrawerId(item.drawerId)
-    } else {
-      setName('')
-      setWidth(initialDimensions ? toDisplayUnit(initialDimensions.width, unit).toString() : '')
-      setHeight('')
-      setDepth(initialDimensions ? toDisplayUnit(initialDimensions.depth, unit).toString() : '')
-      setColor(ITEM_COLORS[Math.floor(Math.random() * ITEM_COLORS.length)])
-      setRotation('normal')
-      setDrawerId(selectedDrawerId)
-    }
-  }, [item, open, selectedDrawerId, unit, initialDimensions])
+  const [name, setName] = useState(item?.name ?? '')
+  const [width, setWidth] = useState(
+    item ? toDisplayUnit(item.width, unit).toString()
+    : initialDimensions ? toDisplayUnit(initialDimensions.width, unit).toString()
+    : ''
+  )
+  const [height, setHeight] = useState(item ? toDisplayUnit(item.height, unit).toString() : '')
+  const [depth, setDepth] = useState(
+    item ? toDisplayUnit(item.depth, unit).toString()
+    : initialDimensions ? toDisplayUnit(initialDimensions.depth, unit).toString()
+    : ''
+  )
+  const [color, setColor] = useState(
+    item?.color ?? ITEM_COLORS[Math.floor(Math.random() * ITEM_COLORS.length)]
+  )
+  const [rotation, setRotation] = useState<ItemRotation>(item?.rotation ?? 'normal')
+  const [drawerId, setDrawerId] = useState<string | null>(item?.drawerId ?? selectedDrawerId)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

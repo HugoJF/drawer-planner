@@ -68,7 +68,9 @@ function DashboardContent() {
         deleteItem(selectedItemId)
       } else if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
-        handleEditItem(item)
+        setEditingItem(item)
+        setNewItemPosition(null)
+        setItemFormOpen(true)
       } else if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
         const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
@@ -233,11 +235,13 @@ function DashboardContent() {
 
       {/* Dialogs */}
       <DrawerForm
+        key={drawerFormOpen ? (editingDrawer?.id ?? 'new') : 'closed'}
         open={drawerFormOpen}
         onOpenChange={setDrawerFormOpen}
         drawer={editingDrawer}
       />
       <ItemForm
+        key={itemFormOpen ? (editingItem?.id ?? 'new') : 'closed'}
         open={itemFormOpen}
         onOpenChange={setItemFormOpen}
         item={editingItem}

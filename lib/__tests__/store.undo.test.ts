@@ -191,14 +191,11 @@ describe('undo — selection', () => {
     store.getState().deleteItem(itemId)
     expect(store.getState().selectedItemId).toBeNull()
 
-    // Undo the deletion — item is back; but selectedItemId at undo time was null,
-    // so we check whether the item exists again (undo restored it)
+    // Undo the deletion — snapshot before deleteItem had selectedItemId = itemId,
+    // so both the item and its selection are fully restored.
     store.getState().undo()
     expect(store.getState().items.find((i) => i.id === itemId)).toBeDefined()
-    // The undo logic checks if selectedItemId (null at undo time) exists in prev.items
-    // null won't match any item id, so selectedItemId stays null — that is the
-    // current implementation behaviour.
-    expect(store.getState().selectedItemId).toBeNull()
+    expect(store.getState().selectedItemId).toBe(itemId)
   })
 
   test('selectDrawer does NOT push to history', () => {

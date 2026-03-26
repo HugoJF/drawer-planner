@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -71,6 +71,8 @@ interface DragState {
   gridDepth: number
 }
 
+const CELL_SIZE = 40 // px per grid cell for visualization
+
 export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }: DrawerGridProps) {
   const config = useDrawerStore(s => s.config)
   const drawers = useDrawerStore(s => s.drawers)
@@ -94,8 +96,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
   const gridRef = React.useRef<HTMLDivElement>(null)
 
-  const cellSize = 40 // px for visualization
-
   // Create grid occupancy map
   const occupancyMap = useMemo(() => {
     const map = new Map<string, string>() // "x,y" -> itemId
@@ -114,7 +114,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     return map
   }, [items, config, dragState])
 
-  const cellStep = cellSize + 1 // cell width + 1px gap
+  const cellStep = CELL_SIZE + 1 // cell width + 1px gap
 
   const computeDropPosition = useCallback((clientX: number, clientY: number) => {
     if (!dragState || !gridRef.current) return null
@@ -262,14 +262,31 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             setDrawState(null)
             onAddItemAtCell(gx, gy, cols * config.cellSize, rows * config.cellSize)
           }}
-          onMouseLeave={() => {
+          onMouseLeave={useCallback(() => {
             setDrawState(null)
             setResizeState(null)
+          }, [])}
+          onMouseDown={(e) => {
+            const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
+            if (!target || dragState || resizeState) return
+            const gx = parseInt(target.dataset.gx!)
+            const gy = parseInt(target.dataset.gy!)
+            if (occupancyMap.has(`${gx},${gy}`)) return
+            e.preventDefault()
+            setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
+          }}
+          onMouseOver={(e) => {
+            if (!drawState) return
+            const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
+            if (!target) return
+            const gx = parseInt(target.dataset.gx!)
+            const gy = parseInt(target.dataset.gy!)
+            setDrawState(s => s ? { ...s, endX: gx, endY: gy } : null)
           }}
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${drawer.gridCols}, ${cellSize}px)`,
-            gridTemplateRows: `repeat(${drawer.gridRows}, ${cellSize}px)`,
+            gridTemplateColumns: `repeat(${drawer.gridCols}, ${CELL_SIZE}px)`,
+            gridTemplateRows: `repeat(${drawer.gridRows}, ${CELL_SIZE}px)`,
             gap: '1px',
             width: 'fit-content',
           }}
@@ -296,6 +313,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               return (
                 <div
                   key={`${x}-${y}`}
+                  data-gx={x}
+                  data-gy={y}
                   className={cn(
                     "transition-colors duration-100",
                     isOccupied
@@ -306,17 +325,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                           ? "bg-primary/20"
                           : "bg-border/20 hover:bg-border/40",
                   )}
-                  onMouseDown={(e) => {
-                    if (isOccupied || dragState || resizeState) return
-                    e.preventDefault()
-                    setDrawState({ startX: x, startY: y, endX: x, endY: y })
-                  }}
-                  onMouseEnter={() => {
-                    if (drawState) setDrawState(s => s ? { ...s, endX: x, endY: y } : null)
-                  }}
                   style={{
-                    width: cellSize,
-                    height: cellSize,
+                    width: CELL_SIZE,
+                    height: CELL_SIZE,
                     cursor: isOccupied ? 'default' : drawState ? 'crosshair' : 'cell',
                   }}
                 />
@@ -328,14 +339,14 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           {resizeState && (() => {
             const item = items.find(i => i.id === resizeState.itemId)
             if (!item) return null
-            const w = resizeState.previewWidth * cellSize + (resizeState.previewWidth - 1)
-            const h = resizeState.previewDepth * cellSize + (resizeState.previewDepth - 1)
+            const w = resizeState.previewWidth * CELL_SIZE + (resizeState.previewWidth - 1)
+            const h = resizeState.previewDepth * CELL_SIZE + (resizeState.previewDepth - 1)
             return (
               <div
                 className="absolute rounded-sm pointer-events-none z-30"
                 style={{
-                  left: item.gridX * (cellSize + 1) + 1,
-                  top: item.gridY * (cellSize + 1) + 1,
+                  left: item.gridX * (CELL_SIZE + 1) + 1,
+                  top: item.gridY * (CELL_SIZE + 1) + 1,
                   width: w,
                   height: h,
                   border: '2px dashed var(--primary)',
@@ -386,10 +397,10 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   isResizing && "opacity-40"
                 )}
                 style={{
-                  left: item.gridX * (cellSize + 1) + 1,
-                  top: item.gridY * (cellSize + 1) + 1,
-                  width: visW * cellSize + (visW - 1),
-                  height: visD * cellSize + (visD - 1),
+                  left: item.gridX * (CELL_SIZE + 1) + 1,
+                  top: item.gridY * (CELL_SIZE + 1) + 1,
+                  width: visW * CELL_SIZE + (visW - 1),
+                  height: visD * CELL_SIZE + (visD - 1),
                   backgroundColor: item.color,
                   zIndex: isSelected ? 10 : 1,
                   pointerEvents: drawState || (dragState && dragState.itemId !== item.id) || (resizeState && resizeState.itemId !== item.id) ? 'none' : undefined,
@@ -587,6 +598,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       </ContextMenu>
 
       <DeleteConfirmDialog
+        key={pendingDelete?.id ?? 'none'}
         open={pendingDelete !== null}
         type={pendingDelete?.type ?? 'item'}
         name={pendingDelete?.name ?? ''}

@@ -15,7 +15,7 @@ import {
   findAvailablePosition,
 } from '@/lib/gridfinity'
 
-type Snapshot = { drawers: Drawer[]; items: Item[]; config: GridfinityConfig }
+type Snapshot = { drawers: Drawer[]; items: Item[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemId: string | null }
 
 export interface DrawerStore {
   // State
@@ -58,8 +58,8 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
     persist(
       (set, get) => {
         const snap = (): Snapshot => {
-          const { drawers, items, config } = get()
-          return { drawers, items, config }
+          const { drawers, items, config, selectedDrawerId, selectedItemId } = get()
+          return { drawers, items, config, selectedDrawerId, selectedItemId }
         }
 
         const push = () => {
@@ -238,12 +238,12 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             const prev = past[past.length - 1]
             set({
               past: past.slice(0, -1),
-              future: [{ drawers, items, config }, ...future.slice(0, 49)],
+              future: [{ drawers, items, config, selectedDrawerId, selectedItemId }, ...future.slice(0, 49)],
               drawers: prev.drawers,
               items: prev.items,
               config: prev.config,
-              selectedDrawerId: prev.drawers.some(d => d.id === selectedDrawerId) ? selectedDrawerId : null,
-              selectedItemId: prev.items.some(i => i.id === selectedItemId) ? selectedItemId : null,
+              selectedDrawerId: prev.selectedDrawerId,
+              selectedItemId: prev.selectedItemId,
             })
           },
 
@@ -253,12 +253,12 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             const next = future[0]
             set({
               future: future.slice(1),
-              past: [...past.slice(-49), { drawers, items, config }],
+              past: [...past.slice(-49), { drawers, items, config, selectedDrawerId, selectedItemId }],
               drawers: next.drawers,
               items: next.items,
               config: next.config,
-              selectedDrawerId: next.drawers.some(d => d.id === selectedDrawerId) ? selectedDrawerId : null,
-              selectedItemId: next.items.some(i => i.id === selectedItemId) ? selectedItemId : null,
+              selectedDrawerId: next.selectedDrawerId,
+              selectedItemId: next.selectedItemId,
             })
           },
 

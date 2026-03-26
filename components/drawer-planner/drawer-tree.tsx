@@ -74,7 +74,20 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const allItems = useDrawerStore(s => s.items)
   const config = useDrawerStore(s => s.config)
 
-  const unassignedItems = useMemo(() => allItems.filter(i => i.drawerId === null), [allItems])
+  const { itemsByDrawer, unassignedItems } = useMemo(() => {
+    const map = new Map<string, Item[]>()
+    const unassigned: Item[] = []
+    for (const item of allItems) {
+      if (item.drawerId === null) {
+        unassigned.push(item)
+      } else {
+        const list = map.get(item.drawerId) ?? []
+        list.push(item)
+        map.set(item.drawerId, list)
+      }
+    }
+    return { itemsByDrawer: map, unassignedItems: unassigned }
+  }, [allItems])
 
   const { toast } = useToast()
   const handleDuplicateItem = useCallback((id: string) => {
@@ -151,7 +164,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
         ) : (
           <div className="flex flex-col gap-0.5">
             {drawers.map(drawer => {
-              const drawerItems = allItems.filter(i => i.drawerId === drawer.id)
+              const drawerItems = itemsByDrawer.get(drawer.id) ?? []
               const isExpanded = expandedDrawers.has(drawer.id)
               const isSelected = selectedDrawerId === drawer.id
               const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
@@ -316,6 +329,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
       </div>
 
       <DeleteConfirmDialog
+        key={pendingDelete?.id ?? 'none'}
         open={pendingDelete !== null}
         type={pendingDelete?.type ?? 'item'}
         name={pendingDelete?.name ?? ''}

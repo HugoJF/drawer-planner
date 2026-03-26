@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,10 +30,6 @@ export function DeleteConfirmDialog({
   onCancel,
 }: DeleteConfirmDialogProps) {
   const [deleteContents, setDeleteContents] = useState(false)
-
-  useEffect(() => {
-    if (open) setDeleteContents(false)
-  }, [open])
 
   const description =
     type === 'drawer'
