@@ -39,7 +39,8 @@ import {
 } from '@/components/ui/tooltip'
 import { isItemOversized, getRotatedDimensions } from '@/lib/gridfinity'
 import { formatDimension } from '@/lib/types'
-import type { Drawer, Item } from '@/lib/types'
+import type { Drawer, Item, DimensionUnit } from '@/lib/types'
+import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 
 interface DrawerTreeProps {
   onEditDrawer: (drawer: Drawer) => void
@@ -59,9 +60,11 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
   const moveItem = useDrawerStore(s => s.moveItem)
   const getItemsInDrawer = useDrawerStore(s => s.getItemsInDrawer)
   const getUnassignedItems = useDrawerStore(s => s.getUnassignedItems)
+  const config = useDrawerStore(s => s.config)
 
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
 
   const toggleDrawer = (id: string) => {
     setExpandedDrawers(prev => {
@@ -185,7 +188,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           variant="destructive"
-                          onClick={() => deleteDrawer(drawer.id)}
+                          onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
@@ -214,11 +217,12 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                             }}
                             onEdit={() => onEditItem(item)}
                             onDuplicate={() => duplicateItem(item.id)}
-                            onDelete={() => deleteItem(item.id)}
+                            onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
                             onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}
                             allDrawers={drawers}
                             onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
+                            displayUnit={config.displayUnit}
                           />
                         ))
                       )}
@@ -260,11 +264,12 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                     onSelect={() => selectItem(item.id)}
                     onEdit={() => onEditItem(item)}
                     onDuplicate={() => duplicateItem(item.id)}
-                    onDelete={() => deleteItem(item.id)}
+                    onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                     allDrawers={drawers}
                     onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
+                    displayUnit={config.displayUnit}
                   />
                 ))}
               </div>
@@ -272,6 +277,19 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
           </div>
         </div>
       </div>
+
+      <DeleteConfirmDialog
+        open={pendingDelete !== null}
+        type={pendingDelete?.type ?? 'item'}
+        name={pendingDelete?.name ?? ''}
+        onConfirm={() => {
+          if (!pendingDelete) return
+          if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id)
+          else deleteItem(pendingDelete.id)
+          setPendingDelete(null)
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </ScrollArea>
   )
 }
@@ -289,6 +307,7 @@ interface TreeItemProps {
   onDragEnd: () => void
   allDrawers: Drawer[]
   onMoveToDrawer: (drawerId: string | null) => void
+  displayUnit: DimensionUnit
 }
 
 function TreeItem({
@@ -304,6 +323,7 @@ function TreeItem({
   onDragEnd,
   allDrawers,
   onMoveToDrawer,
+  displayUnit,
 }: TreeItemProps) {
   const isOversized = drawer ? isItemOversized(item, drawer) : false
 
@@ -340,7 +360,7 @@ function TreeItem({
             <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
           </TooltipTrigger>
           <TooltipContent side="right">
-            Item height ({getRotatedDimensions(item).height}mm) exceeds drawer height ({drawer.height}mm)
+            Item height ({formatDimension(getRotatedDimensions(item).height, displayUnit)}) exceeds drawer height ({formatDimension(drawer.height, displayUnit)})
           </TooltipContent>
         </Tooltip>
       )}
