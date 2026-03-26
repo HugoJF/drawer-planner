@@ -74,7 +74,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const config = useDrawerStore(s => s.config)
   const drawers = useDrawerStore(s => s.drawers)
   const selectedItemId = useDrawerStore(s => s.selectedItemId)
-  const getItemsInDrawer = useDrawerStore(s => s.getItemsInDrawer)
+  const allItems = useDrawerStore(s => s.items)
+  const items = useMemo(() => allItems.filter(i => i.drawerId === drawer.id), [allItems, drawer.id])
   const moveItem = useDrawerStore(s => s.moveItem)
   const deleteItem = useDrawerStore(s => s.deleteItem)
   const duplicateItem = useDrawerStore(s => s.duplicateItem)
@@ -91,7 +92,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
   const gridRef = React.useRef<HTMLDivElement>(null)
 
-  const items = getItemsInDrawer(drawer.id)
   const cellSize = 40 // px for visualization
 
   // Create grid occupancy map

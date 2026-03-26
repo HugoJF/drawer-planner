@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { 
   ChevronRight,
   ChevronDown,
@@ -68,9 +68,10 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
   const deleteItem = useDrawerStore(s => s.deleteItem)
   const duplicateItem = useDrawerStore(s => s.duplicateItem)
   const moveItem = useDrawerStore(s => s.moveItem)
-  const getItemsInDrawer = useDrawerStore(s => s.getItemsInDrawer)
-  const getUnassignedItems = useDrawerStore(s => s.getUnassignedItems)
+  const allItems = useDrawerStore(s => s.items)
   const config = useDrawerStore(s => s.config)
+
+  const unassignedItems = useMemo(() => allItems.filter(i => i.drawerId === null), [allItems])
 
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
@@ -124,8 +125,6 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
     setDraggedItem(null)
   }
 
-  const unassignedItems = getUnassignedItems()
-
   return (
     <ScrollArea className="h-full">
       <div className="p-2">
@@ -140,7 +139,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
         ) : (
           <div className="flex flex-col gap-0.5">
             {drawers.map(drawer => {
-              const drawerItems = getItemsInDrawer(drawer.id)
+              const drawerItems = allItems.filter(i => i.drawerId === drawer.id)
               const isExpanded = expandedDrawers.has(drawer.id)
               const isSelected = selectedDrawerId === drawer.id
               const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
