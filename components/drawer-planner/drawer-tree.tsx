@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { 
   ChevronRight,
   ChevronDown,
@@ -31,6 +31,16 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Tooltip,
@@ -65,6 +75,18 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
+  const lastClickRef = useRef<{ id: string; time: number } | null>(null)
+
+  const handleClick = (id: string, onSingle: () => void, onDouble: () => void) => {
+    const now = Date.now()
+    if (lastClickRef.current?.id === id && now - lastClickRef.current.time < 400) {
+      lastClickRef.current = null
+      onDouble()
+    } else {
+      lastClickRef.current = { id, time: now }
+      onSingle()
+    }
+  }
 
   const toggleDrawer = (id: string) => {
     setExpandedDrawers(prev => {
@@ -129,73 +151,88 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                   open={isExpanded}
                   onOpenChange={() => toggleDrawer(drawer.id)}
                 >
-                  <div
-                    className={cn(
-                      "group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer",
-                      "hover:bg-accent/50 transition-colors",
-                      isSelected && "bg-accent",
-                      draggedItem && "transition-all"
-                    )}
-                    onClick={() => selectDrawer(drawer.id)}
-                    onDoubleClick={() => onEditDrawer(drawer)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDropOnDrawer(e, drawer.id)}
-                  >
-                    <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <button className="p-0.5 rounded hover:bg-accent">
-                        {isExpanded ? (
-                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <div
+                        className={cn(
+                          "group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer",
+                          "hover:bg-accent/50 transition-colors",
+                          isSelected && "bg-accent",
+                          draggedItem && "transition-all"
                         )}
-                      </button>
-                    </CollapsibleTrigger>
-                    
-                    <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                    
-                    <span className="flex-1 truncate text-sm">{drawer.name}</span>
-                    
-                    {hasOversizedItems && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          Contains items that exceed drawer height
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    
-                    <span className="text-xs text-muted-foreground">
-                      {drawerItems.length}
-                    </span>
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
-                          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onClick={() => onEditDrawer(drawer)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => duplicateDrawer(drawer.id)}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                        onClick={() => handleClick(drawer.id, () => selectDrawer(drawer.id), () => onEditDrawer(drawer))}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDropOnDrawer(e, drawer.id)}
+                      >
+                        <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <button className="p-0.5 rounded hover:bg-accent">
+                            {isExpanded ? (
+                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </button>
+                        </CollapsibleTrigger>
+
+                        <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+
+                        <span className="flex-1 truncate text-sm">{drawer.name}</span>
+
+                        {hasOversizedItems && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              Contains items that exceed drawer height
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        <span className="text-xs text-muted-foreground">
+                          {drawerItems.length}
+                        </span>
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
+                              <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => onEditDrawer(drawer)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => duplicateDrawer(drawer.id)}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-40">
+                      <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
+                        <Pencil className="h-4 w-4 mr-2" />Edit
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => duplicateDrawer(drawer.id)}>
+                        <Copy className="h-4 w-4 mr-2" />Duplicate
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}>
+                        <Trash2 className="h-4 w-4 mr-2" />Delete
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
 
                   <CollapsibleContent>
                     <div className="ml-4 pl-2 border-l border-border/50 flex flex-col gap-0.5 py-0.5">
@@ -211,10 +248,10 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                             drawer={drawer}
                             isSelected={selectedItemId === item.id}
                             isDragging={draggedItem === item.id}
-                            onSelect={() => {
-                              selectDrawer(drawer.id)
-                              selectItem(item.id)
-                            }}
+                            onSelect={() => handleClick(item.id,
+                              () => { selectDrawer(drawer.id); selectItem(item.id) },
+                              () => onEditItem(item)
+                            )}
                             onEdit={() => onEditItem(item)}
                             onDuplicate={() => duplicateItem(item.id)}
                             onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
@@ -261,7 +298,10 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                     drawer={null}
                     isSelected={selectedItemId === item.id}
                     isDragging={draggedItem === item.id}
-                    onSelect={() => selectItem(item.id)}
+                    onSelect={() => handleClick(item.id,
+                      () => selectItem(item.id),
+                      () => onEditItem(item)
+                    )}
                     onEdit={() => onEditItem(item)}
                     onDuplicate={() => duplicateItem(item.id)}
                     onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
@@ -328,96 +368,126 @@ function TreeItem({
   const isOversized = drawer ? isItemOversized(item, drawer) : false
 
   return (
-    <div
-      draggable
-      onDragStart={(e) => onDragStart(e, item.id)}
-      onDragEnd={onDragEnd}
-      className={cn(
-        "group flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer",
-        "hover:bg-accent/50 transition-colors",
-        isSelected && "bg-accent",
-        isDragging && "opacity-50",
-        isOversized && "text-destructive"
-      )}
-      onClick={onSelect}
-      onDoubleClick={onEdit}
-    >
-      <div 
-        className="h-3 w-3 rounded-sm shrink-0" 
-        style={{ backgroundColor: item.color }}
-      />
-      
-      <Box className={cn(
-        "h-3.5 w-3.5 shrink-0",
-        isOversized ? "text-destructive" : "text-muted-foreground"
-      )} />
-      
-      <span className="flex-1 truncate text-sm">{item.name}</span>
-      
-      {isOversized && drawer && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            Item height ({formatDimension(getRotatedDimensions(item).height, displayUnit)}) exceeds drawer height ({formatDimension(drawer.height, displayUnit)})
-          </TooltipContent>
-        </Tooltip>
-      )}
-      
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-          <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
-            <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onClick={onEdit}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDuplicate}>
-            <Copy className="h-4 w-4 mr-2" />
-            Duplicate
-          </DropdownMenuItem>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          draggable
+          onDragStart={(e) => onDragStart(e, item.id)}
+          onDragEnd={onDragEnd}
+          className={cn(
+            "group flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer",
+            "hover:bg-accent/50 transition-colors",
+            isSelected && "bg-accent",
+            isDragging && "opacity-50",
+            isOversized && "text-destructive"
+          )}
+          onClick={onSelect}
+        >
+          <div
+            className="h-3 w-3 rounded-sm shrink-0"
+            style={{ backgroundColor: item.color }}
+          />
 
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <ArrowRightLeft className="h-4 w-4 mr-2" />
-              Move to
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent sideOffset={2} alignOffset={-5} className="max-h-60 overflow-auto">
-              <DropdownMenuItem 
-                onClick={() => onMoveToDrawer(null)}
-                disabled={!item.drawerId}
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Unassigned
+          <Box className={cn(
+            "h-3.5 w-3.5 shrink-0",
+            isOversized ? "text-destructive" : "text-muted-foreground"
+          )} />
+
+          <span className="flex-1 truncate text-sm">{item.name}</span>
+
+          {isOversized && drawer && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                Item height ({formatDimension(getRotatedDimensions(item).height, displayUnit)}) exceeds drawer height ({formatDimension(drawer.height, displayUnit)})
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
+                <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDuplicate}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Move to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent sideOffset={2} alignOffset={-5} className="max-h-60 overflow-auto">
+                  <DropdownMenuItem
+                    onClick={() => onMoveToDrawer(null)}
+                    disabled={!item.drawerId}
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Unassigned
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {allDrawers.map(d => (
+                    <DropdownMenuItem
+                      key={d.id}
+                      onClick={() => onMoveToDrawer(d.id)}
+                      disabled={d.id === item.drawerId}
+                    >
+                      <FolderOpen className="h-4 w-4 mr-2" />
+                      {d.name}
+                      {isItemOversized(item, d) && (
+                        <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuSeparator />
-              {allDrawers.map(d => (
-                <DropdownMenuItem
-                  key={d.id}
-                  onClick={() => onMoveToDrawer(d.id)}
-                  disabled={d.id === item.drawerId}
-                >
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  {d.name}
-                  {isItemOversized(item, d) && (
-                    <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={onDelete}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+              <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={onEdit}>
+          <Pencil className="h-4 w-4 mr-2" />Edit
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onDuplicate}>
+          <Copy className="h-4 w-4 mr-2" />Duplicate
+        </ContextMenuItem>
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <ArrowRightLeft className="h-4 w-4 mr-2" />Move to
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="max-h-60 overflow-auto">
+            <ContextMenuItem onClick={() => onMoveToDrawer(null)} disabled={!item.drawerId}>
+              <Package className="h-4 w-4 mr-2" />Unassigned
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            {allDrawers.map(d => (
+              <ContextMenuItem key={d.id} onClick={() => onMoveToDrawer(d.id)} disabled={d.id === item.drawerId}>
+                <FolderOpen className="h-4 w-4 mr-2" />{d.name}
+                {isItemOversized(item, d) && <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onClick={onDelete}>
+          <Trash2 className="h-4 w-4 mr-2" />Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
