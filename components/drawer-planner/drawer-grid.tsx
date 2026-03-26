@@ -4,14 +4,15 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { 
-  calculateItemGridDimensions, 
-  isItemOversized, 
+import {
+  calculateItemGridDimensions,
+  isItemOversized,
   isValidPlacement,
   findOverlappingItems,
   getRotatedDimensions,
+  isItemFootprintOverflow,
 } from '@/lib/gridfinity'
-import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy } from 'lucide-react'
+import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2 } from 'lucide-react'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -42,7 +43,7 @@ interface DrawerGridProps {
   drawer: Drawer
   onEditDrawer: (drawer: Drawer) => void
   onEditItem: (item: Item) => void
-  onAddItemAtCell: (gridX: number, gridY: number, initialWidth?: number, initialDepth?: number) => void
+  onAddItemAtCell: (gridX: number, gridY: number, initialCols?: number, initialRows?: number) => void
 }
 
 interface DrawState {
@@ -173,9 +174,14 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   const handleRotate = useCallback((item: Item) => {
     const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
-    const currentIndex = rotations.indexOf(item.rotation)
-    const nextRotation = rotations[(currentIndex + 1) % rotations.length]
-    updateItem({ ...item, rotation: nextRotation })
+    const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
+    const isManual = (item.gridMode ?? 'auto') === 'manual'
+    const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
+    updateItem({
+      ...item,
+      rotation: next,
+      ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
+    })
   }, [updateItem])
 
   const handleMoveToDrawer = useCallback((item: Item, targetDrawerId: string) => {
@@ -233,23 +239,13 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             if (resizeState) {
               const item = items.find(i => i.id === resizeState.itemId)
               if (item) {
-                const cs = config.cellSize
-                // Map grid dims back to physical dims respecting rotation
-                let updates: Partial<typeof item> = {}
-                switch (item.rotation) {
-                  case 'normal':
-                    updates = { width: resizeState.previewWidth * cs, depth: resizeState.previewDepth * cs }
-                    break
-                  case 'rotated':
-                    // gridWidth = ceil(depth/cs), gridDepth = ceil(width/cs)
-                    updates = { depth: resizeState.previewWidth * cs, width: resizeState.previewDepth * cs }
-                    break
-                  case 'layDown':
-                    // gridWidth = ceil(width/cs), gridDepth = ceil(height/cs)
-                    updates = { width: resizeState.previewWidth * cs, height: resizeState.previewDepth * cs }
-                    break
-                }
-                updateItem({ ...item, ...updates })
+                // Resize always sets manual mode — updates grid footprint, not physical dims
+                updateItem({
+                  ...item,
+                  gridMode: 'manual',
+                  manualGridCols: resizeState.previewWidth,
+                  manualGridRows: resizeState.previewDepth,
+                })
               }
               setResizeState(null)
               return
@@ -260,7 +256,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const cols = Math.abs(drawState.endX - drawState.startX) + 1
             const rows = Math.abs(drawState.endY - drawState.startY) + 1
             setDrawState(null)
-            onAddItemAtCell(gx, gy, cols * config.cellSize, rows * config.cellSize)
+            onAddItemAtCell(gx, gy, cols, rows)
           }}
           onMouseLeave={useCallback(() => {
             setDrawState(null)
@@ -369,11 +365,25 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const visW = baseDims.gridWidth
             const visD = baseDims.gridDepth
             const oversized = isItemOversized(item, drawer)
+            const footprintOverflow = isItemFootprintOverflow(item, config)
             const isSelected = selectedItemId === item.id
             const isDragging = dragState?.itemId === item.id
             const overlapping = findOverlappingItems(item, items, config)
             const hasOverlap = overlapping.length > 0
             const suitableDrawers = oversized ? getSuitableDrawers(item) : []
+
+            // Inset box: physical item dimensions as a fraction of the grid footprint
+            const rotatedDims = getRotatedDimensions(item)
+            const physW = rotatedDims.width
+            const physD = rotatedDims.depth
+            const hasRealDims = physW > 0 && physD > 0
+            const isManual = (item.gridMode ?? 'auto') === 'manual'
+            const insetWPct = hasRealDims
+              ? Math.min(physW / (visW * config.cellSize), 1) * 100
+              : null
+            const insetDPct = hasRealDims
+              ? Math.min(physD / (visD * config.cellSize), 1) * 100
+              : null
 
             return (
               <div
@@ -407,12 +417,31 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   transition: isResizing ? 'none' : 'opacity 0.1s',
                 }}
               >
+                {/* Inset: physical item footprint within allocated grid cells */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-[2px]">
+                  {insetWPct !== null && insetDPct !== null ? (
+                    <div
+                      style={{
+                        width: `${insetWPct}%`,
+                        height: `${insetDPct}%`,
+                        minWidth: 3,
+                        minHeight: 3,
+                        backgroundColor: `color-mix(in oklch, black 28%, ${item.color})`,
+                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 6px)',
+                        borderRadius: 2,
+                      }}
+                    />
+                  ) : isManual ? (
+                    <span className="text-white/40 text-base font-bold select-none">?</span>
+                  ) : null}
+                </div>
+
                 {/* Item content */}
-                <span className="text-xs font-medium text-white drop-shadow-md truncate px-1 max-w-full">
+                <span className="relative z-10 text-xs font-medium text-white drop-shadow-md truncate px-1 max-w-full">
                   {item.name}
                 </span>
-                <span className="text-[10px] text-white/80 drop-shadow-md">
-                  {visW}x{visD}
+                <span className="relative z-10 text-[10px] text-white/80 drop-shadow-md">
+                  {visW}×{visD}
                 </span>
 
                 {/* Overlap warning */}
@@ -424,6 +453,18 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top">Overlapping with another item</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Footprint overflow warning (physical item larger than manual grid allocation) */}
+                {footprintOverflow && !oversized && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="absolute -bottom-1 -left-1 z-20 p-1 rounded-full bg-orange-500 text-white">
+                        <Maximize2 className="h-3 w-3" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Item is physically larger than its grid footprint</TooltipContent>
                   </Tooltip>
                 )}
 

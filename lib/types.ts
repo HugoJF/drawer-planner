@@ -25,7 +25,7 @@ export type ItemRotation = 'normal' | 'layDown' | 'rotated'
 export interface Item {
   id: string
   name: string
-  width: number          // mm
+  width: number          // mm (0 = unknown, permitted in manual mode)
   height: number         // mm
   depth: number          // mm
   color: string          // for visualization
@@ -33,6 +33,9 @@ export interface Item {
   drawerId: string | null
   gridX: number          // grid position
   gridY: number
+  gridMode?: 'auto' | 'manual'   // default: 'auto'
+  manualGridCols?: number         // explicit footprint cols (post-rotation), manual mode only
+  manualGridRows?: number         // explicit footprint rows (post-rotation), manual mode only
 }
 
 export interface ItemGridDimensions {

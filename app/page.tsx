@@ -36,7 +36,7 @@ function DashboardContent() {
   const [editingDrawer, setEditingDrawer] = useState<Drawer | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [newItemPosition, setNewItemPosition] = useState<{ gridX: number; gridY: number } | null>(null)
-  const [newItemDimensions, setNewItemDimensions] = useState<{ width: number; depth: number } | null>(null)
+  const [newItemGridDimensions, setNewItemGridDimensions] = useState<{ cols: number; rows: number } | null>(null)
 
   const undo = useDrawerStore(s => s.undo)
   const redo = useDrawerStore(s => s.redo)
@@ -75,7 +75,13 @@ function DashboardContent() {
         e.preventDefault()
         const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
         const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
-        updateItem({ ...item, rotation: next })
+        const isManual = (item.gridMode ?? 'auto') === 'manual'
+        const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
+        updateItem({
+          ...item,
+          rotation: next,
+          ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
+        })
       }
     }
     window.addEventListener('keydown', handler)
@@ -95,14 +101,14 @@ function DashboardContent() {
   const handleAddItem = () => {
     setEditingItem(null)
     setNewItemPosition(null)
-    setNewItemDimensions(null)
+    setNewItemGridDimensions(null)
     setItemFormOpen(true)
   }
 
-  const handleAddItemAtCell = (gridX: number, gridY: number, initialWidth?: number, initialDepth?: number) => {
+  const handleAddItemAtCell = (gridX: number, gridY: number, initialCols?: number, initialRows?: number) => {
     setEditingItem(null)
     setNewItemPosition({ gridX, gridY })
-    setNewItemDimensions(initialWidth && initialDepth ? { width: initialWidth, depth: initialDepth } : null)
+    setNewItemGridDimensions(initialCols && initialRows ? { cols: initialCols, rows: initialRows } : null)
     setItemFormOpen(true)
   }
 
@@ -246,7 +252,7 @@ function DashboardContent() {
         onOpenChange={setItemFormOpen}
         item={editingItem}
         initialPosition={newItemPosition}
-        initialDimensions={newItemDimensions}
+        initialGridDimensions={newItemGridDimensions}
       />
       <Toaster />
     </div>

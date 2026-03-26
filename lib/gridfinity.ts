@@ -52,27 +52,50 @@ export function getRotatedDimensions(
 }
 
 /**
- * Calculate item's grid requirements
+ * Calculate item's grid requirements.
+ * In manual mode, returns the explicitly stored cols/rows.
+ * In auto mode (default), derives from physical dimensions.
  */
 export function calculateItemGridDimensions(
-  item: Item, 
+  item: Item,
   config: GridfinityConfig
 ): ItemGridDimensions {
   const dims = getRotatedDimensions(item)
-  
-  // Calculate grid cells needed (round up)
+  const heightUnits = dims.height > 0 ? Math.ceil(dims.height / config.heightUnit) : 0
+
+  if ((item.gridMode ?? 'auto') === 'manual') {
+    return {
+      gridWidth: Math.max(1, item.manualGridCols ?? 1),
+      gridDepth: Math.max(1, item.manualGridRows ?? 1),
+      heightUnits,
+      effectiveHeight: dims.height,
+    }
+  }
+
+  // Auto: derive from physical dimensions
   const gridWidth = Math.ceil(dims.width / config.cellSize)
   const gridDepth = Math.ceil(dims.depth / config.cellSize)
-  
-  // Calculate height units
-  const heightUnits = Math.ceil(dims.height / config.heightUnit)
-  
+
   return {
     gridWidth: Math.max(1, gridWidth),
     gridDepth: Math.max(1, gridDepth),
     heightUnits,
     effectiveHeight: dims.height,
   }
+}
+
+/**
+ * Check if a manually-sized item's physical dimensions exceed its grid footprint.
+ * Only relevant in manual mode with known dimensions.
+ */
+export function isItemFootprintOverflow(item: Item, config: GridfinityConfig): boolean {
+  if ((item.gridMode ?? 'auto') !== 'manual') return false
+  const rotated = getRotatedDimensions(item)
+  if (rotated.width <= 0 || rotated.depth <= 0) return false
+  return (
+    rotated.width > (item.manualGridCols ?? 1) * config.cellSize ||
+    rotated.depth > (item.manualGridRows ?? 1) * config.cellSize
+  )
 }
 
 /**
