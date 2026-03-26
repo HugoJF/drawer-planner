@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useDrawerStore } from '@/lib/store'
+import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { 
   calculateItemGridDimensions, 
@@ -84,6 +85,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const updateItem = useDrawerStore(s => s.updateItem)
   const selectItem = useDrawerStore(s => s.selectItem)
 
+  const { toast } = useToast()
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [dropTarget, setDropTarget] = useState<{ x: number; y: number } | null>(null)
   const [drawState, setDrawState] = useState<DrawState | null>(null)
@@ -540,7 +542,10 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             <ContextMenuItem onClick={() => onEditItem(contextItem)}>
               <Pencil className="h-4 w-4 mr-2" />Edit
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => duplicateItem(contextItem.id)}>
+            <ContextMenuItem onClick={() => {
+              const placed = duplicateItem(contextItem.id)
+              if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.', variant: 'destructive' })
+            }}>
               <Copy className="h-4 w-4 mr-2" />Duplicate
             </ContextMenuItem>
             <ContextMenuSub>
@@ -594,15 +599,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         onCancel={() => setPendingDelete(null)}
       />
 
-      {/* Grid legend */}
-      <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-        <span>
-          Grid: {drawer.gridCols} x {drawer.gridRows} cells ({drawer.gridCols * drawer.gridRows} total)
-        </span>
-        <span>
-          Cell: {formatDimension(config.cellSize, config.displayUnit)}
-        </span>
-      </div>
     </div>
   )
 }

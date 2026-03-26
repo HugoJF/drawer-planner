@@ -9,6 +9,8 @@ import { SettingsPanel } from '@/components/drawer-planner/settings-panel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Toaster } from '@/components/ui/toaster'
+import { useToast } from '@/hooks/use-toast'
 import {
   Plus,
   FolderPlus,
@@ -19,7 +21,7 @@ import {
   Undo2,
   Redo2,
 } from 'lucide-react'
-import type { Drawer, Item } from '@/lib/types'
+import type { Drawer, Item, ItemRotation } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -42,17 +44,39 @@ function DashboardContent() {
   const canUndo = useDrawerStore(s => s.past.length > 0)
   const canRedo = useDrawerStore(s => s.future.length > 0)
 
+  const selectedItemId = useDrawerStore(s => s.selectedItemId)
+  const allItems = useDrawerStore(s => s.items)
+  const deleteItem = useDrawerStore(s => s.deleteItem)
+  const updateItem = useDrawerStore(s => s.updateItem)
   const selectedDrawer = selectedDrawerId ? getDrawerById(selectedDrawerId) : null
+  const { toast } = useToast()
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo() }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return }
+
+      if (!selectedItemId || drawerFormOpen || itemFormOpen) return
+      const item = allItems.find(i => i.id === selectedItemId)
+      if (!item) return
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        deleteItem(selectedItemId)
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault()
+        handleEditItem(item)
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault()
+        const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
+        const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
+        updateItem({ ...item, rotation: next })
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [undo, redo])
+  }, [undo, redo, selectedItemId, allItems, deleteItem, updateItem, drawerFormOpen, itemFormOpen])
 
   const handleAddDrawer = () => {
     setEditingDrawer(null)
@@ -165,7 +189,7 @@ function DashboardContent() {
               <FolderPlus className="h-4 w-4" />
               <span className="hidden sm:inline">Add Drawer</span>
             </Button>
-            <Button size="sm" className="gap-2" onClick={handleAddItem}>
+            <Button size="sm" className="gap-2" onClick={handleAddItem} disabled={!selectedDrawerId}>
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Add Item</span>
             </Button>
@@ -182,7 +206,7 @@ function DashboardContent() {
                 onAddItemAtCell={handleAddItemAtCell}
               />
             ) : (
-              <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+              <div className="flex items-center justify-center h-full">
                 <Card className="max-w-md w-full">
                   <CardContent className="pt-6 text-center">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -218,6 +242,7 @@ function DashboardContent() {
         initialPosition={newItemPosition}
         initialDimensions={newItemDimensions}
       />
+      <Toaster />
     </div>
   )
 }

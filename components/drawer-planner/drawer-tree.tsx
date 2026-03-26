@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useRef, useMemo, useCallback } from 'react'
 import {
   ChevronRight,
   ChevronDown,
@@ -16,6 +16,7 @@ import {
   Plus
 } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
+import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { 
   Collapsible, 
@@ -74,6 +75,12 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const config = useDrawerStore(s => s.config)
 
   const unassignedItems = useMemo(() => allItems.filter(i => i.drawerId === null), [allItems])
+
+  const { toast } = useToast()
+  const handleDuplicateItem = useCallback((id: string) => {
+    const placed = duplicateItem(id)
+    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.', variant: 'destructive' })
+  }, [duplicateItem, toast])
 
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
@@ -243,7 +250,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                               () => onEditItem(item)
                             )}
                             onEdit={() => onEditItem(item)}
-                            onDuplicate={() => duplicateItem(item.id)}
+                            onDuplicate={() => handleDuplicateItem(item.id)}
                             onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
                             onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}

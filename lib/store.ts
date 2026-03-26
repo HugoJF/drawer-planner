@@ -35,7 +35,7 @@ export interface DrawerStore {
   addItem: (item: Omit<Item, 'id'>) => void
   updateItem: (item: Item) => void
   deleteItem: (id: string) => void
-  duplicateItem: (id: string) => void
+  duplicateItem: (id: string) => boolean
   moveItem: (itemId: string, drawerId: string | null, gridX: number, gridY: number) => void
   updateConfig: (config: Partial<GridfinityConfig>) => void
   selectDrawer: (id: string | null) => void
@@ -175,15 +175,15 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             push()
             const state = get()
             const src = state.items.find((i) => i.id === id)
-            if (!src) return
+            if (!src) return false
             const drawer = src.drawerId
               ? state.drawers.find((d) => d.id === src.drawerId)
               : null
             const srcDims = calculateItemGridDimensions(src, state.config)
-            const pos =
-              (drawer
-                ? findAvailablePosition(srcDims, drawer, state.items, state.config)
-                : null) ?? { gridX: src.gridX, gridY: src.gridY }
+            const foundPos = drawer
+              ? findAvailablePosition(srcDims, drawer, state.items, state.config)
+              : null
+            const pos = foundPos ?? { gridX: src.gridX, gridY: src.gridY }
             const newItem: Item = {
               ...src,
               id: generateId(),
@@ -194,6 +194,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               items: [...s.items, newItem],
               selectedItemId: newItem.id,
             }))
+            return foundPos !== null
           },
 
           moveItem: (itemId, drawerId, gridX, gridY) => {

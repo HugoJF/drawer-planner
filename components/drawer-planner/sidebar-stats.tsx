@@ -117,6 +117,18 @@ export function SidebarStats() {
       <div className="text-xs text-muted-foreground text-center">
         {stats.itemCount} item{stats.itemCount !== 1 ? 's' : ''} in drawer
       </div>
+
+      {/* Grid info */}
+      <div className="text-xs text-muted-foreground border-t border-border/50 pt-2 space-y-0.5">
+        <div className="flex justify-between">
+          <span>Grid</span>
+          <span className="font-medium text-foreground">{selectedDrawer.gridCols} × {selectedDrawer.gridRows}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Cell size</span>
+          <span className="font-medium text-foreground">{formatDimension(config.cellSize, config.displayUnit)}</span>
+        </div>
+      </div>
     </div>
   )
 }
