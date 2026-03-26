@@ -36,6 +36,7 @@ export interface Item {
   gridMode?: 'auto' | 'manual'   // default: 'auto'
   manualGridCols?: number         // explicit footprint cols (post-rotation), manual mode only
   manualGridRows?: number         // explicit footprint rows (post-rotation), manual mode only
+  locked: boolean
 }
 
 export interface ItemGridDimensions {

@@ -216,6 +216,7 @@ describe('importData', () => {
     drawerId: 'imported-drawer-1',
     gridX: 0,
     gridY: 0,
+    locked: false,
   }
 
   const validExport: ExportData = {

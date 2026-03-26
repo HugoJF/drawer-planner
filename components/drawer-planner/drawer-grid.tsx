@@ -12,7 +12,7 @@ import {
   getRotatedDimensions,
   isItemFootprintOverflow,
 } from '@/lib/gridfinity'
-import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2 } from 'lucide-react'
+import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2, Lock, Unlock } from 'lucide-react'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -154,6 +154,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   }, [computeDropPosition, drawer.id, moveItem])
 
   const handleItemDragStart = useCallback((e: React.DragEvent, item: Item) => {
+    if (item.locked) { e.preventDefault(); return }
     e.dataTransfer.setData('text/plain', item.id)
     e.dataTransfer.effectAllowed = 'move'
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -368,6 +369,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const footprintOverflow = isItemFootprintOverflow(item, config)
             const isSelected = selectedItemId === item.id
             const isDragging = dragState?.itemId === item.id
+            const isLocked = item.locked
             const overlapping = findOverlappingItems(item, items, config)
             const hasOverlap = overlapping.length > 0
             const suitableDrawers = oversized ? getSuitableDrawers(item) : []
@@ -378,24 +380,27 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const physD = rotatedDims.depth
             const hasRealDims = physW > 0 && physD > 0
             const isManual = (item.gridMode ?? 'auto') === 'manual'
-            const insetWPct = hasRealDims
-              ? Math.min(physW / (visW * config.cellSize), 1) * 100
+            const itemCardW = visW * CELL_SIZE + (visW - 1)
+            const itemCardH = visD * CELL_SIZE + (visD - 1)
+            const insetPxW = hasRealDims
+              ? Math.min(physW / (visW * config.cellSize), 1) * itemCardW
               : null
-            const insetDPct = hasRealDims
-              ? Math.min(physD / (visD * config.cellSize), 1) * 100
+            const insetPxH = hasRealDims
+              ? Math.min(physD / (visD * config.cellSize), 1) * itemCardH
               : null
 
             return (
               <div
                 key={item.id}
-                draggable={!resizeState}
+                draggable={!resizeState && !isLocked}
                 onDragStart={(e) => handleItemDragStart(e, item)}
                 onDragEnd={handleDragEnd}
                 onClick={() => selectItem(item.id)}
                 onDoubleClick={() => onEditItem(item)}
                 data-item-id={item.id}
                 className={cn(
-                  "absolute rounded-sm cursor-move transition-all",
+                  "absolute rounded-sm transition-all",
+                  isLocked ? "cursor-default" : "cursor-move",
                   "flex flex-col items-center justify-center gap-0.5",
                   "border",
                   isSelected && !isResizing && "ring-1 ring-primary ring-offset-1 ring-offset-background",
@@ -419,11 +424,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               >
                 {/* Inset: physical item footprint within allocated grid cells */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-[2px]">
-                  {insetWPct !== null && insetDPct !== null ? (
+                  {insetPxW !== null && insetPxH !== null ? (
                     <div
                       style={{
-                        width: `${insetWPct}%`,
-                        height: `${insetDPct}%`,
+                        width: insetPxW,
+                        height: insetPxH,
                         minWidth: 3,
                         minHeight: 3,
                         backgroundColor: `color-mix(in oklch, black 28%, ${item.color})`,
@@ -489,7 +494,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                                 key={d.id}
                                 onClick={() => handleMoveToDrawer(item, d.id)}
                               >
-                                <Move className="h-4 w-4 mr-2" />
+                                <Move className="h-4 w-4 " />
                                 {d.name}
                               </DropdownMenuItem>
                             ))}
@@ -501,6 +506,13 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
+                  </div>
+                )}
+
+                {/* Lock badge */}
+                {isLocked && (
+                  <div className="absolute -bottom-1 -right-1 z-20 p-1 rounded-full bg-slate-600 text-white pointer-events-none">
+                    <Lock className="h-2.5 w-2.5" />
                   </div>
                 )}
 
@@ -524,8 +536,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   </Tooltip>
                 )}
 
-                {/* Resize handles - visible when selected */}
-                {isSelected && (
+                {/* Resize handles - visible when selected and not locked */}
+                {isSelected && !isLocked && (
                   <>
                     {/* East handle */}
                     <div
@@ -592,26 +604,32 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         {contextItem ? (
           <ContextMenuContent className="w-48">
             <ContextMenuItem onClick={() => onEditItem(contextItem)}>
-              <Pencil className="h-4 w-4 mr-2" />Edit
+              <Pencil className="h-4 w-4 " />Edit
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => updateItem({ ...contextItem, locked: !contextItem.locked })}>
+              {contextItem.locked
+                ? <><Unlock className="h-4 w-4 " />Unlock</>
+                : <><Lock className="h-4 w-4 " />Lock</>
+              }
             </ContextMenuItem>
             <ContextMenuItem onClick={() => {
               const placed = duplicateItem(contextItem.id)
               if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
             }}>
-              <Copy className="h-4 w-4 mr-2" />Duplicate
+              <Copy className="h-4 w-4 " />Duplicate
             </ContextMenuItem>
             <ContextMenuSub>
-              <ContextMenuSubTrigger>
-                <ArrowRightLeft className="h-4 w-4 mr-2" />Move to
+              <ContextMenuSubTrigger disabled={contextItem.locked}>
+                <ArrowRightLeft className="h-4 w-4" />Move to
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="max-h-60 overflow-auto">
                 <ContextMenuItem onClick={() => moveItem(contextItem.id, null, 0, 0)} disabled={!contextItem.drawerId}>
-                  <Package className="h-4 w-4 mr-2" />Unassigned
+                  <Package className="h-4 w-4 " />Unassigned
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 {drawers.map(d => (
                   <ContextMenuItem key={d.id} onClick={() => moveItem(contextItem.id, d.id, 0, 0)} disabled={d.id === contextItem.drawerId}>
-                    <FolderOpen className="h-4 w-4 mr-2" />{d.name}
+                    <FolderOpen className="h-4 w-4 " />{d.name}
                     {isItemOversized(contextItem, d) && <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />}
                   </ContextMenuItem>
                 ))}
@@ -619,20 +637,20 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             </ContextMenuSub>
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'item', id: contextItem.id, name: contextItem.name })}>
-              <Trash2 className="h-4 w-4 mr-2" />Delete
+              <Trash2 className="h-4 w-4 " />Delete
             </ContextMenuItem>
           </ContextMenuContent>
         ) : (
           <ContextMenuContent className="w-44">
             <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
-              <Pencil className="h-4 w-4 mr-2" />Edit drawer
+              <Pencil className="h-4 w-4 " />Edit drawer
             </ContextMenuItem>
             <ContextMenuItem onClick={() => duplicateDrawer(drawer.id)}>
-              <Copy className="h-4 w-4 mr-2" />Duplicate drawer
+              <Copy className="h-4 w-4 " />Duplicate drawer
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}>
-              <Trash2 className="h-4 w-4 mr-2" />Delete drawer
+              <Trash2 className="h-4 w-4 " />Delete drawer
             </ContextMenuItem>
           </ContextMenuContent>
         )}

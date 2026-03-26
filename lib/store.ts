@@ -32,7 +32,7 @@ export interface DrawerStore {
   updateDrawer: (drawer: Drawer) => void
   deleteDrawer: (id: string, deleteContents?: boolean) => void
   duplicateDrawer: (id: string) => void
-  addItem: (item: Omit<Item, 'id'>) => void
+  addItem: (item: Omit<Item, 'id' | 'locked'>) => void
   updateItem: (item: Item) => void
   deleteItem: (id: string) => void
   duplicateItem: (id: string) => boolean
@@ -148,7 +148,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
 
           addItem: (item) => {
             push()
-            const newItem: Item = { ...item, id: generateId() }
+            const newItem: Item = { locked: false, ...item, id: generateId() }
             set((state) => ({
               items: [...state.items, newItem],
               selectedItemId: newItem.id,
@@ -311,6 +311,11 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           drawers: state.drawers,
           items: state.items,
         }),
+        onRehydrateStorage: () => (state) => {
+          if (state) {
+            state.items = state.items.map(i => ({ ...i, locked: (i as Item & { locked?: boolean }).locked ?? false }))
+          }
+        },
         ...(storage ? { storage } : {}),
       }
     )

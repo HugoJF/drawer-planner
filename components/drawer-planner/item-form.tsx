@@ -74,7 +74,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
       const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
       const depthMm = fromDisplayUnit(parseFloat(depth) || 0, unit)
       if (widthMm > 0 && depthMm > 0) {
-        const fakeItem = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, color, rotation, drawerId, gridX: 0, gridY: 0, gridMode: 'auto' as const }
+        const fakeItem = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, color, rotation, drawerId, gridX: 0, gridY: 0, gridMode: 'auto' as const, locked: false }
         const dims = calculateItemGridDimensions(fakeItem, config)
         setManualCols(dims.gridWidth)
         setManualRows(dims.gridDepth)
@@ -147,6 +147,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     gridMode,
     manualGridCols: manualCols,
     manualGridRows: manualRows,
+    locked: false,
   }
 
   const previewDims = (gridMode === 'auto' ? hasPhysical : true)
