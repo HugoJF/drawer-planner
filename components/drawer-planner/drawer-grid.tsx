@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Drawer, Item, ItemRotation } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
+import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 
 interface DrawerGridProps {
   drawer: Drawer
@@ -87,6 +88,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const [drawState, setDrawState] = useState<DrawState | null>(null)
   const [resizeState, setResizeState] = useState<ResizeState | null>(null)
   const [contextItem, setContextItem] = useState<Item | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
   const gridRef = React.useRef<HTMLDivElement>(null)
 
   const items = getItemsInDrawer(drawer.id)
@@ -559,7 +561,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               </ContextMenuSubContent>
             </ContextMenuSub>
             <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={() => deleteItem(contextItem.id)}>
+            <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'item', id: contextItem.id, name: contextItem.name })}>
               <Trash2 className="h-4 w-4 mr-2" />Delete
             </ContextMenuItem>
           </ContextMenuContent>
@@ -572,12 +574,25 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               <Copy className="h-4 w-4 mr-2" />Duplicate drawer
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={() => deleteDrawer(drawer.id)}>
+            <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}>
               <Trash2 className="h-4 w-4 mr-2" />Delete drawer
             </ContextMenuItem>
           </ContextMenuContent>
         )}
       </ContextMenu>
+
+      <DeleteConfirmDialog
+        open={pendingDelete !== null}
+        type={pendingDelete?.type ?? 'item'}
+        name={pendingDelete?.name ?? ''}
+        onConfirm={() => {
+          if (!pendingDelete) return
+          if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id)
+          else deleteItem(pendingDelete.id)
+          setPendingDelete(null)
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
 
       {/* Grid legend */}
       <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
