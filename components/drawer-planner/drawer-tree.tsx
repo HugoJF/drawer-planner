@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useMemo } from 'react'
-import { 
+import {
   ChevronRight,
   ChevronDown,
   Package,
@@ -12,7 +12,8 @@ import {
   Trash2,
   AlertTriangle,
   ArrowRightLeft,
-  Copy
+  Copy,
+  Plus
 } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -55,9 +56,10 @@ import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-
 interface DrawerTreeProps {
   onEditDrawer: (drawer: Drawer) => void
   onEditItem: (item: Item) => void
+  onAddDrawer: () => void
 }
 
-export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
+export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTreeProps) {
   const drawers = useDrawerStore(s => s.drawers)
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
   const selectedItemId = useDrawerStore(s => s.selectedItemId)
@@ -128,8 +130,11 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
   return (
     <ScrollArea className="h-full">
       <div className="p-2">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">
-          Drawers
+        <div className="flex items-center justify-between px-2 py-1 mb-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
+          <button onClick={onAddDrawer} className="text-muted-foreground hover:text-foreground transition-colors">
+            <Plus className="h-3.5 w-3.5" />
+          </button>
         </div>
         
         {drawers.length === 0 ? (
