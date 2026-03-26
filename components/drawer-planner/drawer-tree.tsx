@@ -4,6 +4,7 @@ import React, { useState, useRef, useMemo, useCallback } from 'react'
 import {
   ChevronRight,
   ChevronDown,
+  ChevronsUpDown,
   Package,
   Box,
   FolderOpen,
@@ -123,6 +124,11 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     })
   }
 
+  const allExpanded = drawers.length > 0 && drawers.every(d => expandedDrawers.has(d.id))
+  const toggleAll = () => {
+    setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
+  }
+
   const handleDragStart = (e: React.DragEvent, itemId: string) => {
     e.dataTransfer.setData('text/plain', itemId)
     e.dataTransfer.effectAllowed = 'move'
@@ -152,9 +158,21 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
       <div className="p-2">
         <div className="flex items-center justify-between px-2 py-1 mb-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
-          <button onClick={onAddDrawer} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-            <Plus className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {drawers.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button onClick={toggleAll} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                    <ChevronsUpDown className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{allExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
+              </Tooltip>
+            )}
+            <button onClick={onAddDrawer} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
         
         {drawers.length === 0 ? (
