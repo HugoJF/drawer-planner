@@ -307,3 +307,68 @@ describe('duplicateItem', () => {
     expect(copyId).not.toBe(itemId)
   })
 })
+
+// ---------------------------------------------------------------------------
+// duplicateItem — return value
+// ---------------------------------------------------------------------------
+describe('duplicateItem — return value', () => {
+  let store: Store
+
+  beforeEach(() => {
+    store = freshStore()
+  })
+
+  test('returns true when a free position is found', () => {
+    // 6x6 drawer with one item at (0,0) — plenty of free space
+    const { itemId } = addDrawerAndItem(store, { gridX: 0, gridY: 0 })
+    const result = store.getState().duplicateItem(itemId)
+    expect(result).toBe(true)
+  })
+
+  test('returns false when the drawer is full (no free position)', () => {
+    // Create a 1x1 drawer: Math.floor((43 - 1) / 42) = 1 col, 1 row
+    store.getState().addDrawer({ name: 'Tiny', width: 43, depth: 43, height: 75 })
+    const drawerId = store.getState().selectedDrawerId!
+
+    const drawer = store.getState().drawers.find((d) => d.id === drawerId)!
+    expect(drawer.gridCols).toBe(1)
+    expect(drawer.gridRows).toBe(1)
+
+    // Place the only possible 1x1 item
+    store.getState().addItem({
+      name: 'Occupier',
+      width: 42,
+      height: 50,
+      depth: 42,
+      color: '#ff0000',
+      rotation: 'normal',
+      drawerId,
+      gridX: 0,
+      gridY: 0,
+    })
+    const itemId = store.getState().selectedItemId!
+
+    // Drawer is full — no free cell for a duplicate
+    const result = store.getState().duplicateItem(itemId)
+    expect(result).toBe(false)
+  })
+
+  test('returns false when item is unassigned (no drawer to search)', () => {
+    store.getState().addItem({
+      name: 'Floating',
+      width: 42,
+      height: 50,
+      depth: 42,
+      color: '#00ff00',
+      rotation: 'normal',
+      drawerId: null,
+      gridX: 0,
+      gridY: 0,
+    })
+    const itemId = store.getState().selectedItemId!
+
+    // No drawer → findAvailablePosition is never called → returns false
+    const result = store.getState().duplicateItem(itemId)
+    expect(result).toBe(false)
+  })
+})
