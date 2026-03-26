@@ -164,15 +164,34 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialDim
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="item-name">Name</Label>
-            <Input
-              id="item-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Screwdriver, Battery Pack"
-              required
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="item-name">Name</Label>
+              <Input
+                id="item-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Screwdriver, Battery Pack"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Drawer</Label>
+              <Select
+                value={drawerId || 'unassigned'}
+                onValueChange={(v) => setDrawerId(v === 'unassigned' ? null : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a drawer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {drawers.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -249,26 +268,6 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialDim
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Assign to Drawer</Label>
-            <Select 
-              value={drawerId || 'unassigned'} 
-              onValueChange={(v) => setDrawerId(v === 'unassigned' ? null : v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a drawer..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {drawers.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Preview */}

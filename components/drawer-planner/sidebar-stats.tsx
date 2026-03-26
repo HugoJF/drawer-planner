@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useDrawerStore } from '@/lib/store'
 import { calculateDrawerStats } from '@/lib/gridfinity'
 import { Progress } from '@/components/ui/progress'
@@ -15,10 +15,17 @@ import { formatDimension } from '@/lib/types'
 export function SidebarStats() {
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
   const config = useDrawerStore(s => s.config)
-  const getItemsInDrawer = useDrawerStore(s => s.getItemsInDrawer)
-  const getDrawerById = useDrawerStore(s => s.getDrawerById)
+  const drawers = useDrawerStore(s => s.drawers)
+  const allItems = useDrawerStore(s => s.items)
 
-  const selectedDrawer = selectedDrawerId ? getDrawerById(selectedDrawerId) : null
+  const selectedDrawer = useMemo(
+    () => drawers.find(d => d.id === selectedDrawerId) ?? null,
+    [drawers, selectedDrawerId]
+  )
+  const items = useMemo(
+    () => allItems.filter(i => i.drawerId === selectedDrawerId),
+    [allItems, selectedDrawerId]
+  )
 
   if (!selectedDrawer) {
     return (
@@ -30,7 +37,6 @@ export function SidebarStats() {
     )
   }
 
-  const items = getItemsInDrawer(selectedDrawer.id)
   const stats = calculateDrawerStats(selectedDrawer, items, config)
   const cellUtilization = stats.totalCells > 0 
     ? (stats.usedCells / stats.totalCells) * 100 

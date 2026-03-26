@@ -199,37 +199,23 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem onClick={() => onEditDrawer(drawer)}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => duplicateDrawer(drawer.id)}>
-                              <Copy className="h-4 w-4 mr-2" />
-                              Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
+                            <DrawerMenuActions
+                              variant="dropdown"
+                              onEdit={() => onEditDrawer(drawer)}
+                              onDuplicate={() => duplicateDrawer(drawer.id)}
+                              onDelete={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
+                            />
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
                     </ContextMenuTrigger>
                     <ContextMenuContent className="w-40">
-                      <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
-                        <Pencil className="h-4 w-4 mr-2" />Edit
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => duplicateDrawer(drawer.id)}>
-                        <Copy className="h-4 w-4 mr-2" />Duplicate
-                      </ContextMenuItem>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}>
-                        <Trash2 className="h-4 w-4 mr-2" />Delete
-                      </ContextMenuItem>
+                      <DrawerMenuActions
+                        variant="context"
+                        onEdit={() => onEditDrawer(drawer)}
+                        onDuplicate={() => duplicateDrawer(drawer.id)}
+                        onDelete={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
+                      />
                     </ContextMenuContent>
                   </ContextMenu>
 
@@ -412,81 +398,91 @@ function TreeItem({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDuplicate}>
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <ArrowRightLeft className="h-4 w-4 mr-2" />
-                  Move to
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent sideOffset={2} alignOffset={-5} className="max-h-60 overflow-auto">
-                  <DropdownMenuItem
-                    onClick={() => onMoveToDrawer(null)}
-                    disabled={!item.drawerId}
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    Unassigned
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {allDrawers.map(d => (
-                    <DropdownMenuItem
-                      key={d.id}
-                      onClick={() => onMoveToDrawer(d.id)}
-                      disabled={d.id === item.drawerId}
-                    >
-                      <FolderOpen className="h-4 w-4 mr-2" />
-                      {d.name}
-                      {isItemOversized(item, d) && (
-                        <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
+              <ItemMenuActions
+                variant="dropdown"
+                item={item}
+                allDrawers={allDrawers}
+                onEdit={onEdit}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
+                onMoveToDrawer={onMoveToDrawer}
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ContextMenuItem onClick={onEdit}>
-          <Pencil className="h-4 w-4 mr-2" />Edit
-        </ContextMenuItem>
-        <ContextMenuItem onClick={onDuplicate}>
-          <Copy className="h-4 w-4 mr-2" />Duplicate
-        </ContextMenuItem>
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>
-            <ArrowRightLeft className="h-4 w-4 mr-2" />Move to
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="max-h-60 overflow-auto">
-            <ContextMenuItem onClick={() => onMoveToDrawer(null)} disabled={!item.drawerId}>
-              <Package className="h-4 w-4 mr-2" />Unassigned
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            {allDrawers.map(d => (
-              <ContextMenuItem key={d.id} onClick={() => onMoveToDrawer(d.id)} disabled={d.id === item.drawerId}>
-                <FolderOpen className="h-4 w-4 mr-2" />{d.name}
-                {isItemOversized(item, d) && <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-        <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onClick={onDelete}>
-          <Trash2 className="h-4 w-4 mr-2" />Delete
-        </ContextMenuItem>
+        <ItemMenuActions
+          variant="context"
+          item={item}
+          allDrawers={allDrawers}
+          onEdit={onEdit}
+          onDuplicate={onDuplicate}
+          onDelete={onDelete}
+          onMoveToDrawer={onMoveToDrawer}
+        />
       </ContextMenuContent>
     </ContextMenu>
+  )
+}
+
+// ── Shared menu action components ────────────────────────────────────────────
+
+type MenuVariant = 'dropdown' | 'context'
+
+function DrawerMenuActions({ variant, onEdit, onDuplicate, onDelete }: {
+  variant: MenuVariant
+  onEdit: () => void
+  onDuplicate: () => void
+  onDelete: () => void
+}) {
+  const Item = (variant === 'dropdown' ? DropdownMenuItem : ContextMenuItem) as typeof DropdownMenuItem
+  const Separator = (variant === 'dropdown' ? DropdownMenuSeparator : ContextMenuSeparator) as typeof DropdownMenuSeparator
+  return (
+    <>
+      <Item onClick={onEdit}><Pencil className="h-4 w-4 mr-2" />Edit</Item>
+      <Item onClick={onDuplicate}><Copy className="h-4 w-4 mr-2" />Duplicate</Item>
+      <Separator />
+      <Item variant="destructive" onClick={onDelete}><Trash2 className="h-4 w-4 mr-2" />Delete</Item>
+    </>
+  )
+}
+
+function ItemMenuActions({ variant, item, allDrawers, onEdit, onDuplicate, onDelete, onMoveToDrawer }: {
+  variant: MenuVariant
+  item: Item
+  allDrawers: Drawer[]
+  onEdit: () => void
+  onDuplicate: () => void
+  onDelete: () => void
+  onMoveToDrawer: (drawerId: string | null) => void
+}) {
+  const MenuItem = (variant === 'dropdown' ? DropdownMenuItem : ContextMenuItem) as typeof DropdownMenuItem
+  const Separator = (variant === 'dropdown' ? DropdownMenuSeparator : ContextMenuSeparator) as typeof DropdownMenuSeparator
+  const Sub = (variant === 'dropdown' ? DropdownMenuSub : ContextMenuSub) as typeof DropdownMenuSub
+  const SubTrigger = (variant === 'dropdown' ? DropdownMenuSubTrigger : ContextMenuSubTrigger) as typeof DropdownMenuSubTrigger
+  const SubContent = (variant === 'dropdown' ? DropdownMenuSubContent : ContextMenuSubContent) as typeof DropdownMenuSubContent
+  return (
+    <>
+      <MenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2" />Edit</MenuItem>
+      <MenuItem onClick={onDuplicate}><Copy className="h-4 w-4 mr-2" />Duplicate</MenuItem>
+      <Sub>
+        <SubTrigger><ArrowRightLeft className="h-4 w-4 mr-2" />Move to</SubTrigger>
+        <SubContent className="max-h-60 overflow-auto">
+          <MenuItem onClick={() => onMoveToDrawer(null)} disabled={!item.drawerId}>
+            <Package className="h-4 w-4 mr-2" />Unassigned
+          </MenuItem>
+          <Separator />
+          {allDrawers.map(d => (
+            <MenuItem key={d.id} onClick={() => onMoveToDrawer(d.id)} disabled={d.id === item.drawerId}>
+              <FolderOpen className="h-4 w-4 mr-2" />{d.name}
+              {isItemOversized(item, d) && <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />}
+            </MenuItem>
+          ))}
+        </SubContent>
+      </Sub>
+      <Separator />
+      <MenuItem variant="destructive" onClick={onDelete}><Trash2 className="h-4 w-4 mr-2" />Delete</MenuItem>
+    </>
   )
 }
