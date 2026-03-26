@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
-import { useDrawerPlanner } from './drawer-planner-provider'
+import { useDrawerStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { 
   calculateItemGridDimensions, 
@@ -70,17 +70,17 @@ interface DragState {
 }
 
 export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }: DrawerGridProps) {
-  const {
-    state,
-    getItemsInDrawer,
-    moveItem,
-    deleteItem,
-    duplicateItem,
-    deleteDrawer,
-    duplicateDrawer,
-    updateItem,
-    selectItem,
-  } = useDrawerPlanner()
+  const config = useDrawerStore(s => s.config)
+  const drawers = useDrawerStore(s => s.drawers)
+  const selectedItemId = useDrawerStore(s => s.selectedItemId)
+  const getItemsInDrawer = useDrawerStore(s => s.getItemsInDrawer)
+  const moveItem = useDrawerStore(s => s.moveItem)
+  const deleteItem = useDrawerStore(s => s.deleteItem)
+  const duplicateItem = useDrawerStore(s => s.duplicateItem)
+  const deleteDrawer = useDrawerStore(s => s.deleteDrawer)
+  const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
+  const updateItem = useDrawerStore(s => s.updateItem)
+  const selectItem = useDrawerStore(s => s.selectItem)
 
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [dropTarget, setDropTarget] = useState<{ x: number; y: number } | null>(null)
@@ -99,7 +99,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     items.forEach(item => {
       if (dragState?.itemId === item.id) return // Skip dragging item
       
-      const dims = calculateItemGridDimensions(item, state.config)
+      const dims = calculateItemGridDimensions(item, config)
       for (let x = item.gridX; x < item.gridX + dims.gridWidth; x++) {
         for (let y = item.gridY; y < item.gridY + dims.gridDepth; y++) {
           map.set(`${x},${y}`, item.id)
@@ -108,7 +108,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     })
     
     return map
-  }, [items, state.config, dragState])
+  }, [items, config, dragState])
 
   const cellStep = cellSize + 1 // cell width + 1px gap
 
@@ -152,7 +152,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     e.dataTransfer.setData('text/plain', item.id)
     e.dataTransfer.effectAllowed = 'move'
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const dims = calculateItemGridDimensions(item, state.config)
+    const dims = calculateItemGridDimensions(item, config)
     setDragState({
       itemId: item.id,
       grabPxX: e.clientX - rect.left,
@@ -160,7 +160,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       gridWidth: dims.gridWidth,
       gridDepth: dims.gridDepth,
     })
-  }, [state.config])
+  }, [config])
 
   const handleDragEnd = useCallback(() => {
     setDragState(null)
@@ -180,11 +180,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   // Get suitable drawers for an oversized item
   const getSuitableDrawers = useCallback((item: Item) => {
-    return state.drawers.filter(d => {
+    return drawers.filter(d => {
       const rotatedDims = getRotatedDimensions(item)
       return d.height >= rotatedDims.height && d.id !== drawer.id
     })
-  }, [state.drawers, drawer.id])
+  }, [drawers, drawer.id])
 
   return (
     <div className="relative">
@@ -229,7 +229,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             if (resizeState) {
               const item = items.find(i => i.id === resizeState.itemId)
               if (item) {
-                const cs = state.config.cellSize
+                const cs = config.cellSize
                 // Map grid dims back to physical dims respecting rotation
                 let updates: Partial<typeof item> = {}
                 switch (item.rotation) {
@@ -256,7 +256,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const cols = Math.abs(drawState.endX - drawState.startX) + 1
             const rows = Math.abs(drawState.endY - drawState.startY) + 1
             setDrawState(null)
-            onAddItemAtCell(gx, gy, cols * state.config.cellSize, rows * state.config.cellSize)
+            onAddItemAtCell(gx, gy, cols * config.cellSize, rows * config.cellSize)
           }}
           onMouseLeave={() => {
             setDrawState(null)
@@ -349,14 +349,14 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
           {items.map(item => {
             const isResizing = resizeState?.itemId === item.id
-            const baseDims = calculateItemGridDimensions(item, state.config)
+            const baseDims = calculateItemGridDimensions(item, config)
             // Item stays frozen at original size during resize; the ghost overlay shows the preview
             const visW = baseDims.gridWidth
             const visD = baseDims.gridDepth
             const oversized = isItemOversized(item, drawer)
-            const isSelected = state.selectedItemId === item.id
+            const isSelected = selectedItemId === item.id
             const isDragging = dragState?.itemId === item.id
-            const overlapping = findOverlappingItems(item, items, state.config)
+            const overlapping = findOverlappingItems(item, items, config)
             const hasOverlap = overlapping.length > 0
             const suitableDrawers = oversized ? getSuitableDrawers(item) : []
 
@@ -423,7 +423,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                          Item is too tall for this drawer ({formatDimension(getRotatedDimensions(item).height, state.config.displayUnit)} {">"} {formatDimension(drawer.height, state.config.displayUnit)})
+                          Item is too tall for this drawer ({formatDimension(getRotatedDimensions(item).height, config.displayUnit)} {">"} {formatDimension(drawer.height, config.displayUnit)})
                         </div>
                         {suitableDrawers.length > 0 ? (
                           <>
@@ -550,7 +550,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   <Package className="h-4 w-4 mr-2" />Unassigned
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                {state.drawers.map(d => (
+                {drawers.map(d => (
                   <ContextMenuItem key={d.id} onClick={() => moveItem(contextItem.id, d.id, 0, 0)} disabled={d.id === contextItem.drawerId}>
                     <FolderOpen className="h-4 w-4 mr-2" />{d.name}
                     {isItemOversized(contextItem, d) && <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />}
@@ -585,7 +585,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           Grid: {drawer.gridCols} x {drawer.gridRows} cells ({drawer.gridCols * drawer.gridRows} total)
         </span>
         <span>
-          Cell: {formatDimension(state.config.cellSize, state.config.displayUnit)}
+          Cell: {formatDimension(config.cellSize, config.displayUnit)}
         </span>
       </div>
     </div>

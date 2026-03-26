@@ -18,12 +18,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Settings2, Download, Upload } from 'lucide-react'
-import { useDrawerPlanner } from './drawer-planner-provider'
+import { useDrawerStore } from '@/lib/store'
 import { DEFAULT_CONFIG, type DimensionUnit } from '@/lib/types'
 
 export function SettingsPanel() {
-  const { state, updateConfig, exportData, importData } = useDrawerPlanner()
-  const { config } = state
+  const config = useDrawerStore(s => s.config)
+  const updateConfig = useDrawerStore(s => s.updateConfig)
+  const exportData = useDrawerStore(s => s.exportData)
+  const importData = useDrawerStore(s => s.importData)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleReset = () => {

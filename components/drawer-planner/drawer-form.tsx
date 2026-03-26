@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useDrawerPlanner } from './drawer-planner-provider'
+import { useDrawerStore } from '@/lib/store'
 import { calculateDrawerGrid } from '@/lib/gridfinity'
 import type { Drawer } from '@/lib/types'
 import { toDisplayUnit, fromDisplayUnit } from '@/lib/types'
@@ -24,7 +24,9 @@ interface DrawerFormProps {
 }
 
 export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
-  const { state, addDrawer, updateDrawer } = useDrawerPlanner()
+  const config = useDrawerStore(s => s.config)
+  const addDrawer = useDrawerStore(s => s.addDrawer)
+  const updateDrawer = useDrawerStore(s => s.updateDrawer)
   const isEditing = !!drawer
 
   const [name, setName] = useState('')
@@ -32,7 +34,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
   const [height, setHeight] = useState('')
   const [depth, setDepth] = useState('')
 
-  const unit = state.config.displayUnit
+  const unit = config.displayUnit
 
   useEffect(() => {
     if (drawer) {
@@ -65,7 +67,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
     const depthMm = fromDisplayUnit(depthDisplay, unit)
 
     if (isEditing && drawer) {
-      const { gridCols, gridRows } = calculateDrawerGrid(widthMm, depthMm, state.config)
+      const { gridCols, gridRows } = calculateDrawerGrid(widthMm, depthMm, config)
       updateDrawer({
         ...drawer,
         name,
@@ -93,7 +95,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
   const previewWidthMm = fromDisplayUnit(previewWidthDisplay, unit)
   const previewDepthMm = fromDisplayUnit(previewDepthDisplay, unit)
   const previewGrid = previewWidthMm > 0 && previewDepthMm > 0
-    ? calculateDrawerGrid(previewWidthMm, previewDepthMm, state.config)
+    ? calculateDrawerGrid(previewWidthMm, previewDepthMm, config)
     : null
 
   return (
@@ -168,7 +170,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
                 ({previewGrid.gridCols * previewGrid.gridRows} total)
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Based on {state.config.cellSize}mm cell size with {state.config.tolerance}mm tolerance
+                Based on {config.cellSize}mm cell size with {config.tolerance}mm tolerance
               </p>
             </div>
           )}

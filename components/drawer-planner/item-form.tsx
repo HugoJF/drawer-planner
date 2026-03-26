@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useDrawerPlanner } from './drawer-planner-provider'
+import { useDrawerStore } from '@/lib/store'
 import { calculateItemGridDimensions, getRotatedDimensions } from '@/lib/gridfinity'
 import { cn } from '@/lib/utils'
 import type { Item, ItemRotation } from '@/lib/types'
@@ -35,7 +35,11 @@ interface ItemFormProps {
 }
 
 export function ItemForm({ open, onOpenChange, item, initialPosition, initialDimensions }: ItemFormProps) {
-  const { state, addItem, updateItem } = useDrawerPlanner()
+  const config = useDrawerStore(s => s.config)
+  const drawers = useDrawerStore(s => s.drawers)
+  const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
+  const addItem = useDrawerStore(s => s.addItem)
+  const updateItem = useDrawerStore(s => s.updateItem)
   const isEditing = !!item
 
   const [name, setName] = useState('')
@@ -46,7 +50,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialDim
   const [rotation, setRotation] = useState<ItemRotation>('normal')
   const [drawerId, setDrawerId] = useState<string | null>(null)
 
-  const unit = state.config.displayUnit
+  const unit = config.displayUnit
 
   useEffect(() => {
     if (item) {
@@ -64,9 +68,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialDim
       setDepth(initialDimensions ? toDisplayUnit(initialDimensions.depth, unit).toString() : '')
       setColor(ITEM_COLORS[Math.floor(Math.random() * ITEM_COLORS.length)])
       setRotation('normal')
-      setDrawerId(state.selectedDrawerId)
+      setDrawerId(selectedDrawerId)
     }
-  }, [item, open, state.selectedDrawerId, unit, initialDimensions])
+  }, [item, open, selectedDrawerId, unit, initialDimensions])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -136,7 +140,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialDim
     : null
 
   const previewDims = previewItem 
-    ? calculateItemGridDimensions(previewItem, state.config) 
+    ? calculateItemGridDimensions(previewItem, config) 
     : null
 
   const rotatedDims = previewItem 
@@ -258,7 +262,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialDim
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
-                {state.drawers.map((d) => (
+                {drawers.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name}
                   </SelectItem>

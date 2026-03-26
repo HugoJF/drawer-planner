@@ -14,7 +14,7 @@ import {
   ArrowRightLeft,
   Copy
 } from 'lucide-react'
-import { useDrawerPlanner } from './drawer-planner-provider'
+import { useDrawerStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { 
   Collapsible, 
@@ -47,19 +47,18 @@ interface DrawerTreeProps {
 }
 
 export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
-  const { 
-    state,
-    selectDrawer,
-    selectItem,
-    deleteDrawer,
-    duplicateDrawer,
-    deleteItem,
-    duplicateItem,
-    moveItem,
-    getItemsInDrawer,
-    getUnassignedItems,
-    getDrawerById,
-  } = useDrawerPlanner()
+  const drawers = useDrawerStore(s => s.drawers)
+  const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
+  const selectedItemId = useDrawerStore(s => s.selectedItemId)
+  const selectDrawer = useDrawerStore(s => s.selectDrawer)
+  const selectItem = useDrawerStore(s => s.selectItem)
+  const deleteDrawer = useDrawerStore(s => s.deleteDrawer)
+  const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
+  const deleteItem = useDrawerStore(s => s.deleteItem)
+  const duplicateItem = useDrawerStore(s => s.duplicateItem)
+  const moveItem = useDrawerStore(s => s.moveItem)
+  const getItemsInDrawer = useDrawerStore(s => s.getItemsInDrawer)
+  const getUnassignedItems = useDrawerStore(s => s.getUnassignedItems)
 
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
@@ -109,16 +108,16 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
           Drawers
         </div>
         
-        {state.drawers.length === 0 ? (
+        {drawers.length === 0 ? (
           <div className="px-2 py-4 text-sm text-muted-foreground text-center">
             No drawers yet. Add one to get started.
           </div>
         ) : (
           <div className="flex flex-col gap-0.5">
-            {state.drawers.map(drawer => {
+            {drawers.map(drawer => {
               const drawerItems = getItemsInDrawer(drawer.id)
               const isExpanded = expandedDrawers.has(drawer.id)
-              const isSelected = state.selectedDrawerId === drawer.id
+              const isSelected = selectedDrawerId === drawer.id
               const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
 
               return (
@@ -207,7 +206,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                             key={item.id}
                             item={item}
                             drawer={drawer}
-                            isSelected={state.selectedItemId === item.id}
+                            isSelected={selectedItemId === item.id}
                             isDragging={draggedItem === item.id}
                             onSelect={() => {
                               selectDrawer(drawer.id)
@@ -218,7 +217,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                             onDelete={() => deleteItem(item.id)}
                             onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}
-                            allDrawers={state.drawers}
+                            allDrawers={drawers}
                             onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
                           />
                         ))
@@ -256,7 +255,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                     key={item.id}
                     item={item}
                     drawer={null}
-                    isSelected={state.selectedItemId === item.id}
+                    isSelected={selectedItemId === item.id}
                     isDragging={draggedItem === item.id}
                     onSelect={() => selectItem(item.id)}
                     onEdit={() => onEditItem(item)}
@@ -264,7 +263,7 @@ export function DrawerTree({ onEditDrawer, onEditItem }: DrawerTreeProps) {
                     onDelete={() => deleteItem(item.id)}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
-                    allDrawers={state.drawers}
+                    allDrawers={drawers}
                     onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
                   />
                 ))}

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useDrawerPlanner } from './drawer-planner-provider'
+import { useDrawerStore } from '@/lib/store'
 import { calculateDrawerStats } from '@/lib/gridfinity'
 import { Progress } from '@/components/ui/progress'
 import { Grid3X3, Box, Layers, AlertTriangle } from 'lucide-react'
@@ -13,11 +13,12 @@ import {
 import { formatDimension } from '@/lib/types'
 
 export function SidebarStats() {
-  const { state, getItemsInDrawer, getDrawerById } = useDrawerPlanner()
-  
-  const selectedDrawer = state.selectedDrawerId 
-    ? getDrawerById(state.selectedDrawerId) 
-    : null
+  const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
+  const config = useDrawerStore(s => s.config)
+  const getItemsInDrawer = useDrawerStore(s => s.getItemsInDrawer)
+  const getDrawerById = useDrawerStore(s => s.getDrawerById)
+
+  const selectedDrawer = selectedDrawerId ? getDrawerById(selectedDrawerId) : null
 
   if (!selectedDrawer) {
     return (
@@ -30,7 +31,7 @@ export function SidebarStats() {
   }
 
   const items = getItemsInDrawer(selectedDrawer.id)
-  const stats = calculateDrawerStats(selectedDrawer, items, state.config)
+  const stats = calculateDrawerStats(selectedDrawer, items, config)
   const cellUtilization = stats.totalCells > 0 
     ? (stats.usedCells / stats.totalCells) * 100 
     : 0
@@ -82,7 +83,7 @@ export function SidebarStats() {
               <Layers className="h-3 w-3 text-muted-foreground" />
               <span>Dead Room:</span>
               <span className="font-medium">
-                {formatDimension(stats.deadRoom, state.config.displayUnit)}
+                {formatDimension(stats.deadRoom, config.displayUnit)}
               </span>
             </div>
           </TooltipTrigger>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { DrawerPlannerProvider, useDrawerPlanner } from '@/components/drawer-planner/drawer-planner-provider'
+import { useDrawerStore } from '@/lib/store'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
 import { DrawerGrid } from '@/components/drawer-planner/drawer-grid'
 import { SidebarStats } from '@/components/drawer-planner/sidebar-stats'
@@ -10,11 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { 
-  Plus, 
-  FolderPlus, 
-  Package, 
-  PanelLeftClose, 
+import {
+  Plus,
+  FolderPlus,
+  Package,
+  PanelLeftClose,
   PanelLeft,
   Grid3X3,
 } from 'lucide-react'
@@ -23,8 +23,11 @@ import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 function DashboardContent() {
-  const { state, getDrawerById } = useDrawerPlanner()
-  
+  const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
+  const drawers = useDrawerStore(s => s.drawers)
+  const config = useDrawerStore(s => s.config)
+  const getDrawerById = useDrawerStore(s => s.getDrawerById)
+
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [drawerFormOpen, setDrawerFormOpen] = useState(false)
   const [itemFormOpen, setItemFormOpen] = useState(false)
@@ -33,9 +36,7 @@ function DashboardContent() {
   const [newItemPosition, setNewItemPosition] = useState<{ gridX: number; gridY: number } | null>(null)
   const [newItemDimensions, setNewItemDimensions] = useState<{ width: number; depth: number } | null>(null)
 
-  const selectedDrawer = state.selectedDrawerId 
-    ? getDrawerById(state.selectedDrawerId) 
-    : null
+  const selectedDrawer = selectedDrawerId ? getDrawerById(selectedDrawerId) : null
 
   const handleAddDrawer = () => {
     setEditingDrawer(null)
@@ -70,7 +71,7 @@ function DashboardContent() {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
           "flex flex-col border-r border-border bg-card/50 transition-all duration-300",
           sidebarOpen ? "w-64" : "w-0"
@@ -80,8 +81,8 @@ function DashboardContent() {
           <>
             <div className="flex items-center justify-between p-3 border-b border-border">
               <h2 className="text-sm font-semibold">Organization</h2>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setSidebarOpen(false)}
@@ -90,7 +91,7 @@ function DashboardContent() {
               </Button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <DrawerTree 
+              <DrawerTree
                 onEditDrawer={handleEditDrawer}
                 onEditItem={handleEditItem}
               />
@@ -122,9 +123,9 @@ function DashboardContent() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-semibold">{selectedDrawer.name}</h1>
                   <span className="text-sm text-muted-foreground">
-                    {formatDimension(selectedDrawer.width, state.config.displayUnit)} ×{' '}
-                    {formatDimension(selectedDrawer.depth, state.config.displayUnit)} ×{' '}
-                    {formatDimension(selectedDrawer.height, state.config.displayUnit)}
+                    {formatDimension(selectedDrawer.width, config.displayUnit)} ×{' '}
+                    {formatDimension(selectedDrawer.depth, config.displayUnit)} ×{' '}
+                    {formatDimension(selectedDrawer.height, config.displayUnit)}
                   </span>
                 </div>
               ) : (
@@ -132,7 +133,7 @@ function DashboardContent() {
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <SettingsPanel />
             <Separator orientation="vertical" className="h-6" />
@@ -177,11 +178,11 @@ function DashboardContent() {
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">No Drawer Selected</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {state.drawers.length === 0 
+                      {drawers.length === 0
                         ? "Get started by adding your first drawer."
                         : "Select a drawer from the sidebar to view its contents."}
                     </p>
-                    {state.drawers.length === 0 && (
+                    {drawers.length === 0 && (
                       <Button onClick={handleAddDrawer} className="gap-2">
                         <FolderPlus className="h-4 w-4" />
                         Add Your First Drawer
@@ -196,7 +197,7 @@ function DashboardContent() {
       </main>
 
       {/* Dialogs */}
-      <DrawerForm 
+      <DrawerForm
         open={drawerFormOpen}
         onOpenChange={setDrawerFormOpen}
         drawer={editingDrawer}
@@ -213,9 +214,5 @@ function DashboardContent() {
 }
 
 export default function Page() {
-  return (
-    <DrawerPlannerProvider>
-      <DashboardContent />
-    </DrawerPlannerProvider>
-  )
+  return <DashboardContent />
 }
