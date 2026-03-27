@@ -5,6 +5,7 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronsUpDown,
+  ArrowUpDown,
   Package,
   Box,
   FolderOpen,
@@ -14,7 +15,8 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   Copy,
-  Plus
+  Plus,
+  Check,
 } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
@@ -50,10 +52,38 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { isItemOversized, getRotatedDimensions } from '@/lib/gridfinity'
+import { isItemOversized, getRotatedDimensions, calculateItemGridDimensions } from '@/lib/gridfinity'
 import { formatDimension } from '@/lib/types'
-import type { Drawer, Item, DimensionUnit } from '@/lib/types'
+import type { Drawer, Item, DimensionUnit, GridfinityConfig } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
+
+type SortMode = 'insertion' | 'name' | 'size' | 'y' | 'x'
+
+const SORT_LABELS: Record<SortMode, string> = {
+  insertion: 'Insertion order',
+  name: 'Name',
+  size: 'Size (largest first)',
+  y: 'Y position',
+  x: 'X position',
+}
+
+function sortItems(items: Item[], mode: SortMode, config: GridfinityConfig): Item[] {
+  if (mode === 'insertion') return items
+  return [...items].sort((a, b) => {
+    switch (mode) {
+      case 'name': return a.name.localeCompare(b.name)
+      case 'size': {
+        const da = calculateItemGridDimensions(a, config)
+        const db = calculateItemGridDimensions(b, config)
+        const areaA = da.gridWidth * da.gridDepth
+        const areaB = db.gridWidth * db.gridDepth
+        return areaB - areaA
+      }
+      case 'y': return a.gridY !== b.gridY ? a.gridY - b.gridY : a.gridX - b.gridX
+      case 'x': return a.gridX !== b.gridX ? a.gridX - b.gridX : a.gridY - b.gridY
+    }
+  })
+}
 
 interface DrawerTreeProps {
   onEditDrawer: (drawer: Drawer) => void
@@ -97,6 +127,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   }, [duplicateItem, toast])
 
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
+  const [sortMode, setSortMode] = useState<SortMode>('insertion')
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
@@ -159,6 +190,29 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
         <div className="flex items-center justify-between px-2 py-1 mb-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
           <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn(
+                      "cursor-pointer transition-colors",
+                      sortMode !== 'insertion' ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    )}>
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="right">Sort items</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="w-44">
+                {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
+                  <DropdownMenuItem key={mode} onClick={() => setSortMode(mode)} className="gap-2">
+                    <Check className={cn("h-3.5 w-3.5 shrink-0", sortMode === mode ? "opacity-100" : "opacity-0")} />
+                    {SORT_LABELS[mode]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {drawers.length > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -182,7 +236,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
         ) : (
           <div className="flex flex-col gap-0.5">
             {drawers.map(drawer => {
-              const drawerItems = itemsByDrawer.get(drawer.id) ?? []
+              const drawerItems = sortItems(itemsByDrawer.get(drawer.id) ?? [], sortMode, config)
               const isExpanded = expandedDrawers.has(drawer.id)
               const isSelected = selectedDrawerId === drawer.id
               const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
@@ -288,6 +342,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                             allDrawers={drawers}
                             onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
                             displayUnit={config.displayUnit}
+                            config={config}
                           />
                         ))
                       )}
@@ -319,7 +374,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
               </div>
             ) : (
               <div className="flex flex-col gap-0.5">
-                {unassignedItems.map(item => (
+                {sortItems(unassignedItems, sortMode, config).map(item => (
                   <TreeItem
                     key={item.id}
                     item={item}
@@ -338,6 +393,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                     allDrawers={drawers}
                     onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
                     displayUnit={config.displayUnit}
+                    config={config}
                   />
                 ))}
               </div>
@@ -377,6 +433,7 @@ interface TreeItemProps {
   allDrawers: Drawer[]
   onMoveToDrawer: (drawerId: string | null) => void
   displayUnit: DimensionUnit
+  config: GridfinityConfig
 }
 
 function TreeItem({
@@ -393,8 +450,11 @@ function TreeItem({
   allDrawers,
   onMoveToDrawer,
   displayUnit,
+  config,
 }: TreeItemProps) {
   const isOversized = drawer ? isItemOversized(item, drawer) : false
+  const dims = calculateItemGridDimensions(item, config)
+  const heightLabel = `${dims.gridWidth * dims.gridDepth}U`
 
   return (
     <ContextMenu>
@@ -423,6 +483,8 @@ function TreeItem({
           )} />
 
           <span className="flex-1 truncate text-sm">{item.name}</span>
+
+          <span className="text-xs text-muted-foreground shrink-0">{heightLabel}</span>
 
           {isOversized && drawer && (
             <Tooltip>

@@ -198,11 +198,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   }, [drawers, drawer.id])
 
   return (
-    <div className="relative">
+    <div className="relative h-full flex flex-col">
       {/* Grid container */}
       <ContextMenu>
         <ContextMenuTrigger
-          className="block"
+          className="flex-1 min-h-0 flex flex-col"
           onContextMenu={(e) => {
             let el = e.target as HTMLElement | null
             while (el && el !== e.currentTarget) {
@@ -216,11 +216,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           }}
         >
           <div
-            className="relative bg-secondary/30 rounded-lg p-2 overflow-auto"
-            style={{
-              maxWidth: '100%',
-              maxHeight: 'calc(100vh - 300px)',
-            }}
+            className="flex-1 relative bg-secondary/30 rounded-lg p-2 overflow-auto"
+            style={{ maxWidth: '100%' }}
           >
         <div
           ref={gridRef}
