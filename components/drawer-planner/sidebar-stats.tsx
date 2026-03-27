@@ -61,7 +61,7 @@ export function SidebarStats() {
             <span>Grid Cells</span>
           </div>
           <span className="font-medium">
-            {stats.availableCells}/{stats.totalCells}
+            {stats.usedCells}/{stats.totalCells}
           </span>
         </div>
         <Progress value={cellUtilization} className="h-1" />
