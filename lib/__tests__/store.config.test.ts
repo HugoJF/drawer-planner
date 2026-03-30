@@ -279,10 +279,10 @@ describe('importData', () => {
   test('resets selectedItemId to null', () => {
     const itemId = addItemAndGetId(store)
     store.getState().selectItem(itemId)
-    expect(store.getState().selectedItemId).toBe(itemId)
+    expect(store.getState().selectedItemIds.has(itemId)).toBe(true)
 
     store.getState().importData(validExport)
-    expect(store.getState().selectedItemId).toBeNull()
+    expect(store.getState().selectedItemIds.size).toBe(0)
   })
 
   test('does nothing when version is missing', () => {

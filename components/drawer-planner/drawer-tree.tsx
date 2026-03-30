@@ -97,9 +97,10 @@ interface DrawerTreeProps {
 export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTreeProps) {
   const drawers = useDrawerStore(s => s.drawers)
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
-  const selectedItemId = useDrawerStore(s => s.selectedItemId)
+  const selectedItemIds = useDrawerStore(s => s.selectedItemIds)
   const selectDrawer = useDrawerStore(s => s.selectDrawer)
   const selectItem = useDrawerStore(s => s.selectItem)
+  const toggleItemSelection = useDrawerStore(s => s.toggleItemSelection)
   const deleteDrawer = useDrawerStore(s => s.deleteDrawer)
   const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
   const deleteItem = useDrawerStore(s => s.deleteItem)
@@ -397,12 +398,13 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                             key={item.id}
                             item={item}
                             drawer={drawer}
-                            isSelected={selectedItemId === item.id}
+                            isSelected={selectedItemIds.has(item.id)}
                             isDragging={draggedItem === item.id}
                             onSelect={() => handleClick(item.id,
                               () => { selectDrawer(drawer.id); selectItem(item.id) },
                               () => onEditItem(item)
                             )}
+                            onCtrlSelect={() => toggleItemSelection(item.id)}
                             onEdit={() => onEditItem(item)}
                             onDuplicate={() => handleDuplicateItem(item.id)}
                             onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
@@ -448,12 +450,13 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                     key={item.id}
                     item={item}
                     drawer={null}
-                    isSelected={selectedItemId === item.id}
+                    isSelected={selectedItemIds.has(item.id)}
                     isDragging={draggedItem === item.id}
                     onSelect={() => handleClick(item.id,
                       () => selectItem(item.id),
                       () => onEditItem(item)
                     )}
+                    onCtrlSelect={() => toggleItemSelection(item.id)}
                     onEdit={() => onEditItem(item)}
                     onDuplicate={() => duplicateItem(item.id)}
                     onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
@@ -494,6 +497,7 @@ interface TreeItemProps {
   isSelected: boolean
   isDragging: boolean
   onSelect: () => void
+  onCtrlSelect: () => void
   onEdit: () => void
   onDuplicate: () => void
   onDelete: () => void
@@ -511,6 +515,7 @@ function TreeItem({
   isSelected,
   isDragging,
   onSelect,
+  onCtrlSelect,
   onEdit,
   onDuplicate,
   onDelete,
@@ -539,7 +544,7 @@ function TreeItem({
             isDragging && "opacity-50",
             isOversized && "text-destructive"
           )}
-          onClick={onSelect}
+          onClick={(e) => e.ctrlKey || e.metaKey ? onCtrlSelect() : onSelect()}
         >
           <div
             className="h-3 w-3 rounded-sm shrink-0"

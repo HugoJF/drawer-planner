@@ -38,7 +38,7 @@ function addDrawerAndItem(store: Store) {
     gridX: 0,
     gridY: 0,
   })
-  const itemId = store.getState().selectedItemId!
+  const itemId = store.getState().selectedItemIds.values().next().value!
   return { drawerId, itemId }
 }
 
@@ -167,8 +167,8 @@ describe('undo — selection', () => {
       gridX: 0,
       gridY: 0,
     })
-    const itemId = store.getState().selectedItemId!
-    expect(store.getState().selectedItemId).toBe(itemId)
+    const itemId = store.getState().selectedItemIds.values().next().value!
+    expect(store.getState().selectedItemIds.has(itemId)).toBe(true)
 
     // Delete the item (snapshot C: 1 drawer, 1 item) — selectedItemId becomes null internally
     // but we want to test undo of the delete restores item + selection
@@ -177,7 +177,7 @@ describe('undo — selection', () => {
 
     // We are now at snapshot B (1 drawer, 0 items); item no longer exists
     expect(store.getState().items).toHaveLength(0)
-    expect(store.getState().selectedItemId).toBeNull()
+    expect(store.getState().selectedItemIds.size).toBe(0)
   })
 
   test('selectedItemId is restored after undoing item deletion (item exists again)', () => {
@@ -185,17 +185,17 @@ describe('undo — selection', () => {
 
     // Select the item explicitly
     store.getState().selectItem(itemId)
-    expect(store.getState().selectedItemId).toBe(itemId)
+    expect(store.getState().selectedItemIds.has(itemId)).toBe(true)
 
     // Delete item — selectedItemId becomes null
     store.getState().deleteItem(itemId)
-    expect(store.getState().selectedItemId).toBeNull()
+    expect(store.getState().selectedItemIds.size).toBe(0)
 
     // Undo the deletion — snapshot before deleteItem had selectedItemId = itemId,
     // so both the item and its selection are fully restored.
     store.getState().undo()
     expect(store.getState().items.find((i) => i.id === itemId)).toBeDefined()
-    expect(store.getState().selectedItemId).toBe(itemId)
+    expect(store.getState().selectedItemIds.has(itemId)).toBe(true)
   })
 
   test('selectDrawer does NOT push to history', () => {

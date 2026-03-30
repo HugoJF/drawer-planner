@@ -40,7 +40,7 @@ function addDrawerWithItem(store: Store, itemOverrides: Record<string, unknown> 
     gridY: 0,
     ...itemOverrides,
   })
-  const itemId = store.getState().selectedItemId!
+  const itemId = store.getState().selectedItemIds.values().next().value!
   return { drawerId, itemId }
 }
 
@@ -156,7 +156,7 @@ describe('deleteDrawer (deleteContents = true)', () => {
       gridX: 0,
       gridY: 0,
     })
-    const secondItemId = store.getState().selectedItemId!
+    const secondItemId = store.getState().selectedItemIds.values().next().value!
 
     // Delete first drawer with its contents
     store.getState().deleteDrawer(firstId, true)
@@ -199,11 +199,11 @@ describe('deleteItem', () => {
   test('clears selectedItemId when the deleted item was selected', () => {
     const { itemId } = addDrawerWithItem(store)
     store.getState().selectItem(itemId)
-    expect(store.getState().selectedItemId).toBe(itemId)
+    expect(store.getState().selectedItemIds.has(itemId)).toBe(true)
 
     store.getState().deleteItem(itemId)
 
-    expect(store.getState().selectedItemId).toBeNull()
+    expect(store.getState().selectedItemIds.size).toBe(0)
   })
 
   test('does NOT clear selectedItemId when a different item is selected', () => {
@@ -220,12 +220,12 @@ describe('deleteItem', () => {
       gridX: 1,
       gridY: 0,
     })
-    const id2 = store.getState().selectedItemId!
+    const id2 = store.getState().selectedItemIds.values().next().value!
     store.getState().selectItem(id2)
 
     // Delete first item while second is selected
     store.getState().deleteItem(id1)
 
-    expect(store.getState().selectedItemId).toBe(id2)
+    expect(store.getState().selectedItemIds.has(id2)).toBe(true)
   })
 })

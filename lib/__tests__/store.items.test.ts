@@ -40,7 +40,7 @@ function addDrawerAndItem(store: Store, itemOverrides: Record<string, unknown> =
     gridY: 0,
     ...itemOverrides,
   })
-  const itemId = store.getState().selectedItemId!
+  const itemId = store.getState().selectedItemIds.values().next().value!
   return { drawerId, itemId }
 }
 
@@ -65,7 +65,7 @@ describe('addItem', () => {
 
   test('sets selectedItemId to the new item id', () => {
     const { itemId } = addDrawerAndItem(store)
-    expect(store.getState().selectedItemId).toBe(itemId)
+    expect(store.getState().selectedItemIds.has(itemId)).toBe(true)
   })
 })
 
@@ -102,7 +102,7 @@ describe('updateItem', () => {
       gridX: 1,
       gridY: 0,
     })
-    const id2 = store.getState().selectedItemId!
+    const id2 = store.getState().selectedItemIds.values().next().value!
 
     // Update the first item
     const item1 = store.getState().items.find((i) => i.id === id1)!
@@ -134,9 +134,9 @@ describe('deleteItem', () => {
     const { itemId } = addDrawerAndItem(store)
     // Ensure it is selected
     store.getState().selectItem(itemId)
-    expect(store.getState().selectedItemId).toBe(itemId)
+    expect(store.getState().selectedItemIds.has(itemId)).toBe(true)
     store.getState().deleteItem(itemId)
-    expect(store.getState().selectedItemId).toBeNull()
+    expect(store.getState().selectedItemIds.size).toBe(0)
   })
 
   test('does NOT clear selectedItemId when a different item was selected', () => {
@@ -154,13 +154,13 @@ describe('deleteItem', () => {
       gridX: 1,
       gridY: 0,
     })
-    const id2 = store.getState().selectedItemId!
+    const id2 = store.getState().selectedItemIds.values().next().value!
     store.getState().selectItem(id2)
 
     // Delete the first item while second is selected
     store.getState().deleteItem(id1)
 
-    expect(store.getState().selectedItemId).toBe(id2)
+    expect(store.getState().selectedItemIds.has(id2)).toBe(true)
   })
 })
 
@@ -197,7 +197,7 @@ describe('moveItem', () => {
       gridX: 1,
       gridY: 0,
     })
-    const id2 = store.getState().selectedItemId!
+    const id2 = store.getState().selectedItemIds.values().next().value!
 
     // Move first item
     store.getState().moveItem(id1, drawerId, 5, 5)
@@ -223,7 +223,7 @@ describe('duplicateItem', () => {
     // Original at (0,0) — next available cell should be (1,0)
     const { itemId } = addDrawerAndItem(store, { gridX: 0, gridY: 0 })
     store.getState().duplicateItem(itemId)
-    const copyId = store.getState().selectedItemId!
+    const copyId = store.getState().selectedItemIds.values().next().value!
     const copy = store.getState().items.find((i) => i.id === copyId)!
     // Should NOT be at (0,0)
     expect(copy.gridX === 0 && copy.gridY === 0).toBe(false)
@@ -263,7 +263,7 @@ describe('duplicateItem', () => {
     )!
 
     store.getState().duplicateItem(src.id)
-    const copyId = store.getState().selectedItemId!
+    const copyId = store.getState().selectedItemIds.values().next().value!
     const copy = store.getState().items.find((i) => i.id === copyId)!
 
     // No free space — copy must land on source position
@@ -284,9 +284,9 @@ describe('duplicateItem', () => {
       gridX: 2,
       gridY: 3,
     })
-    const srcId = store.getState().selectedItemId!
+    const srcId = store.getState().selectedItemIds.values().next().value!
     store.getState().duplicateItem(srcId)
-    const copyId = store.getState().selectedItemId!
+    const copyId = store.getState().selectedItemIds.values().next().value!
     const copy = store.getState().items.find((i) => i.id === copyId)!
     expect(copy.gridX).toBe(2)
     expect(copy.gridY).toBe(3)
@@ -295,7 +295,7 @@ describe('duplicateItem', () => {
   test('duplicate has name "<original> (copy)"', () => {
     const { itemId } = addDrawerAndItem(store)
     store.getState().duplicateItem(itemId)
-    const copyId = store.getState().selectedItemId!
+    const copyId = store.getState().selectedItemIds.values().next().value!
     const copy = store.getState().items.find((i) => i.id === copyId)!
     expect(copy.name).toBe('Screwdriver (copy)')
   })
@@ -303,7 +303,7 @@ describe('duplicateItem', () => {
   test('duplicate gets a new unique id', () => {
     const { itemId } = addDrawerAndItem(store)
     store.getState().duplicateItem(itemId)
-    const copyId = store.getState().selectedItemId!
+    const copyId = store.getState().selectedItemIds.values().next().value!
     expect(copyId).not.toBe(itemId)
   })
 })
@@ -346,7 +346,7 @@ describe('duplicateItem — return value', () => {
       gridX: 0,
       gridY: 0,
     })
-    const itemId = store.getState().selectedItemId!
+    const itemId = store.getState().selectedItemIds.values().next().value!
 
     // Drawer is full — no free cell for a duplicate
     const result = store.getState().duplicateItem(itemId)
@@ -365,7 +365,7 @@ describe('duplicateItem — return value', () => {
       gridX: 0,
       gridY: 0,
     })
-    const itemId = store.getState().selectedItemId!
+    const itemId = store.getState().selectedItemIds.values().next().value!
 
     // No drawer → findAvailablePosition is never called → returns false
     const result = store.getState().duplicateItem(itemId)

@@ -70,6 +70,12 @@ interface DragState {
   grabPxY: number
   gridWidth: number
   gridDepth: number
+  itemOffsets: { id: string; dx: number; dy: number }[]
+  dragCells: Set<string>  // all occupied cells relative to anchor, as "dx,dy"
+  minDx: number  // leftmost offset (for clamping)
+  minDy: number
+  maxRight: number  // rightmost extent from anchor (for clamping)
+  maxBottom: number
 }
 
 const CELL_SIZE = 40 // px per grid cell for visualization
@@ -77,16 +83,19 @@ const CELL_SIZE = 40 // px per grid cell for visualization
 export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }: DrawerGridProps) {
   const config = useDrawerStore(s => s.config)
   const drawers = useDrawerStore(s => s.drawers)
-  const selectedItemId = useDrawerStore(s => s.selectedItemId)
+  const selectedItemIds = useDrawerStore(s => s.selectedItemIds)
   const allItems = useDrawerStore(s => s.items)
   const items = useMemo(() => allItems.filter(i => i.drawerId === drawer.id), [allItems, drawer.id])
   const moveItem = useDrawerStore(s => s.moveItem)
+  const repositionItems = useDrawerStore(s => s.repositionItems)
   const deleteItem = useDrawerStore(s => s.deleteItem)
+  const deleteItems = useDrawerStore(s => s.deleteItems)
   const duplicateItem = useDrawerStore(s => s.duplicateItem)
   const deleteDrawer = useDrawerStore(s => s.deleteDrawer)
   const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
   const updateItem = useDrawerStore(s => s.updateItem)
   const selectItem = useDrawerStore(s => s.selectItem)
+  const toggleItemSelection = useDrawerStore(s => s.toggleItemSelection)
   const searchTerm = useDrawerStore(s => s.searchQuery).toLowerCase().trim()
 
   const { toast } = useToast()
@@ -101,10 +110,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   // Create grid occupancy map
   const occupancyMap = useMemo(() => {
     const map = new Map<string, string>() // "x,y" -> itemId
-    
+    const draggingIds = new Set(dragState?.itemOffsets.map(o => o.id) ?? [])
     items.forEach(item => {
-      if (dragState?.itemId === item.id) return // Skip dragging item
-      
+      if (draggingIds.has(item.id)) return // skip all co-dragged items
       const dims = calculateItemGridDimensions(item, config)
       for (let x = item.gridX; x < item.gridX + dims.gridWidth; x++) {
         for (let y = item.gridY; y < item.gridY + dims.gridDepth; y++) {
@@ -112,7 +120,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         }
       }
     })
-    
     return map
   }, [items, config, dragState])
 
@@ -121,12 +128,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const computeDropPosition = useCallback((clientX: number, clientY: number) => {
     if (!dragState || !gridRef.current) return null
     const gridRect = gridRef.current.getBoundingClientRect()
-    // Item origin in px relative to grid, snapped to nearest cell
     const cellX = Math.round((clientX - gridRect.left - dragState.grabPxX) / cellStep)
     const cellY = Math.round((clientY - gridRect.top  - dragState.grabPxY) / cellStep)
     return {
-      x: Math.max(0, Math.min(cellX, drawer.gridCols - dragState.gridWidth)),
-      y: Math.max(0, Math.min(cellY, drawer.gridRows - dragState.gridDepth)),
+      x: Math.max(-dragState.minDx, Math.min(cellX, drawer.gridCols - dragState.maxRight)),
+      y: Math.max(-dragState.minDy, Math.min(cellY, drawer.gridRows - dragState.maxBottom)),
     }
   }, [dragState, drawer.gridCols, drawer.gridRows, cellStep])
 
@@ -145,14 +151,22 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   const handleGridDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-    const itemId = e.dataTransfer.getData('text/plain')
     const pos = computeDropPosition(e.clientX, e.clientY)
-    if (itemId && pos) {
-      moveItem(itemId, drawer.id, pos.x, pos.y)
+    if (pos && dragState) {
+      if (dragState.itemOffsets.length > 1) {
+        repositionItems(dragState.itemOffsets.map(({ id, dx, dy }) => ({
+          id,
+          drawerId: drawer.id,
+          gridX: pos.x + dx,
+          gridY: pos.y + dy,
+        })))
+      } else {
+        moveItem(dragState.itemId, drawer.id, pos.x, pos.y)
+      }
     }
     setDropTarget(null)
     setDragState(null)
-  }, [computeDropPosition, drawer.id, moveItem])
+  }, [computeDropPosition, drawer.id, moveItem, repositionItems, dragState])
 
   const handleItemDragStart = useCallback((e: React.DragEvent, item: Item) => {
     if (item.locked) { e.preventDefault(); return }
@@ -160,14 +174,46 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     e.dataTransfer.effectAllowed = 'move'
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const dims = calculateItemGridDimensions(item, config)
+
+    // Gather co-dragged items: all selected, unlocked items in this drawer (including anchor)
+    const coDragged = selectedItemIds.has(item.id)
+      ? items.filter(i => selectedItemIds.has(i.id) && !i.locked)
+      : [item]
+
+    const itemOffsets = coDragged.map(i => ({ id: i.id, dx: i.gridX - item.gridX, dy: i.gridY - item.gridY }))
+
+    // Pre-compute all drag cells relative to anchor and clamping bounds
+    const dragCells = new Set<string>()
+    let minDx = 0, minDy = 0, maxRight = dims.gridWidth, maxBottom = dims.gridDepth
+    for (const di of coDragged) {
+      const diDims = calculateItemGridDimensions(di, config)
+      const odx = di.gridX - item.gridX
+      const ody = di.gridY - item.gridY
+      for (let cx = odx; cx < odx + diDims.gridWidth; cx++) {
+        for (let cy = ody; cy < ody + diDims.gridDepth; cy++) {
+          dragCells.add(`${cx},${cy}`)
+        }
+      }
+      minDx = Math.min(minDx, odx)
+      minDy = Math.min(minDy, ody)
+      maxRight = Math.max(maxRight, odx + diDims.gridWidth)
+      maxBottom = Math.max(maxBottom, ody + diDims.gridDepth)
+    }
+
     setDragState({
       itemId: item.id,
       grabPxX: e.clientX - rect.left,
       grabPxY: e.clientY - rect.top,
       gridWidth: dims.gridWidth,
       gridDepth: dims.gridDepth,
+      itemOffsets,
+      dragCells,
+      minDx,
+      minDy,
+      maxRight,
+      maxBottom,
     })
-  }, [config])
+  }, [config, items, selectedItemIds])
 
   const handleDragEnd = useCallback(() => {
     setDragState(null)
@@ -291,12 +337,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             Array.from({ length: drawer.gridCols }).map((_, x) => {
               const isOccupied = occupancyMap.has(`${x},${y}`)
 
-              const isInDropPreview = dropTarget && dragState && (
-                x >= dropTarget.x &&
-                x < dropTarget.x + dragState.gridWidth &&
-                y >= dropTarget.y &&
-                y < dropTarget.y + dragState.gridDepth
-              )
+              const isInDropPreview = dropTarget && dragState &&
+                dragState.dragCells.has(`${x - dropTarget.x},${y - dropTarget.y}`)
 
               const isInDrawPreview = drawState && !isOccupied && (
                 x >= Math.min(drawState.startX, drawState.endX) &&
@@ -365,8 +407,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const visD = baseDims.gridDepth
             const oversized = isItemOversized(item, drawer)
             const footprintOverflow = isItemFootprintOverflow(item, config)
-            const isSelected = selectedItemId === item.id
-            const isDragging = dragState?.itemId === item.id
+            const isSelected = selectedItemIds.has(item.id)
+            const isDragging = dragState?.itemOffsets.some(o => o.id === item.id) ?? false
             const isSearchMatch = searchTerm !== '' && item.name.toLowerCase().includes(searchTerm)
             const isLocked = item.locked
             const overlapping = findOverlappingItems(item, items, config)
@@ -394,7 +436,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                 draggable={!resizeState && !isLocked}
                 onDragStart={(e) => handleItemDragStart(e, item)}
                 onDragEnd={handleDragEnd}
-                onClick={() => selectItem(item.id)}
+                onClick={(e) => e.ctrlKey || e.metaKey ? toggleItemSelection(item.id) : selectItem(item.id)}
                 onDoubleClick={() => onEditItem(item)}
                 data-item-id={item.id}
                 className={cn(

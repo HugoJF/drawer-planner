@@ -43,9 +43,10 @@ function DashboardContent() {
   const canUndo = useDrawerStore(s => s.past.length > 0)
   const canRedo = useDrawerStore(s => s.future.length > 0)
 
-  const selectedItemId = useDrawerStore(s => s.selectedItemId)
+  const selectedItemIds = useDrawerStore(s => s.selectedItemIds)
   const allItems = useDrawerStore(s => s.items)
   const deleteItem = useDrawerStore(s => s.deleteItem)
+  const deleteItems = useDrawerStore(s => s.deleteItems)
   const updateItem = useDrawerStore(s => s.updateItem)
   const selectedDrawer = useMemo(
     () => drawers.find(d => d.id === selectedDrawerId) ?? null,
@@ -59,34 +60,37 @@ function DashboardContent() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return }
 
-      if (!selectedItemId || drawerFormOpen || itemFormOpen) return
-      const item = allItems.find(i => i.id === selectedItemId)
-      if (!item) return
+      if (selectedItemIds.size === 0 || drawerFormOpen || itemFormOpen) return
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
-        deleteItem(selectedItemId)
-      } else if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault()
-        setEditingItem(item)
-        setNewItemPosition(null)
-        setItemFormOpen(true)
-      } else if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault()
-        const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
-        const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
-        const isManual = (item.gridMode ?? 'auto') === 'manual'
-        const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
-        updateItem({
-          ...item,
-          rotation: next,
-          ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
-        })
+        const ids = [...selectedItemIds]
+        ids.length === 1 ? deleteItem(ids[0]) : deleteItems(ids)
+      } else if (selectedItemIds.size === 1) {
+        const item = allItems.find(i => i.id === [...selectedItemIds][0])
+        if (!item) return
+        if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          setEditingItem(item)
+          setNewItemPosition(null)
+          setItemFormOpen(true)
+        } else if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
+          const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
+          const isManual = (item.gridMode ?? 'auto') === 'manual'
+          const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
+          updateItem({
+            ...item,
+            rotation: next,
+            ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
+          })
+        }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [undo, redo, selectedItemId, allItems, deleteItem, updateItem, drawerFormOpen, itemFormOpen])
+  }, [undo, redo, selectedItemIds, allItems, deleteItem, deleteItems, updateItem, drawerFormOpen, itemFormOpen])
 
   const handleAddDrawer = () => {
     setEditingDrawer(null)
