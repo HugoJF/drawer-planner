@@ -40,6 +40,7 @@ export interface DrawerStore {
   updateItem: (item: Item) => void
   deleteItem: (id: string) => void
   deleteItems: (ids: string[]) => void
+  setItemsLocked: (ids: string[], locked: boolean) => void
   duplicateItem: (id: string) => boolean
   moveItem: (itemId: string, drawerId: string | null, gridX: number, gridY: number) => void
   repositionItems: (updates: { id: string; drawerId: string | null; gridX: number; gridY: number }[]) => void
@@ -183,6 +184,14 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               selectedItemIds: state.selectedItemIds.has(id)
                 ? new Set([...state.selectedItemIds].filter(sid => sid !== id))
                 : state.selectedItemIds,
+            }))
+          },
+
+          setItemsLocked: (ids, locked) => {
+            push()
+            const idSet = new Set(ids)
+            set((state) => ({
+              items: state.items.map(item => idSet.has(item.id) ? { ...item, locked } : item),
             }))
           },
 

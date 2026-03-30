@@ -90,6 +90,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const repositionItems = useDrawerStore(s => s.repositionItems)
   const deleteItem = useDrawerStore(s => s.deleteItem)
   const deleteItems = useDrawerStore(s => s.deleteItems)
+  const setItemsLocked = useDrawerStore(s => s.setItemsLocked)
   const duplicateItem = useDrawerStore(s => s.duplicateItem)
   const deleteDrawer = useDrawerStore(s => s.deleteDrawer)
   const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
@@ -671,12 +672,18 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           </div>
         </ContextMenuTrigger>
         {contextItem ? (
-          selectedItemIds.size > 1 && selectedItemIds.has(contextItem.id) ? (
+          selectedItemIds.size > 1 && selectedItemIds.has(contextItem.id) ? (() => {
+            const selectedItems = items.filter(i => selectedItemIds.has(i.id))
+            const allLocked = selectedItems.every(i => i.locked)
+            return (
             <ContextMenuContent className="w-48">
               <ContextMenuItem disabled className="text-muted-foreground text-xs">
                 {selectedItemIds.size} items selected
               </ContextMenuItem>
               <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => setItemsLocked([...selectedItemIds], !allLocked)}>
+                {allLocked ? <><Unlock className="h-4 w-4" />Unlock all</> : <><Lock className="h-4 w-4" />Lock all</>}
+              </ContextMenuItem>
               <ContextMenuSub>
                 <ContextMenuSubTrigger>
                   <ArrowRightLeft className="h-4 w-4" />Move to
@@ -698,7 +705,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                 <Trash2 className="h-4 w-4" />Delete {selectedItemIds.size} items
               </ContextMenuItem>
             </ContextMenuContent>
-          ) : (
+            )
+          })() : (
           <ContextMenuContent className="w-48">
             <ContextMenuItem onClick={() => onEditItem(contextItem)}>
               <Pencil className="h-4 w-4 " />Edit
