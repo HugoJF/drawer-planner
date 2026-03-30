@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import {
   ChevronRight,
   ChevronDown,
@@ -17,6 +17,8 @@ import {
   Copy,
   Plus,
   Check,
+  Search,
+  X,
 } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
@@ -130,7 +132,54 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const [sortMode, setSortMode] = useState<SortMode>('insertion')
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const searchTerm = searchQuery.toLowerCase().trim()
+
+  const { filteredDrawers, filteredItemsByDrawer, filteredUnassigned } = useMemo(() => {
+    if (!searchTerm) {
+      return { filteredDrawers: drawers, filteredItemsByDrawer: itemsByDrawer, filteredUnassigned: unassignedItems }
+    }
+    const newItemsByDrawer = new Map<string, Item[]>()
+    const matchingDrawers: typeof drawers = []
+    for (const drawer of drawers) {
+      const drawerItems = itemsByDrawer.get(drawer.id) ?? []
+      if (drawer.name.toLowerCase().includes(searchTerm)) {
+        newItemsByDrawer.set(drawer.id, drawerItems)
+        matchingDrawers.push(drawer)
+      } else {
+        const matching = drawerItems.filter(item => item.name.toLowerCase().includes(searchTerm))
+        if (matching.length > 0) {
+          newItemsByDrawer.set(drawer.id, matching)
+          matchingDrawers.push(drawer)
+        }
+      }
+    }
+    return {
+      filteredDrawers: matchingDrawers,
+      filteredItemsByDrawer: newItemsByDrawer,
+      filteredUnassigned: unassignedItems.filter(item => item.name.toLowerCase().includes(searchTerm)),
+    }
+  }, [searchTerm, drawers, itemsByDrawer, unassignedItems])
+
+  const effectiveExpanded = useMemo(() => {
+    if (!searchTerm) return expandedDrawers
+    return new Set(filteredDrawers.map(d => d.id))
+  }, [searchTerm, filteredDrawers, expandedDrawers])
 
   const handleClick = (id: string, onSingle: () => void, onDouble: () => void) => {
     const now = Date.now()
@@ -155,7 +204,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     })
   }
 
-  const allExpanded = drawers.length > 0 && drawers.every(d => expandedDrawers.has(d.id))
+  const allExpanded = filteredDrawers.length > 0 && filteredDrawers.every(d => effectiveExpanded.has(d.id))
   const toggleAll = () => {
     setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
   }
@@ -187,7 +236,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   return (
     <ScrollArea className="h-full">
       <div className="p-2 select-none">
-        <div className="flex items-center justify-between px-2 py-1 mb-2">
+        <div className="flex items-center justify-between px-2 py-1 mb-1">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
           <div className="flex items-center gap-1">
             <DropdownMenu>
@@ -213,7 +262,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            {drawers.length > 0 && (
+            {filteredDrawers.length > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button onClick={toggleAll} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
@@ -228,16 +277,41 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             </button>
           </div>
         </div>
-        
+
+        <div className="relative mb-2">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Escape' && (setSearchQuery(''), e.currentTarget.blur())}
+            className="w-full rounded-md border border-input bg-transparent pl-7 pr-7 py-1 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
         {drawers.length === 0 ? (
           <div className="px-2 py-4 text-sm text-muted-foreground text-center">
             No drawers yet. Add one to get started.
           </div>
+        ) : filteredDrawers.length === 0 && searchTerm ? (
+          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+            No results for &ldquo;{searchQuery}&rdquo;
+          </div>
         ) : (
           <div className="flex flex-col gap-0.5">
-            {drawers.map(drawer => {
-              const drawerItems = sortItems(itemsByDrawer.get(drawer.id) ?? [], sortMode, config)
-              const isExpanded = expandedDrawers.has(drawer.id)
+            {filteredDrawers.map(drawer => {
+              const drawerItems = sortItems(filteredItemsByDrawer.get(drawer.id) ?? [], sortMode, config)
+              const isExpanded = effectiveExpanded.has(drawer.id)
               const isSelected = selectedDrawerId === drawer.id
               const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
 
@@ -368,13 +442,13 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             onDragOver={handleDragOver}
             onDrop={(e) => handleDropOnDrawer(e, null)}
           >
-            {unassignedItems.length === 0 ? (
+            {filteredUnassigned.length === 0 ? (
               <div className="flex items-center justify-center h-[52px] text-xs text-muted-foreground">
-                Drop items here to unassign
+                {searchTerm ? 'No matches' : 'Drop items here to unassign'}
               </div>
             ) : (
               <div className="flex flex-col gap-0.5">
-                {sortItems(unassignedItems, sortMode, config).map(item => (
+                {sortItems(filteredUnassigned, sortMode, config).map(item => (
                   <TreeItem
                     key={item.id}
                     item={item}
