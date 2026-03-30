@@ -172,6 +172,10 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     if (item.locked) { e.preventDefault(); return }
     e.dataTransfer.setData('text/plain', item.id)
     e.dataTransfer.effectAllowed = 'move'
+    // Suppress browser native ghost — we render our own overlays
+    const transparent = new Image()
+    transparent.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    e.dataTransfer.setDragImage(transparent, 0, 0)
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const dims = calculateItemGridDimensions(item, config)
 
@@ -200,6 +204,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       maxBottom = Math.max(maxBottom, ody + diDims.gridDepth)
     }
 
+    setDropTarget({ x: item.gridX, y: item.gridY })
     setDragState({
       itemId: item.id,
       grabPxX: e.clientX - rect.left,
@@ -372,6 +377,30 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             })
           )}
 
+          {/* Drag ghost overlays — all co-dragged items follow the drop target */}
+          {dragState && dropTarget && dragState.itemOffsets.map(({ id, dx, dy }) => {
+            const di = items.find(i => i.id === id)
+            if (!di) return null
+            const diDims = calculateItemGridDimensions(di, config)
+            const w = diDims.gridWidth * CELL_SIZE + (diDims.gridWidth - 1)
+            const h = diDims.gridDepth * CELL_SIZE + (diDims.gridDepth - 1)
+            return (
+              <div
+                key={`ghost-${id}`}
+                className="absolute rounded-sm pointer-events-none z-20"
+                style={{
+                  left: (dropTarget.x + dx) * (CELL_SIZE + 1) + 1,
+                  top: (dropTarget.y + dy) * (CELL_SIZE + 1) + 1,
+                  width: w,
+                  height: h,
+                  backgroundColor: di.color,
+                  opacity: 0.7,
+                  outline: '2px solid rgba(255,255,255,0.4)',
+                }}
+              />
+            )
+          })}
+
           {/* Resize ghost overlay */}
           {resizeState && (() => {
             const item = items.find(i => i.id === resizeState.itemId)
@@ -450,7 +479,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   hasOverlap && !oversized && "border-amber-500",
                   !oversized && !hasOverlap && "border-black/10",
                   hasOverlap && "opacity-60",
-                  isDragging && "opacity-50",
+                  isDragging && "opacity-0",
                   isResizing && "opacity-40"
                 )}
                 style={{
