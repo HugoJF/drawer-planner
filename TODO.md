@@ -23,6 +23,34 @@ Duplicate selected items via clipboard-style shortcut.
 - Paste should attempt `findAvailablePosition` for each; fall back to `(0, 0)` if no space
 - Nice to have: offset paste position by +1,+1 if pasting into the same drawer
 
+### History panel
+A sidebar panel (or popover) showing a human-readable list of past actions, with the ability to jump to any point.
+
+**Diff logic** (`lib/history.ts` or similar):
+- `diffSnapshots(before: Snapshot, after: Snapshot): SnapshotDiff` — compare two snapshots by item/drawer `id` using set operations
+- Infer a label from the diff shape:
+  - 1 item added → "Added [name]"
+  - 1 item removed → "Deleted [name]"
+  - 1 item moved (gridX/gridY changed) → "Moved [name]"
+  - 1 item renamed → "Renamed [old] → [new]"
+  - N items changed → "Moved N items" / "Deleted N items"
+  - drawer added/removed/changed → "Added drawer [name]" etc.
+  - config changed → "Updated settings"
+
+**Store changes**:
+- Keep `past: Snapshot[]` as-is (already capped at 50)
+- Add `pastLabels: string[]` — computed label for each snapshot, pushed alongside `push()`
+- Or compute labels lazily in the panel by diffing adjacent snapshots on render
+
+**UI** (`components/drawer-planner/history-panel.tsx`):
+- List of entries, most recent at top, current state highlighted
+- Each entry shows: label + relative time ("just now", "2 actions ago")
+- Clicking an entry calls `undo()` or `redo()` the correct number of times to reach it
+- Lives in the right sidebar or as a panel toggled from the header (similar to `SettingsPanel`)
+
+**Undo/redo button labels**:
+- Once labels exist, the Undo/Redo buttons in the header (`app/page.tsx`) can show tooltips: "Undo: Moved Bench Vice"
+
 ### Keyboard shortcuts cheatsheet
 A modal or popover listing all available shortcuts; triggered by `?` key or a `?` button in the header.
 - Shortcuts to document: Ctrl+Z/Y (undo/redo), Ctrl+F (search), Delete (delete), E (edit), R (rotate), Ctrl+A (select all), arrows (move), Ctrl+C/V (copy/paste), Escape (clear search/selection)
