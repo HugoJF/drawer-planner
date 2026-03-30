@@ -7,8 +7,12 @@ A visual planner for organizing [Gridfinity](https://www.youtube.com/watch?v=ra_
 ## Features
 
 - **Visual grid editor** — drag items to reposition, resize with handles, draw-to-create new items directly on the grid
+- **Multi-selection** — Ctrl+click to toggle selection; drag all selected unlocked items together as a group with ghost overlays
+- **Bulk operations** — delete, lock/unlock, or move multiple items at once via context menu or keyboard
 - **Rotation modes** — place items upright, on their side, or rotated 90°, each affecting grid footprint differently
 - **Overlap & oversize warnings** — instant visual feedback when items collide or are too tall for the drawer
+- **Lock items** — prevent accidental moves or edits on placed items
+- **Search** — filter items by name (Ctrl+F); matches highlight in the grid, non-matches dim
 - **Sidebar tree** — navigate all drawers and their contents, drag items between drawers
 - **Undo / redo** — 50-step history with Ctrl+Z / Ctrl+Y
 - **Import & export** — save your layout to JSON and load it back anytime
@@ -21,9 +25,14 @@ A visual planner for organizing [Gridfinity](https://www.youtube.com/watch?v=ra_
 |-----|--------|
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
-| `Delete` / `Backspace` | Delete selected item |
+| `Ctrl+F` | Search items |
+| `Ctrl+A` | Select all items in drawer |
+| `Delete` / `Backspace` | Delete selected item(s) |
 | `E` | Edit selected item |
 | `R` | Cycle rotation of selected item |
+| `↑ ↓ ← →` | Move selected item(s) one grid cell |
+| `Escape` | Clear search / deselect |
+| `?` | Show keyboard shortcuts cheatsheet |
 
 ## Getting Started
 
@@ -51,7 +60,7 @@ The grid cell size and tolerance are configurable in Settings (default: 42 mm ce
 
 ## Tech Stack
 
-- [React](https://react.dev) + [Vite](https://vitejs.dev)
+- [Next.js](https://nextjs.org) (App Router) + [React](https://react.dev)
 - [Zustand](https://zustand-demo.pmnd.rs) for state management (with localStorage persistence and undo history)
 - [Tailwind CSS](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com)
 - [Radix UI](https://www.radix-ui.com) primitives

@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { useDrawerStore } from '@/lib/store'
+import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
 import { DrawerGrid } from '@/components/drawer-planner/drawer-grid'
 import { SidebarStats } from '@/components/drawer-planner/sidebar-stats'
 import { DrawerForm } from '@/components/drawer-planner/drawer-form'
 import { ItemForm } from '@/components/drawer-planner/item-form'
 import { SettingsPanel } from '@/components/drawer-planner/settings-panel'
+import { ShortcutsDialog } from '@/components/drawer-planner/shortcuts-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -24,6 +26,7 @@ import {
 import type { Drawer, Item, ItemRotation } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { calculateItemGridDimensions } from '@/lib/gridfinity'
 
 function DashboardContent() {
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
@@ -48,49 +51,94 @@ function DashboardContent() {
   const deleteItem = useDrawerStore(s => s.deleteItem)
   const deleteItems = useDrawerStore(s => s.deleteItems)
   const updateItem = useDrawerStore(s => s.updateItem)
+  const selectItems = useDrawerStore(s => s.selectItems)
+  const moveItem = useDrawerStore(s => s.moveItem)
+  const repositionItems = useDrawerStore(s => s.repositionItems)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const selectedDrawer = useMemo(
     () => drawers.find(d => d.id === selectedDrawerId) ?? null,
     [drawers, selectedDrawerId]
   )
   const { toast } = useToast()
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return }
+  const isFormOpen = drawerFormOpen || itemFormOpen
+  const hasSelection = selectedItemIds.size > 0
+  const singleSelected = selectedItemIds.size === 1
 
-      if (selectedItemIds.size === 0 || drawerFormOpen || itemFormOpen) return
+  // Undo / redo — always active
+  useKeyboardShortcut({ key: 'z', ctrl: true }, undo)
+  useKeyboardShortcut({ key: 'y', ctrl: true }, redo)
+  useKeyboardShortcut({ key: 'z', ctrl: true, shift: true }, redo)
 
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault()
-        const ids = [...selectedItemIds]
-        ids.length === 1 ? deleteItem(ids[0]) : deleteItems(ids)
-      } else if (selectedItemIds.size === 1) {
-        const item = allItems.find(i => i.id === [...selectedItemIds][0])
-        if (!item) return
-        if ((e.key === 'e' || e.key === 'E') && !e.metaKey && !e.ctrlKey) {
-          e.preventDefault()
-          setEditingItem(item)
-          setNewItemPosition(null)
-          setItemFormOpen(true)
-        } else if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
-          e.preventDefault()
-          const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
-          const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
-          const isManual = (item.gridMode ?? 'auto') === 'manual'
-          const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
-          updateItem({
-            ...item,
-            rotation: next,
-            ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
-          })
-        }
+  // Select all items in the current drawer
+  useKeyboardShortcut({ key: 'a', ctrl: true, enabled: !isFormOpen }, useCallback(() => {
+    if (selectedDrawerId)
+      selectItems(allItems.filter(i => i.drawerId === selectedDrawerId).map(i => i.id))
+  }, [selectedDrawerId, allItems, selectItems]))
+
+  // Open keyboard shortcuts cheatsheet
+  useKeyboardShortcut({ key: '?', enabled: !isFormOpen }, useCallback(() => {
+    setShortcutsOpen(true)
+  }, []))
+
+  // Delete selected item(s)
+  const deleteSelected = useCallback(() => {
+    const ids = [...selectedItemIds]
+    ids.length === 1 ? deleteItem(ids[0]) : deleteItems(ids)
+  }, [selectedItemIds, deleteItem, deleteItems])
+  useKeyboardShortcut({ key: 'Delete',    enabled: !isFormOpen && hasSelection }, deleteSelected)
+  useKeyboardShortcut({ key: 'Backspace', enabled: !isFormOpen && hasSelection }, deleteSelected)
+
+  // Edit selected item (single selection)
+  useKeyboardShortcut({ key: 'e', enabled: !isFormOpen && singleSelected }, useCallback(() => {
+    const item = allItems.find(i => i.id === [...selectedItemIds][0])
+    if (!item) return
+    setEditingItem(item)
+    setNewItemPosition(null)
+    setItemFormOpen(true)
+  }, [allItems, selectedItemIds]))
+
+  // Cycle rotation of selected item (single selection)
+  useKeyboardShortcut({ key: 'r', enabled: !isFormOpen && singleSelected }, useCallback(() => {
+    const item = allItems.find(i => i.id === [...selectedItemIds][0])
+    if (!item) return
+    const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
+    const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
+    const isManual = (item.gridMode ?? 'auto') === 'manual'
+    const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
+    updateItem({
+      ...item,
+      rotation: next,
+      ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
+    })
+  }, [allItems, selectedItemIds, updateItem]))
+
+  // Move selected item(s) by one grid cell, clamped to drawer bounds
+  const moveSelected = useCallback((dx: number, dy: number) => {
+    if (!selectedDrawer) return
+    const drawerItems = allItems.filter(i => selectedItemIds.has(i.id) && i.drawerId === selectedDrawerId)
+    if (drawerItems.length === 0) return
+    const clampedPos = (item: Item, dx: number, dy: number) => {
+      const dims = calculateItemGridDimensions(item, config)
+      return {
+        id: item.id,
+        drawerId: item.drawerId,
+        gridX: Math.max(0, Math.min(selectedDrawer.gridCols - dims.gridWidth,  item.gridX + dx)),
+        gridY: Math.max(0, Math.min(selectedDrawer.gridRows - dims.gridDepth, item.gridY + dy)),
       }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [undo, redo, selectedItemIds, allItems, deleteItem, deleteItems, updateItem, drawerFormOpen, itemFormOpen])
+    if (drawerItems.length === 1) {
+      const { id, drawerId, gridX, gridY } = clampedPos(drawerItems[0], dx, dy)
+      moveItem(id, drawerId, gridX, gridY)
+    } else {
+      repositionItems(drawerItems.map(item => clampedPos(item, dx, dy)))
+    }
+  }, [selectedDrawer, allItems, selectedItemIds, selectedDrawerId, config, moveItem, repositionItems])
+
+  useKeyboardShortcut({ key: 'ArrowUp',    enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 0, -1), [moveSelected]))
+  useKeyboardShortcut({ key: 'ArrowDown',  enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 0,  1), [moveSelected]))
+  useKeyboardShortcut({ key: 'ArrowLeft',  enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected(-1,  0), [moveSelected]))
+  useKeyboardShortcut({ key: 'ArrowRight', enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 1,  0), [moveSelected]))
 
   const handleAddDrawer = () => {
     setEditingDrawer(null)
@@ -258,6 +306,7 @@ function DashboardContent() {
         initialPosition={newItemPosition}
         initialGridDimensions={newItemGridDimensions}
       />
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <Toaster />
     </div>
   )

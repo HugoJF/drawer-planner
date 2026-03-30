@@ -32,6 +32,7 @@ export interface DrawerStore {
   setSearchQuery: (query: string) => void
   selectItem: (id: string | null) => void
   toggleItemSelection: (id: string) => void
+  selectItems: (ids: string[]) => void
   addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows'>) => void
   updateDrawer: (drawer: Drawer) => void
   deleteDrawer: (id: string, deleteContents?: boolean) => void
@@ -91,6 +92,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             if (next.has(id)) next.delete(id); else next.add(id)
             return { selectedItemIds: next }
           }),
+          selectItems: (ids) => set({ selectedItemIds: new Set(ids) }),
 
           // Actions
           addDrawer: (drawer) => {
