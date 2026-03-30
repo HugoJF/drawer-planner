@@ -15,7 +15,7 @@ import {
   findAvailablePosition,
 } from '@/lib/gridfinity'
 
-type Snapshot = { drawers: Drawer[]; items: Item[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string> }
+export type Snapshot = { drawers: Drawer[]; items: Item[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string> }
 
 export interface DrawerStore {
   // State
@@ -49,6 +49,8 @@ export interface DrawerStore {
   selectDrawer: (id: string | null) => void
   undo: () => void
   redo: () => void
+  jumpToHistory: (index: number) => void
+  jumpToFuture: (index: number) => void
 
   // Computed getters
   getDrawerById: (id: string) => Drawer | undefined
@@ -301,6 +303,42 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               config: next.config,
               selectedDrawerId: next.selectedDrawerId,
               selectedItemIds: next.selectedItemIds,
+            })
+          },
+
+          // Jump directly to a past snapshot (index into the past array, 0 = oldest).
+          // Entries between the target and current move into the future stack.
+          jumpToHistory: (index) => {
+            const { past, future, drawers, items, config, selectedDrawerId, selectedItemIds } = get()
+            const target = past[index]
+            if (!target) return
+            const current = { drawers, items, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+            set({
+              past: past.slice(0, index),
+              future: [...past.slice(index + 1), current, ...future].slice(0, 50),
+              drawers: target.drawers,
+              items: target.items,
+              config: target.config,
+              selectedDrawerId: target.selectedDrawerId,
+              selectedItemIds: target.selectedItemIds,
+            })
+          },
+
+          // Jump directly to a future snapshot (index into the future array, 0 = nearest).
+          // Entries between current and the target move into the past stack.
+          jumpToFuture: (index) => {
+            const { past, future, drawers, items, config, selectedDrawerId, selectedItemIds } = get()
+            const target = future[index]
+            if (!target) return
+            const current = { drawers, items, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+            set({
+              past: [...past, current, ...future.slice(0, index)].slice(-50),
+              future: future.slice(index + 1),
+              drawers: target.drawers,
+              items: target.items,
+              config: target.config,
+              selectedDrawerId: target.selectedDrawerId,
+              selectedItemIds: target.selectedItemIds,
             })
           },
 

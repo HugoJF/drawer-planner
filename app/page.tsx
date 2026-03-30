@@ -8,6 +8,7 @@ import { DrawerForm } from '@/components/drawer-planner/drawer-form'
 import { ItemForm } from '@/components/drawer-planner/item-form'
 import { SettingsPanel } from '@/components/drawer-planner/settings-panel'
 import { ShortcutsDialog } from '@/components/drawer-planner/shortcuts-dialog'
+import { HistoryPanel } from '@/components/drawer-planner/history-panel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -27,6 +28,7 @@ import type { Drawer, Item, ItemRotation } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { calculateItemGridDimensions } from '@/lib/gridfinity'
+import { labelAction } from '@/lib/history'
 
 function DashboardContent() {
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
@@ -43,8 +45,10 @@ function DashboardContent() {
 
   const undo = useDrawerStore(s => s.undo)
   const redo = useDrawerStore(s => s.redo)
-  const canUndo = useDrawerStore(s => s.past.length > 0)
-  const canRedo = useDrawerStore(s => s.future.length > 0)
+  const past   = useDrawerStore(s => s.past)
+  const future = useDrawerStore(s => s.future)
+  const canUndo = past.length > 0
+  const canRedo = future.length > 0
 
   const selectedItemIds = useDrawerStore(s => s.selectedItemIds)
   const allItems = useDrawerStore(s => s.items)
@@ -58,6 +62,14 @@ function DashboardContent() {
   const selectedDrawer = useMemo(
     () => drawers.find(d => d.id === selectedDrawerId) ?? null,
     [drawers, selectedDrawerId]
+  )
+  const undoLabel = useMemo(
+    () => canUndo ? labelAction(past[past.length - 1], { drawers, items: allItems, config, selectedDrawerId, selectedItemIds }) : null,
+    [canUndo, past, drawers, allItems, config, selectedDrawerId, selectedItemIds]
+  )
+  const redoLabel = useMemo(
+    () => canRedo ? labelAction({ drawers, items: allItems, config, selectedDrawerId, selectedItemIds }, future[0]) : null,
+    [canRedo, future, drawers, allItems, config, selectedDrawerId, selectedItemIds]
   )
   const { toast } = useToast()
 
@@ -238,12 +250,15 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={undo} disabled={!canUndo}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={undo} disabled={!canUndo}
+              title={undoLabel ? `Undo: ${undoLabel}` : 'Undo'}>
               <Undo2 className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={redo} disabled={!canRedo}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={redo} disabled={!canRedo}
+              title={redoLabel ? `Redo: ${redoLabel}` : 'Redo'}>
               <Redo2 className="h-4 w-4" />
             </Button>
+            <HistoryPanel />
             <Separator orientation="vertical" className="h-6" />
             <SettingsPanel />
             <Separator orientation="vertical" className="h-6" />
