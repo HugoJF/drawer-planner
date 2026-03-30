@@ -475,6 +475,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   !oversized && !hasOverlap && "border-black/10",
                   hasOverlap && "opacity-60",
                   isDragging && "opacity-0",
+                  !isSelected && !isDragging && selectedItemIds.size > 0 && "opacity-50",
                   isResizing && "opacity-40"
                 )}
                 style={{
