@@ -58,7 +58,7 @@ import { isItemOversized, getRotatedDimensions, calculateItemGridDimensions } fr
 import { formatDimension } from '@/lib/types'
 import type { Drawer, Item, DimensionUnit, GridfinityConfig } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
-import { useFocusShortcut } from '@/hooks/use-focus-shortcut'
+import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 
 type SortMode = 'insertion' | 'name' | 'size' | 'y' | 'x'
 
@@ -137,7 +137,10 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
 
-  useFocusShortcut(searchInputRef)
+  useKeyboardShortcut({ key: 'f', ctrl: true }, () => {
+    searchInputRef.current?.focus()
+    searchInputRef.current?.select()
+  })
 
   const searchTerm = searchQuery.toLowerCase().trim()
 
