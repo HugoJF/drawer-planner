@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useMemo, useCallback } from 'react'
 import {
   ChevronRight,
   ChevronDown,
@@ -58,6 +58,7 @@ import { isItemOversized, getRotatedDimensions, calculateItemGridDimensions } fr
 import { formatDimension } from '@/lib/types'
 import type { Drawer, Item, DimensionUnit, GridfinityConfig } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
+import { useFocusShortcut } from '@/hooks/use-focus-shortcut'
 
 type SortMode = 'insertion' | 'name' | 'size' | 'y' | 'x'
 
@@ -136,17 +137,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-        searchInputRef.current?.select()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
+  useFocusShortcut(searchInputRef)
 
   const searchTerm = searchQuery.toLowerCase().trim()
 
