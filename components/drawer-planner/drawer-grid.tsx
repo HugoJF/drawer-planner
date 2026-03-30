@@ -104,7 +104,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const [drawState, setDrawState] = useState<DrawState | null>(null)
   const [resizeState, setResizeState] = useState<ResizeState | null>(null)
   const [contextItem, setContextItem] = useState<Item | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; ids?: string[]; name: string } | null>(null)
   const gridRef = React.useRef<HTMLDivElement>(null)
 
   // Create grid occupancy map
@@ -259,7 +259,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             let el = e.target as HTMLElement | null
             while (el && el !== e.currentTarget) {
               if (el.dataset.itemId) {
-                setContextItem(items.find(i => i.id === el!.dataset.itemId) ?? null)
+                const found = items.find(i => i.id === el!.dataset.itemId) ?? null
+                setContextItem(found)
+                if (found && !selectedItemIds.has(found.id)) selectItem(found.id)
                 return
               }
               el = el.parentElement
@@ -669,6 +671,34 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           </div>
         </ContextMenuTrigger>
         {contextItem ? (
+          selectedItemIds.size > 1 && selectedItemIds.has(contextItem.id) ? (
+            <ContextMenuContent className="w-48">
+              <ContextMenuItem disabled className="text-muted-foreground text-xs">
+                {selectedItemIds.size} items selected
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>
+                  <ArrowRightLeft className="h-4 w-4" />Move to
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="max-h-60 overflow-auto">
+                  <ContextMenuItem onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: null, gridX: 0, gridY: 0 })))}>
+                    <Package className="h-4 w-4" />Unassigned
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  {drawers.map(d => (
+                    <ContextMenuItem key={d.id} onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: d.id, gridX: 0, gridY: 0 })))} disabled={d.id === drawer.id}>
+                      <FolderOpen className="h-4 w-4" />{d.name}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator />
+              <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'item', id: '__multi__', ids: [...selectedItemIds], name: `${selectedItemIds.size} items` })}>
+                <Trash2 className="h-4 w-4" />Delete {selectedItemIds.size} items
+              </ContextMenuItem>
+            </ContextMenuContent>
+          ) : (
           <ContextMenuContent className="w-48">
             <ContextMenuItem onClick={() => onEditItem(contextItem)}>
               <Pencil className="h-4 w-4 " />Edit
@@ -707,6 +737,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               <Trash2 className="h-4 w-4 " />Delete
             </ContextMenuItem>
           </ContextMenuContent>
+          )
         ) : (
           <ContextMenuContent className="w-44">
             <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
@@ -731,6 +762,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         onConfirm={(deleteContents) => {
           if (!pendingDelete) return
           if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id, deleteContents)
+          else if (pendingDelete.ids) deleteItems(pendingDelete.ids)
           else deleteItem(pendingDelete.id)
           setPendingDelete(null)
         }}
