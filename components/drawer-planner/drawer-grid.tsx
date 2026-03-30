@@ -250,25 +250,99 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     })
   }, [drawers, drawer.id])
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    let el = e.target as HTMLElement | null
+    while (el && el !== e.currentTarget) {
+      if (el.dataset.itemId) {
+        const found = items.find(i => i.id === el!.dataset.itemId) ?? null
+        setContextItem(found)
+        if (found && !selectedItemIds.has(found.id)) selectItem(found.id)
+        return
+      }
+      el = el.parentElement
+    }
+    setContextItem(null)
+  }, [items, selectedItemIds, selectItem])
+
+  const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!resizeState) return
+    const dx = Math.round((e.clientX - resizeState.startMouseX) / cellStep)
+    const dy = Math.round((e.clientY - resizeState.startMouseY) / cellStep)
+    const newW = Math.max(1, resizeState.startGridWidth + (resizeState.handle !== 's' ? dx : 0))
+    const newD = Math.max(1, resizeState.startGridDepth + (resizeState.handle !== 'e' ? dy : 0))
+    setResizeState(s => s ? { ...s, previewWidth: newW, previewDepth: newD } : null)
+  }, [resizeState, cellStep])
+
+  const handleGridMouseUp = useCallback(() => {
+    if (resizeState) {
+      const item = items.find(i => i.id === resizeState.itemId)
+      if (item) {
+        updateItem({
+          ...item,
+          gridMode: 'manual',
+          manualGridCols: resizeState.previewWidth,
+          manualGridRows: resizeState.previewDepth,
+        })
+      }
+      setResizeState(null)
+      return
+    }
+    if (!drawState) return
+    const gx = Math.min(drawState.startX, drawState.endX)
+    const gy = Math.min(drawState.startY, drawState.endY)
+    const cols = Math.abs(drawState.endX - drawState.startX) + 1
+    const rows = Math.abs(drawState.endY - drawState.startY) + 1
+    setDrawState(null)
+    onAddItemAtCell(gx, gy, cols, rows)
+  }, [resizeState, drawState, items, updateItem, onAddItemAtCell])
+
+  const handleGridMouseLeave = useCallback(() => {
+    setDrawState(null)
+    setResizeState(null)
+  }, [])
+
+  const handleGridMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
+    if (!target || dragState || resizeState) return
+    const gx = parseInt(target.dataset.gx!)
+    const gy = parseInt(target.dataset.gy!)
+    if (occupancyMap.has(`${gx},${gy}`)) return
+    e.preventDefault()
+    setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
+  }, [dragState, resizeState, occupancyMap])
+
+  const handleGridMouseOver = useCallback((e: React.MouseEvent) => {
+    if (!drawState) return
+    const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
+    if (!target) return
+    const gx = parseInt(target.dataset.gx!)
+    const gy = parseInt(target.dataset.gy!)
+    setDrawState(s => s ? { ...s, endX: gx, endY: gy } : null)
+  }, [drawState])
+
+  const handleResizeStart = useCallback((e: React.MouseEvent, item: Item, handle: ResizeState['handle']) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const dims = calculateItemGridDimensions(item, config)
+    setResizeState({
+      itemId: item.id,
+      handle,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startGridWidth: dims.gridWidth,
+      startGridDepth: dims.gridDepth,
+      previewWidth: dims.gridWidth,
+      previewDepth: dims.gridDepth,
+    })
+  }, [config])
+
   return (
     <div className="relative h-full flex flex-col">
       {/* Grid container */}
       <ContextMenu>
         <ContextMenuTrigger
           className="flex-1 min-h-0 flex flex-col"
-          onContextMenu={(e) => {
-            let el = e.target as HTMLElement | null
-            while (el && el !== e.currentTarget) {
-              if (el.dataset.itemId) {
-                const found = items.find(i => i.id === el!.dataset.itemId) ?? null
-                setContextItem(found)
-                if (found && !selectedItemIds.has(found.id)) selectItem(found.id)
-                return
-              }
-              el = el.parentElement
-            }
-            setContextItem(null)
-          }}
+          onContextMenu={handleContextMenu}
         >
           <div
             className="flex-1 relative bg-secondary/30 rounded-lg p-2 overflow-auto"
@@ -280,58 +354,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           onDragOver={handleGridDragOver}
           onDrop={handleGridDrop}
           onDragLeave={handleGridDragLeave}
-          onMouseMove={(e) => {
-            if (!resizeState) return
-            const dx = Math.round((e.clientX - resizeState.startMouseX) / cellStep)
-            const dy = Math.round((e.clientY - resizeState.startMouseY) / cellStep)
-            const newW = Math.max(1, resizeState.startGridWidth + (resizeState.handle !== 's' ? dx : 0))
-            const newD = Math.max(1, resizeState.startGridDepth + (resizeState.handle !== 'e' ? dy : 0))
-            setResizeState(s => s ? { ...s, previewWidth: newW, previewDepth: newD } : null)
-          }}
-          onMouseUp={(e) => {
-            if (resizeState) {
-              const item = items.find(i => i.id === resizeState.itemId)
-              if (item) {
-                // Resize always sets manual mode — updates grid footprint, not physical dims
-                updateItem({
-                  ...item,
-                  gridMode: 'manual',
-                  manualGridCols: resizeState.previewWidth,
-                  manualGridRows: resizeState.previewDepth,
-                })
-              }
-              setResizeState(null)
-              return
-            }
-            if (!drawState) return
-            const gx = Math.min(drawState.startX, drawState.endX)
-            const gy = Math.min(drawState.startY, drawState.endY)
-            const cols = Math.abs(drawState.endX - drawState.startX) + 1
-            const rows = Math.abs(drawState.endY - drawState.startY) + 1
-            setDrawState(null)
-            onAddItemAtCell(gx, gy, cols, rows)
-          }}
-          onMouseLeave={useCallback(() => {
-            setDrawState(null)
-            setResizeState(null)
-          }, [])}
-          onMouseDown={(e) => {
-            const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
-            if (!target || dragState || resizeState) return
-            const gx = parseInt(target.dataset.gx!)
-            const gy = parseInt(target.dataset.gy!)
-            if (occupancyMap.has(`${gx},${gy}`)) return
-            e.preventDefault()
-            setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
-          }}
-          onMouseOver={(e) => {
-            if (!drawState) return
-            const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
-            if (!target) return
-            const gx = parseInt(target.dataset.gx!)
-            const gy = parseInt(target.dataset.gy!)
-            setDrawState(s => s ? { ...s, endX: gx, endY: gy } : null)
-          }}
+          onMouseMove={handleGridMouseMove}
+          onMouseUp={handleGridMouseUp}
+          onMouseLeave={handleGridMouseLeave}
+          onMouseDown={handleGridMouseDown}
+          onMouseOver={handleGridMouseOver}
           style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${drawer.gridCols}, ${CELL_SIZE}px)`,
@@ -612,56 +639,17 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                     {/* East handle */}
                     <div
                       className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 w-2 h-6 rounded-sm bg-primary/70 hover:bg-primary cursor-e-resize z-20"
-                      onMouseDown={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        setResizeState({
-                          itemId: item.id,
-                          handle: 'e',
-                          startMouseX: e.clientX,
-                          startMouseY: e.clientY,
-                          startGridWidth: baseDims.gridWidth,
-                          startGridDepth: baseDims.gridDepth,
-                          previewWidth: baseDims.gridWidth,
-                          previewDepth: baseDims.gridDepth,
-                        })
-                      }}
+                      onMouseDown={(e) => handleResizeStart(e, item, 'e')}
                     />
                     {/* South handle */}
                     <div
                       className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 h-2 w-6 rounded-sm bg-primary/70 hover:bg-primary cursor-s-resize z-20"
-                      onMouseDown={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        setResizeState({
-                          itemId: item.id,
-                          handle: 's',
-                          startMouseX: e.clientX,
-                          startMouseY: e.clientY,
-                          startGridWidth: baseDims.gridWidth,
-                          startGridDepth: baseDims.gridDepth,
-                          previewWidth: baseDims.gridWidth,
-                          previewDepth: baseDims.gridDepth,
-                        })
-                      }}
+                      onMouseDown={(e) => handleResizeStart(e, item, 's')}
                     />
                     {/* Southeast handle */}
                     <div
                       className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-3 h-3 rounded-sm bg-primary/70 hover:bg-primary cursor-se-resize z-20"
-                      onMouseDown={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        setResizeState({
-                          itemId: item.id,
-                          handle: 'se',
-                          startMouseX: e.clientX,
-                          startMouseY: e.clientY,
-                          startGridWidth: baseDims.gridWidth,
-                          startGridDepth: baseDims.gridDepth,
-                          previewWidth: baseDims.gridWidth,
-                          previewDepth: baseDims.gridDepth,
-                        })
-                      }}
+                      onMouseDown={(e) => handleResizeStart(e, item, 'se')}
                     />
                   </>
                 )}
