@@ -401,7 +401,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                             isSelected={selectedItemIds.has(item.id)}
                             isDragging={draggedItem === item.id}
                             onSelect={() => handleClick(item.id,
-                              () => { selectDrawer(drawer.id); selectItem(item.id) },
+                              () => selectedItemIds.has(item.id) ? toggleItemSelection(item.id) : (selectDrawer(drawer.id), selectItem(item.id)),
                               () => onEditItem(item)
                             )}
                             onCtrlSelect={() => toggleItemSelection(item.id)}
@@ -453,7 +453,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                     isSelected={selectedItemIds.has(item.id)}
                     isDragging={draggedItem === item.id}
                     onSelect={() => handleClick(item.id,
-                      () => selectItem(item.id),
+                      () => selectedItemIds.has(item.id) ? toggleItemSelection(item.id) : selectItem(item.id),
                       () => onEditItem(item)
                     )}
                     onCtrlSelect={() => toggleItemSelection(item.id)}

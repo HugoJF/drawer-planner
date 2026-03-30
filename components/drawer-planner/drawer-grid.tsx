@@ -463,7 +463,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                 draggable={!resizeState && !isLocked}
                 onDragStart={(e) => handleItemDragStart(e, item)}
                 onDragEnd={handleDragEnd}
-                onClick={(e) => e.ctrlKey || e.metaKey ? toggleItemSelection(item.id) : selectItem(item.id)}
+                onClick={(e) => e.ctrlKey || e.metaKey || isSelected ? toggleItemSelection(item.id) : selectItem(item.id)}
                 onDoubleClick={() => onEditItem(item)}
                 data-item-id={item.id}
                 className={cn(
