@@ -403,7 +403,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   "flex flex-col items-center justify-center gap-0.5",
                   "border",
                   isSelected && !isResizing && "ring-1 ring-primary ring-offset-1 ring-offset-background",
-                  isSearchMatch && !isSelected && "ring-2 ring-white ring-offset-1 ring-offset-background",
+                  searchTerm && !isSearchMatch && "opacity-25",
                   oversized && "border-destructive",
                   hasOverlap && !oversized && "border-amber-500",
                   !oversized && !hasOverlap && "border-black/10",
