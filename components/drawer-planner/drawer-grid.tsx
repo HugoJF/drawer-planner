@@ -342,9 +342,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             Array.from({ length: drawer.gridCols }).map((_, x) => {
               const isOccupied = occupancyMap.has(`${x},${y}`)
 
-              const isInDropPreview = dropTarget && dragState &&
-                dragState.dragCells.has(`${x - dropTarget.x},${y - dropTarget.y}`)
-
               const isInDrawPreview = drawState && !isOccupied && (
                 x >= Math.min(drawState.startX, drawState.endX) &&
                 x <= Math.max(drawState.startX, drawState.endX) &&
@@ -363,9 +360,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                       ? "bg-muted/20"
                       : isInDrawPreview
                         ? "bg-emerald-500/25"
-                        : isInDropPreview
-                          ? "bg-primary/20"
-                          : "bg-border/20 hover:bg-border/40",
+                        : "bg-border/20 hover:bg-border/40",
                   )}
                   style={{
                     width: CELL_SIZE,
