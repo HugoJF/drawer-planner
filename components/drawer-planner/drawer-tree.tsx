@@ -107,6 +107,8 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const moveItem = useDrawerStore(s => s.moveItem)
   const allItems = useDrawerStore(s => s.items)
   const config = useDrawerStore(s => s.config)
+  const searchQuery = useDrawerStore(s => s.searchQuery)
+  const setSearchQuery = useDrawerStore(s => s.setSearchQuery)
 
   const { itemsByDrawer, unassignedItems } = useMemo(() => {
     const map = new Map<string, Item[]>()
@@ -133,7 +135,6 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const [sortMode, setSortMode] = useState<SortMode>('insertion')
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
 

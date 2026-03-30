@@ -24,10 +24,12 @@ export interface DrawerStore {
   items: Item[]
   selectedDrawerId: string | null
   selectedItemId: string | null
+  searchQuery: string
   past: Snapshot[]
   future: Snapshot[]
 
   // Actions
+  setSearchQuery: (query: string) => void
   addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows'>) => void
   updateDrawer: (drawer: Drawer) => void
   deleteDrawer: (id: string, deleteContents?: boolean) => void
@@ -74,8 +76,11 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           items: [],
           selectedDrawerId: null,
           selectedItemId: null,
+          searchQuery: '',
           past: [],
           future: [],
+
+          setSearchQuery: (query) => set({ searchQuery: query }),
 
           // Actions
           addDrawer: (drawer) => {

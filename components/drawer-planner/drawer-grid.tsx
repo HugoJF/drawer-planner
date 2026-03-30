@@ -87,6 +87,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
   const updateItem = useDrawerStore(s => s.updateItem)
   const selectItem = useDrawerStore(s => s.selectItem)
+  const searchTerm = useDrawerStore(s => s.searchQuery).toLowerCase().trim()
 
   const { toast } = useToast()
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -366,6 +367,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const footprintOverflow = isItemFootprintOverflow(item, config)
             const isSelected = selectedItemId === item.id
             const isDragging = dragState?.itemId === item.id
+            const isSearchMatch = searchTerm !== '' && item.name.toLowerCase().includes(searchTerm)
             const isLocked = item.locked
             const overlapping = findOverlappingItems(item, items, config)
             const hasOverlap = overlapping.length > 0
@@ -401,6 +403,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   "flex flex-col items-center justify-center gap-0.5",
                   "border",
                   isSelected && !isResizing && "ring-1 ring-primary ring-offset-1 ring-offset-background",
+                  isSearchMatch && !isSelected && "ring-2 ring-white ring-offset-1 ring-offset-background",
                   oversized && "border-destructive",
                   hasOverlap && !oversized && "border-amber-500",
                   !oversized && !hasOverlap && "border-black/10",
