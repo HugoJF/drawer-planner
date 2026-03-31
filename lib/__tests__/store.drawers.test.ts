@@ -29,7 +29,7 @@ function itemPayload(overrides?: Partial<Omit<Item, 'id'>>): Omit<Item, 'id'> {
     width: 42,
     height: 42,
     depth: 42,
-    color: '#3b82f6',
+    categoryId: null,
     rotation: 'normal',
     drawerId: null,
     gridX: 0,

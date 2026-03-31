@@ -20,6 +20,19 @@ export interface Drawer {
   gridRows: number       // calculated
 }
 
+export interface Category {
+  id: string
+  name: string
+  color: string          // hex
+}
+
+export const UNCATEGORIZED_COLOR = '#94a3b8'
+
+export function getCategoryColor(categoryId: string | null, categories: Category[]): string {
+  if (!categoryId) return UNCATEGORIZED_COLOR
+  return categories.find(c => c.id === categoryId)?.color ?? UNCATEGORIZED_COLOR
+}
+
 export type ItemRotation = 'normal' | 'layDown' | 'rotated'
 
 export interface Item {
@@ -28,7 +41,7 @@ export interface Item {
   width: number          // mm (0 = unknown, permitted in manual mode)
   height: number         // mm
   depth: number          // mm
-  color: string          // for visualization
+  categoryId: string | null
   rotation: ItemRotation
   drawerId: string | null
   gridX: number          // grid position
@@ -119,6 +132,7 @@ export interface ExportData {
   config: GridfinityConfig
   drawers: Drawer[]
   items: Item[]
+  categories?: Category[]
 }
 
 export const ITEM_COLORS = [

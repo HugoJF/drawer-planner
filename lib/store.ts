@@ -5,6 +5,7 @@ import type {
   GridfinityConfig,
   Drawer,
   Item,
+  Category,
   ExportData,
 } from '@/lib/types'
 import { DEFAULT_CONFIG } from '@/lib/types'
@@ -15,13 +16,14 @@ import {
   findAvailablePosition,
 } from '@/lib/gridfinity'
 
-export type Snapshot = { drawers: Drawer[]; items: Item[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string> }
+export type Snapshot = { drawers: Drawer[]; items: Item[]; categories: Category[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string> }
 
 export interface DrawerStore {
   // State
   config: GridfinityConfig
   drawers: Drawer[]
   items: Item[]
+  categories: Category[]
   selectedDrawerId: string | null
   selectedItemIds: Set<string>
   searchQuery: string
@@ -46,6 +48,9 @@ export interface DrawerStore {
   moveItem: (itemId: string, drawerId: string | null, gridX: number, gridY: number) => void
   repositionItems: (updates: { id: string; drawerId: string | null; gridX: number; gridY: number }[]) => void
   updateConfig: (config: Partial<GridfinityConfig>) => void
+  addCategory: (name: string, color: string) => string
+  updateCategory: (category: Category) => void
+  deleteCategory: (id: string) => void
   selectDrawer: (id: string | null) => void
   undo: () => void
   redo: () => void
@@ -67,8 +72,8 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
     persist(
       (set, get) => {
         const snap = (): Snapshot => {
-          const { drawers, items, config, selectedDrawerId, selectedItemIds } = get()
-          return { drawers, items, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+          const { drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
+          return { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
         }
 
         const push = () => {
@@ -81,6 +86,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           config: DEFAULT_CONFIG,
           drawers: [],
           items: [],
+          categories: [],
           selectedDrawerId: null,
           selectedItemIds: new Set(),
           searchQuery: '',
@@ -272,19 +278,40 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             })
           },
 
+          addCategory: (name, color) => {
+            push()
+            const id = generateId()
+            set((state) => ({ categories: [...state.categories, { id, name, color }] }))
+            return id
+          },
+
+          updateCategory: (category) => {
+            push()
+            set((state) => ({ categories: state.categories.map(c => c.id === category.id ? category : c) }))
+          },
+
+          deleteCategory: (id) => {
+            push()
+            set((state) => ({
+              categories: state.categories.filter(c => c.id !== id),
+              items: state.items.map(i => i.categoryId === id ? { ...i, categoryId: null } : i),
+            }))
+          },
+
           selectDrawer: (id) => {
             set({ selectedDrawerId: id })
           },
 
           undo: () => {
-            const { past, future, drawers, items, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
             if (past.length === 0) return
             const prev = past[past.length - 1]
             set({
               past: past.slice(0, -1),
-              future: [{ drawers, items, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }, ...future.slice(0, 49)],
+              future: [{ drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }, ...future.slice(0, 49)],
               drawers: prev.drawers,
               items: prev.items,
+              categories: prev.categories,
               config: prev.config,
               selectedDrawerId: prev.selectedDrawerId,
               selectedItemIds: prev.selectedItemIds,
@@ -292,50 +319,49 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           },
 
           redo: () => {
-            const { past, future, drawers, items, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
             if (future.length === 0) return
             const next = future[0]
             set({
               future: future.slice(1),
-              past: [...past.slice(-49), { drawers, items, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }],
+              past: [...past.slice(-49), { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }],
               drawers: next.drawers,
               items: next.items,
+              categories: next.categories,
               config: next.config,
               selectedDrawerId: next.selectedDrawerId,
               selectedItemIds: next.selectedItemIds,
             })
           },
 
-          // Jump directly to a past snapshot (index into the past array, 0 = oldest).
-          // Entries between the target and current move into the future stack.
           jumpToHistory: (index) => {
-            const { past, future, drawers, items, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
             const target = past[index]
             if (!target) return
-            const current = { drawers, items, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+            const current = { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
             set({
               past: past.slice(0, index),
               future: [...past.slice(index + 1), current, ...future].slice(0, 50),
               drawers: target.drawers,
               items: target.items,
+              categories: target.categories,
               config: target.config,
               selectedDrawerId: target.selectedDrawerId,
               selectedItemIds: target.selectedItemIds,
             })
           },
 
-          // Jump directly to a future snapshot (index into the future array, 0 = nearest).
-          // Entries between current and the target move into the past stack.
           jumpToFuture: (index) => {
-            const { past, future, drawers, items, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
             const target = future[index]
             if (!target) return
-            const current = { drawers, items, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+            const current = { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
             set({
               past: [...past, current, ...future.slice(0, index)].slice(-50),
               future: future.slice(index + 1),
               drawers: target.drawers,
               items: target.items,
+              categories: target.categories,
               config: target.config,
               selectedDrawerId: target.selectedDrawerId,
               selectedItemIds: target.selectedItemIds,
@@ -367,6 +393,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               config: state.config,
               drawers: state.drawers,
               items: state.items,
+              categories: state.categories,
             }
           },
 
@@ -376,7 +403,8 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               set({
                 config: { ...DEFAULT_CONFIG, ...data.config },
                 drawers: data.drawers,
-                items: data.items,
+                items: data.items.map(i => ({ ...i, categoryId: (i as Item & { categoryId?: string | null }).categoryId ?? null })),
+                categories: data.categories ?? [],
                 selectedDrawerId: null,
                 selectedItemIds: new Set(),
               })
@@ -390,10 +418,16 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           config: state.config,
           drawers: state.drawers,
           items: state.items,
+          categories: state.categories,
         }),
         onRehydrateStorage: () => (state) => {
           if (state) {
-            state.items = state.items.map(i => ({ ...i, locked: (i as Item & { locked?: boolean }).locked ?? false }))
+            state.items = state.items.map(i => ({
+              ...i,
+              locked: (i as Item & { locked?: boolean }).locked ?? false,
+              categoryId: (i as Item & { categoryId?: string | null }).categoryId ?? null,
+            }))
+            state.categories = state.categories ?? []
           }
         },
         ...(storage ? { storage } : {}),

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -22,9 +22,9 @@ import {
 import { useDrawerStore } from '@/lib/store'
 import { calculateItemGridDimensions, getRotatedDimensions } from '@/lib/gridfinity'
 import { cn } from '@/lib/utils'
-import type { Item, ItemRotation } from '@/lib/types'
-import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit } from '@/lib/types'
-import { RotateCw } from 'lucide-react'
+import type { Item, ItemRotation, Category } from '@/lib/types'
+import { ITEM_COLORS, getCategoryColor, toDisplayUnit, fromDisplayUnit } from '@/lib/types'
+import { RotateCw, Plus, Check } from 'lucide-react'
 
 interface ItemFormProps {
   open: boolean
@@ -35,46 +35,53 @@ interface ItemFormProps {
 }
 
 export function ItemForm({ open, onOpenChange, item, initialPosition, initialGridDimensions }: ItemFormProps) {
-  const config = useDrawerStore(s => s.config)
-  const drawers = useDrawerStore(s => s.drawers)
+  const config       = useDrawerStore(s => s.config)
+  const drawers      = useDrawerStore(s => s.drawers)
+  const categories   = useDrawerStore(s => s.categories)
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
-  const addItem = useDrawerStore(s => s.addItem)
-  const updateItem = useDrawerStore(s => s.updateItem)
+  const addItem      = useDrawerStore(s => s.addItem)
+  const updateItem   = useDrawerStore(s => s.updateItem)
+  const addCategory  = useDrawerStore(s => s.addCategory)
   const isEditing = !!item
 
   const unit = config.displayUnit
 
   const [name, setName] = useState(item?.name ?? '')
-  const [width, setWidth] = useState(
-    item && item.width > 0 ? toDisplayUnit(item.width, unit).toString() : ''
-  )
-  const [height, setHeight] = useState(
-    item && item.height > 0 ? toDisplayUnit(item.height, unit).toString() : ''
-  )
-  const [depth, setDepth] = useState(
-    item && item.depth > 0 ? toDisplayUnit(item.depth, unit).toString() : ''
-  )
-  const [color, setColor] = useState(
-    item?.color ?? ITEM_COLORS[Math.floor(Math.random() * ITEM_COLORS.length)]
-  )
+  const [width, setWidth] = useState(item && item.width > 0 ? toDisplayUnit(item.width, unit).toString() : '')
+  const [height, setHeight] = useState(item && item.height > 0 ? toDisplayUnit(item.height, unit).toString() : '')
+  const [depth, setDepth] = useState(item && item.depth > 0 ? toDisplayUnit(item.depth, unit).toString() : '')
+  const [categoryId, setCategoryId] = useState<string | null>(item?.categoryId ?? null)
   const [rotation, setRotation] = useState<ItemRotation>(item?.rotation ?? 'normal')
   const [drawerId, setDrawerId] = useState<string | null>(item?.drawerId ?? selectedDrawerId)
   const [gridMode, setGridMode] = useState<'auto' | 'manual'>(item?.gridMode ?? 'manual')
-  const [manualCols, setManualCols] = useState(
-    item?.manualGridCols ?? initialGridDimensions?.cols ?? 1
-  )
-  const [manualRows, setManualRows] = useState(
-    item?.manualGridRows ?? initialGridDimensions?.rows ?? 1
-  )
+  const [manualCols, setManualCols] = useState(item?.manualGridCols ?? initialGridDimensions?.cols ?? 1)
+  const [manualRows, setManualRows] = useState(item?.manualGridRows ?? initialGridDimensions?.rows ?? 1)
+
+  // Inline quick-create state
+  const [newCatName, setNewCatName] = useState('')
+  const newCatInputRef = useRef<HTMLInputElement>(null)
+
+  /** Pick the first palette color not already used by an existing category. */
+  const nextColor = (): string => {
+    const used = new Set(categories.map(c => c.color))
+    return ITEM_COLORS.find(c => !used.has(c)) ?? ITEM_COLORS[0]
+  }
+
+  const handleCreateCategory = () => {
+    const trimmed = newCatName.trim()
+    if (!trimmed) return
+    const id = addCategory(trimmed, nextColor())
+    setCategoryId(id)
+    setNewCatName('')
+  }
 
   const handleGridModeChange = (newMode: 'auto' | 'manual') => {
     if (newMode === 'manual' && gridMode === 'auto') {
-      // Seed manual dims from current computed dims
-      const widthMm = fromDisplayUnit(parseFloat(width) || 0, unit)
+      const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
       const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
-      const depthMm = fromDisplayUnit(parseFloat(depth) || 0, unit)
+      const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
       if (widthMm > 0 && depthMm > 0) {
-        const fakeItem = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, color, rotation, drawerId, gridX: 0, gridY: 0, gridMode: 'auto' as const, locked: false }
+        const fakeItem = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, categoryId, rotation, drawerId, gridX: 0, gridY: 0, gridMode: 'auto' as const, locked: false }
         const dims = calculateItemGridDimensions(fakeItem, config)
         setManualCols(dims.gridWidth)
         setManualRows(dims.gridDepth)
@@ -85,17 +92,15 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!name.trim()) return
 
-    const widthDisplay = parseFloat(width)
+    const widthDisplay  = parseFloat(width)
     const heightDisplay = parseFloat(height)
-    const depthDisplay = parseFloat(depth)
-    const widthMm = width ? fromDisplayUnit(widthDisplay, unit) : 0
+    const depthDisplay  = parseFloat(depth)
+    const widthMm  = width  ? fromDisplayUnit(widthDisplay,  unit) : 0
     const heightMm = height ? fromDisplayUnit(heightDisplay, unit) : 0
-    const depthMm = depth ? fromDisplayUnit(depthDisplay, unit) : 0
+    const depthMm  = depth  ? fromDisplayUnit(depthDisplay,  unit) : 0
 
-    // Auto mode requires all physical dimensions
     if (gridMode === 'auto') {
       if (isNaN(widthDisplay) || isNaN(heightDisplay) || isNaN(depthDisplay) ||
           widthMm <= 0 || heightMm <= 0 || depthMm <= 0) return
@@ -106,7 +111,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
       width: widthMm,
       height: heightMm,
       depth: depthMm,
-      color,
+      categoryId,
       rotation,
       drawerId,
       gridMode,
@@ -117,37 +122,21 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     if (isEditing && item) {
       updateItem({ ...item, ...itemData })
     } else {
-      addItem({
-        ...itemData,
-        gridX: initialPosition?.gridX ?? 0,
-        gridY: initialPosition?.gridY ?? 0,
-      })
+      addItem({ ...itemData, gridX: initialPosition?.gridX ?? 0, gridY: initialPosition?.gridY ?? 0 })
     }
-
     onOpenChange(false)
   }
 
-  // Build preview item to compute grid dims and rotated dims
-  const widthMm = fromDisplayUnit(parseFloat(width) || 0, unit)
+  // Preview
+  const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
   const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
-  const depthMm = fromDisplayUnit(parseFloat(depth) || 0, unit)
+  const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
   const hasPhysical = widthMm > 0 && depthMm > 0
 
   const previewItem: Item = {
-    id: 'preview',
-    name,
-    width: widthMm,
-    height: heightMm,
-    depth: depthMm,
-    color,
-    rotation,
-    drawerId: null,
-    gridX: 0,
-    gridY: 0,
-    gridMode,
-    manualGridCols: manualCols,
-    manualGridRows: manualRows,
-    locked: false,
+    id: 'preview', name, width: widthMm, height: heightMm, depth: depthMm,
+    categoryId, rotation, drawerId: null, gridX: 0, gridY: 0, gridMode,
+    manualGridCols: manualCols, manualGridRows: manualRows, locked: false,
   }
 
   const previewDims = (gridMode === 'auto' ? hasPhysical : true)
@@ -181,28 +170,15 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="item-name">Name</Label>
-              <Input
-                id="item-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Screwdriver"
-                required
-              />
+              <Input id="item-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Screwdriver" required />
             </div>
             <div className="space-y-2">
               <Label>Drawer</Label>
-              <Select
-                value={drawerId || 'unassigned'}
-                onValueChange={(v) => setDrawerId(v === 'unassigned' ? null : v)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a drawer..." />
-                </SelectTrigger>
+              <Select value={drawerId || 'unassigned'} onValueChange={v => setDrawerId(v === 'unassigned' ? null : v)}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select a drawer..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {drawers.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                  ))}
+                  {drawers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -212,78 +188,42 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Physical Dimensions ({unit})</Label>
-              {gridMode === 'manual' && (
-                <span className="text-xs text-muted-foreground">optional</span>
-              )}
+              {gridMode === 'manual' && <span className="text-xs text-muted-foreground">optional</span>}
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="item-width" className="text-xs text-muted-foreground">Width</Label>
-                <Input
-                  id="item-width"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={width}
-                  onChange={(e) => setWidth(e.target.value)}
-                  placeholder={unit === 'cm' ? '3' : '30'}
-                  required={gridMode === 'auto'}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="item-height" className="text-xs text-muted-foreground">Height</Label>
-                <Input
-                  id="item-height"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  placeholder={unit === 'cm' ? '10' : '100'}
-                  required={gridMode === 'auto'}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="item-depth" className="text-xs text-muted-foreground">Depth</Label>
-                <Input
-                  id="item-depth"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={depth}
-                  onChange={(e) => setDepth(e.target.value)}
-                  placeholder={unit === 'cm' ? '3' : '30'}
-                  required={gridMode === 'auto'}
-                />
-              </div>
+              {(['Width', 'Height', 'Depth'] as const).map((label, i) => {
+                const val = [width, height, depth][i]
+                const setter = [setWidth, setHeight, setDepth][i]
+                const placeholder = unit === 'cm' ? (i === 1 ? '10' : '3') : (i === 1 ? '100' : '30')
+                return (
+                  <div key={label} className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">{label}</Label>
+                    <Input type="number" step="0.1" min="0.1" value={val} onChange={e => setter(e.target.value)}
+                      placeholder={placeholder} required={gridMode === 'auto'} />
+                  </div>
+                )
+              })}
             </div>
           </div>
 
-          {/* Color + Rotation */}
+          {/* Category + Rotation */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Color</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {ITEM_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
-                    className={cn(
-                      "w-7 h-7 rounded-md transition-all",
-                      color === c && "ring-2 ring-offset-2 ring-offset-background ring-primary"
-                    )}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
-              </div>
+              <Label>Category</Label>
+              <CategorySelector
+                categories={categories}
+                categoryId={categoryId}
+                onSelect={setCategoryId}
+                newCatName={newCatName}
+                onNewCatNameChange={setNewCatName}
+                onCreateCategory={handleCreateCategory}
+                newCatInputRef={newCatInputRef}
+              />
             </div>
             <div className="space-y-2">
               <Label>Rotation</Label>
-              <Select value={rotation} onValueChange={(v) => setRotation(v as ItemRotation)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={rotation} onValueChange={v => setRotation(v as ItemRotation)}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="normal">Normal</SelectItem>
                   <SelectItem value="layDown">Lay Down</SelectItem>
@@ -295,58 +235,30 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
           {/* Grid Settings */}
           <div className="rounded-md bg-secondary/30 p-3 space-y-3">
-            {/* Mode toggle */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium">Grid Footprint</span>
               <div className="flex rounded-md border border-input overflow-hidden text-xs">
-                <button
-                  type="button"
-                  className={cn(
-                    "px-3 py-1 font-medium transition-colors",
-                    gridMode === 'auto'
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:bg-accent"
-                  )}
-                  onClick={() => handleGridModeChange('auto')}
-                >
-                  Auto
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    "px-3 py-1 font-medium border-l border-input transition-colors",
-                    gridMode === 'manual'
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:bg-accent"
-                  )}
-                  onClick={() => handleGridModeChange('manual')}
-                >
-                  Manual
-                </button>
+                {(['auto', 'manual'] as const).map(mode => (
+                  <button key={mode} type="button"
+                    className={cn('px-3 py-1 font-medium transition-colors', mode === 'manual' && 'border-l border-input',
+                      gridMode === mode ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent')}
+                    onClick={() => handleGridModeChange(mode)}>
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Grid dims: editable in manual, computed in auto */}
             {gridMode === 'manual' ? (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={manualCols}
-                    onChange={(e) => setManualCols(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 h-7 text-center text-sm"
-                  />
+                  <Input type="number" min="1" step="1" value={manualCols}
+                    onChange={e => setManualCols(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 h-7 text-center text-sm" />
                   <span className="text-muted-foreground text-sm">×</span>
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={manualRows}
-                    onChange={(e) => setManualRows(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 h-7 text-center text-sm"
-                  />
+                  <Input type="number" min="1" step="1" value={manualRows}
+                    onChange={e => setManualRows(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 h-7 text-center text-sm" />
                   <span className="text-xs text-muted-foreground">cells</span>
                 </div>
               </div>
@@ -355,12 +267,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
                 Calculated: <span className="font-medium text-foreground">{previewDims.gridWidth} × {previewDims.gridDepth}</span> cells
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Fill physical dimensions above to see calculated grid size.
-              </p>
+              <p className="text-xs text-muted-foreground">Fill physical dimensions above to see calculated grid size.</p>
             )}
 
-            {/* Additional info */}
             {previewDims && previewDims.heightUnits > 0 && (
               <p className="text-sm text-muted-foreground">
                 Height: <span className="font-medium text-foreground">{previewDims.heightUnits} U</span>
@@ -368,22 +277,17 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
               </p>
             )}
             {gridMode === 'manual' && !hasPhysical && (
-              <p className="text-xs text-muted-foreground">
-                Add physical dimensions to see height units and inset visualization.
-              </p>
+              <p className="text-xs text-muted-foreground">Add physical dimensions to see height units and inset visualization.</p>
             )}
             {previewDims && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <RotateCw className="h-3 w-3" />
-                {rotationLabels[rotation]}
+                <RotateCw className="h-3 w-3" />{rotationLabels[rotation]}
               </p>
             )}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={autoInvalid && false}>
               {isEditing ? 'Save Changes' : 'Add Item'}
             </Button>
@@ -391,5 +295,60 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ── CategorySelector ──────────────────────────────────────────────────────────
+
+function CategorySelector({ categories, categoryId, onSelect, newCatName, onNewCatNameChange, onCreateCategory, newCatInputRef }: {
+  categories: Category[]
+  categoryId: string | null
+  onSelect: (id: string | null) => void
+  newCatName: string
+  onNewCatNameChange: (v: string) => void
+  onCreateCategory: () => void
+  newCatInputRef: React.RefObject<HTMLInputElement | null>
+}) {
+  return (
+    <div className="rounded-md border border-input bg-background text-sm overflow-hidden">
+      {/* None option */}
+      <button type="button" onClick={() => onSelect(null)}
+        className={cn('w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-accent/50 transition-colors text-left',
+          categoryId === null && 'bg-accent/30')}>
+        <div className="h-3 w-3 rounded-sm shrink-0 border border-border" />
+        <span className="flex-1 text-muted-foreground">None</span>
+        {categoryId === null && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+      </button>
+
+      {/* Existing categories */}
+      {categories.map(cat => (
+        <button key={cat.id} type="button" onClick={() => onSelect(cat.id)}
+          className={cn('w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-accent/50 transition-colors text-left border-t border-border/40',
+            categoryId === cat.id && 'bg-accent/30')}>
+          <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
+          <span className="flex-1 truncate">{cat.name}</span>
+          {categoryId === cat.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+        </button>
+      ))}
+
+      {/* Inline quick-create */}
+      <div className="flex items-center gap-1.5 px-2 py-1.5 border-t border-border/40">
+        <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <input
+          ref={newCatInputRef}
+          type="text"
+          value={newCatName}
+          onChange={e => onNewCatNameChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onCreateCategory() } }}
+          placeholder="New category…"
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+        {newCatName.trim() && (
+          <button type="button" onClick={onCreateCategory} className="text-xs text-primary hover:underline shrink-0">
+            Add
+          </button>
+        )}
+      </div>
+    </div>
   )
 }

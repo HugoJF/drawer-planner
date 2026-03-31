@@ -25,14 +25,15 @@ export function HistoryPanel() {
   const items          = useDrawerStore(s => s.items)
   const drawers        = useDrawerStore(s => s.drawers)
   const config         = useDrawerStore(s => s.config)
+  const categories     = useDrawerStore(s => s.categories)
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
   const selectedItemIds  = useDrawerStore(s => s.selectedItemIds)
   const jumpToHistory  = useDrawerStore(s => s.jumpToHistory)
   const jumpToFuture   = useDrawerStore(s => s.jumpToFuture)
 
   const currentSnapshot = useMemo<Snapshot>(() => ({
-    drawers, items, config, selectedDrawerId, selectedItemIds,
-  }), [drawers, items, config, selectedDrawerId, selectedItemIds])
+    drawers, items, categories, config, selectedDrawerId, selectedItemIds,
+  }), [drawers, items, categories, config, selectedDrawerId, selectedItemIds])
 
   const entries = useMemo<HistoryEntry[]>(() => {
     const result: HistoryEntry[] = []

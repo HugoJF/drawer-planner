@@ -8,6 +8,26 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
   // Config change
   if (JSON.stringify(before.config) !== JSON.stringify(after.config)) return 'Updated settings'
 
+  // Category changes
+  const beforeCats = new Map(before.categories.map(c => [c.id, c]))
+  const afterCats  = new Map(after.categories.map(c => [c.id, c]))
+  const addedCats   = after.categories.filter(c => !beforeCats.has(c.id))
+  const removedCats = before.categories.filter(c => !afterCats.has(c.id))
+  if (addedCats.length === 1 && removedCats.length === 0)   return `Added category "${addedCats[0].name}"`
+  if (removedCats.length === 1 && addedCats.length === 0)   return `Deleted category "${removedCats[0].name}"`
+  if (addedCats.length === 0 && removedCats.length === 0) {
+    const editedCat = after.categories.find(c => {
+      const b = beforeCats.get(c.id)
+      return b && JSON.stringify(b) !== JSON.stringify(c)
+    })
+    if (editedCat) {
+      const b = beforeCats.get(editedCat.id)!
+      if (b.name !== editedCat.name && b.color !== editedCat.color) return `Edited category "${editedCat.name}"`
+      if (b.name !== editedCat.name)  return `Renamed category "${b.name}" → "${editedCat.name}"`
+      if (b.color !== editedCat.color) return `Recolored category "${editedCat.name}"`
+    }
+  }
+
   // Drawer changes
   const beforeDrawers = new Map(before.drawers.map(d => [d.id, d]))
   const afterDrawers  = new Map(after.drawers.map(d => [d.id, d]))
@@ -41,8 +61,15 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
     const b = beforeItems.get(changed[0].id)!
     const a = changed[0]
     if (b.name !== a.name)                                           return `Renamed "${b.name}" → "${a.name}"`
-    if (b.gridX !== a.gridX || b.gridY !== a.gridY
-        || b.drawerId !== a.drawerId)                                return `Moved "${a.name}"`
+    if (b.gridX !== a.gridX || b.gridY !== a.gridY || b.drawerId !== a.drawerId) {
+      if (b.drawerId !== a.drawerId) {
+        const dest = a.drawerId ? after.drawers.find(d => d.id === a.drawerId)?.name : null
+        if (!b.drawerId && dest)  return `Moved "${a.name}" to "${dest}"`
+        if (b.drawerId && !dest)  return `Unassigned "${a.name}"`
+        if (dest)                 return `Moved "${a.name}" to "${dest}"`
+      }
+      return `Moved "${a.name}"`
+    }
     if (b.rotation !== a.rotation)                                   return `Rotated "${a.name}"`
     if (b.locked !== a.locked)                                       return a.locked ? `Locked "${a.name}"` : `Unlocked "${a.name}"`
     return `Edited "${a.name}"`
@@ -54,7 +81,16 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
       return b.gridX !== a.gridX || b.gridY !== a.gridY || b.drawerId !== a.drawerId
     })
     const allLockChanged = changed.every(a => beforeItems.get(a.id)!.locked !== a.locked)
-    if (allMoved)       return `Moved ${changed.length} items`
+    if (allMoved) {
+      const destIds = new Set(changed.map(a => a.drawerId))
+      if (destIds.size === 1) {
+        const destId = [...destIds][0]
+        const dest = destId ? after.drawers.find(d => d.id === destId)?.name : null
+        const crossDrawer = changed.some(a => beforeItems.get(a.id)!.drawerId !== a.drawerId)
+        if (crossDrawer && dest) return `Moved ${changed.length} items to "${dest}"`
+      }
+      return `Moved ${changed.length} items`
+    }
     if (allLockChanged) return changed[0].locked ? `Locked ${changed.length} items` : `Unlocked ${changed.length} items`
     return `Changed ${changed.length} items`
   }

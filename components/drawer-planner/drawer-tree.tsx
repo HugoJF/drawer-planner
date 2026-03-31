@@ -9,6 +9,7 @@ import {
   Package,
   Box,
   FolderOpen,
+  Tag,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -23,10 +24,10 @@ import {
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { 
-  Collapsible, 
-  CollapsibleContent, 
-  CollapsibleTrigger 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
 } from '@/components/ui/collapsible'
 import {
   DropdownMenu,
@@ -55,12 +56,15 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { isItemOversized, getRotatedDimensions, calculateItemGridDimensions } from '@/lib/gridfinity'
-import { formatDimension } from '@/lib/types'
-import type { Drawer, Item, DimensionUnit, GridfinityConfig } from '@/lib/types'
+import { formatDimension, getCategoryColor } from '@/lib/types'
+import type { Drawer, Item, Category, DimensionUnit, GridfinityConfig } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
+import { CategoryForm } from '@/components/drawer-planner/category-form'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
+import { ITEM_COLORS } from '@/lib/types'
 
 type SortMode = 'insertion' | 'name' | 'size' | 'y' | 'x'
+type SidebarTab = 'drawers' | 'categories'
 
 const SORT_LABELS: Record<SortMode, string> = {
   insertion: 'Insertion order',
@@ -78,14 +82,18 @@ function sortItems(items: Item[], mode: SortMode, config: GridfinityConfig): Ite
       case 'size': {
         const da = calculateItemGridDimensions(a, config)
         const db = calculateItemGridDimensions(b, config)
-        const areaA = da.gridWidth * da.gridDepth
-        const areaB = db.gridWidth * db.gridDepth
-        return areaB - areaA
+        return (db.gridWidth * db.gridDepth) - (da.gridWidth * da.gridDepth)
       }
       case 'y': return a.gridY !== b.gridY ? a.gridY - b.gridY : a.gridX - b.gridX
       case 'x': return a.gridX !== b.gridX ? a.gridX - b.gridX : a.gridY - b.gridY
     }
   })
+}
+
+/** Pick the first ITEM_COLORS entry not already used by an existing category. */
+function nextAvailableColor(categories: Category[]): string {
+  const used = new Set(categories.map(c => c.color))
+  return ITEM_COLORS.find(c => !used.has(c)) ?? ITEM_COLORS[0]
 }
 
 interface DrawerTreeProps {
@@ -95,36 +103,25 @@ interface DrawerTreeProps {
 }
 
 export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTreeProps) {
-  const drawers = useDrawerStore(s => s.drawers)
-  const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
-  const selectedItemIds = useDrawerStore(s => s.selectedItemIds)
-  const selectDrawer = useDrawerStore(s => s.selectDrawer)
-  const selectItem = useDrawerStore(s => s.selectItem)
-  const toggleItemSelection = useDrawerStore(s => s.toggleItemSelection)
-  const deleteDrawer = useDrawerStore(s => s.deleteDrawer)
-  const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
-  const deleteItem = useDrawerStore(s => s.deleteItem)
-  const duplicateItem = useDrawerStore(s => s.duplicateItem)
-  const moveItem = useDrawerStore(s => s.moveItem)
-  const allItems = useDrawerStore(s => s.items)
-  const config = useDrawerStore(s => s.config)
-  const searchQuery = useDrawerStore(s => s.searchQuery)
+  const drawers       = useDrawerStore(s => s.drawers)
+  const allItems      = useDrawerStore(s => s.items)
+  const categories    = useDrawerStore(s => s.categories)
+  const config        = useDrawerStore(s => s.config)
+  const searchQuery   = useDrawerStore(s => s.searchQuery)
   const setSearchQuery = useDrawerStore(s => s.setSearchQuery)
-
-  const { itemsByDrawer, unassignedItems } = useMemo(() => {
-    const map = new Map<string, Item[]>()
-    const unassigned: Item[] = []
-    for (const item of allItems) {
-      if (item.drawerId === null) {
-        unassigned.push(item)
-      } else {
-        const list = map.get(item.drawerId) ?? []
-        list.push(item)
-        map.set(item.drawerId, list)
-      }
-    }
-    return { itemsByDrawer: map, unassignedItems: unassigned }
-  }, [allItems])
+  const selectedDrawerId  = useDrawerStore(s => s.selectedDrawerId)
+  const selectedItemIds   = useDrawerStore(s => s.selectedItemIds)
+  const selectDrawer      = useDrawerStore(s => s.selectDrawer)
+  const selectItem        = useDrawerStore(s => s.selectItem)
+  const toggleItemSelection = useDrawerStore(s => s.toggleItemSelection)
+  const deleteDrawer   = useDrawerStore(s => s.deleteDrawer)
+  const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
+  const deleteItem     = useDrawerStore(s => s.deleteItem)
+  const duplicateItem  = useDrawerStore(s => s.duplicateItem)
+  const moveItem       = useDrawerStore(s => s.moveItem)
+  const addCategory    = useDrawerStore(s => s.addCategory)
+  const updateCategory = useDrawerStore(s => s.updateCategory)
+  const deleteCategory = useDrawerStore(s => s.deleteCategory)
 
   const { toast } = useToast()
   const handleDuplicateItem = useCallback((id: string) => {
@@ -132,10 +129,14 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
   }, [duplicateItem, toast])
 
+  const [activeTab, setActiveTab] = useState<SidebarTab>('drawers')
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
+  const [expandedCategoryGroups, setExpandedCategoryGroups] = useState<Set<string>>(new Set())
   const [sortMode, setSortMode] = useState<SortMode>('insertion')
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; name: string } | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item' | 'category'; id: string; name: string } | null>(null)
+  const [categoryFormOpen, setCategoryFormOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
 
@@ -144,12 +145,31 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     searchInputRef.current?.select()
   })
 
+  // ── Item grouping ────────────────────────────────────────────────────────────
+
+  const { itemsByDrawer, unassignedItems, itemsByCategory } = useMemo(() => {
+    const byDrawer = new Map<string, Item[]>()
+    const unassigned: Item[] = []
+    const byCategory = new Map<string | null, Item[]>()
+
+    for (const item of allItems) {
+      if (item.drawerId === null) unassigned.push(item)
+      else {
+        const list = byDrawer.get(item.drawerId) ?? []
+        list.push(item)
+        byDrawer.set(item.drawerId, list)
+      }
+      const catList = byCategory.get(item.categoryId) ?? []
+      catList.push(item)
+      byCategory.set(item.categoryId, catList)
+    }
+    return { itemsByDrawer: byDrawer, unassignedItems: unassigned, itemsByCategory: byCategory }
+  }, [allItems])
+
   const searchTerm = searchQuery.toLowerCase().trim()
 
   const { filteredDrawers, filteredItemsByDrawer, filteredUnassigned } = useMemo(() => {
-    if (!searchTerm) {
-      return { filteredDrawers: drawers, filteredItemsByDrawer: itemsByDrawer, filteredUnassigned: unassignedItems }
-    }
+    if (!searchTerm) return { filteredDrawers: drawers, filteredItemsByDrawer: itemsByDrawer, filteredUnassigned: unassignedItems }
     const newItemsByDrawer = new Map<string, Item[]>()
     const matchingDrawers: typeof drawers = []
     for (const drawer of drawers) {
@@ -158,17 +178,14 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
         newItemsByDrawer.set(drawer.id, drawerItems)
         matchingDrawers.push(drawer)
       } else {
-        const matching = drawerItems.filter(item => item.name.toLowerCase().includes(searchTerm))
-        if (matching.length > 0) {
-          newItemsByDrawer.set(drawer.id, matching)
-          matchingDrawers.push(drawer)
-        }
+        const matching = drawerItems.filter(i => i.name.toLowerCase().includes(searchTerm))
+        if (matching.length > 0) { newItemsByDrawer.set(drawer.id, matching); matchingDrawers.push(drawer) }
       }
     }
     return {
       filteredDrawers: matchingDrawers,
       filteredItemsByDrawer: newItemsByDrawer,
-      filteredUnassigned: unassignedItems.filter(item => item.name.toLowerCase().includes(searchTerm)),
+      filteredUnassigned: unassignedItems.filter(i => i.name.toLowerCase().includes(searchTerm)),
     }
   }, [searchTerm, drawers, itemsByDrawer, unassignedItems])
 
@@ -177,103 +194,101 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     return new Set(filteredDrawers.map(d => d.id))
   }, [searchTerm, filteredDrawers, expandedDrawers])
 
+  // ── Interaction helpers ──────────────────────────────────────────────────────
+
   const handleClick = (id: string, onSingle: () => void, onDouble: () => void) => {
     const now = Date.now()
     if (lastClickRef.current?.id === id && now - lastClickRef.current.time < 400) {
-      lastClickRef.current = null
-      onDouble()
+      lastClickRef.current = null; onDouble()
     } else {
-      lastClickRef.current = { id, time: now }
-      onSingle()
+      lastClickRef.current = { id, time: now }; onSingle()
     }
   }
 
-  const toggleDrawer = (id: string) => {
-    setExpandedDrawers(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
+  const toggleDrawer = (id: string) => setExpandedDrawers(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
+  })
+
+  const toggleCategoryGroup = (key: string) => setExpandedCategoryGroups(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next
+  })
 
   const allExpanded = filteredDrawers.length > 0 && filteredDrawers.every(d => effectiveExpanded.has(d.id))
-  const toggleAll = () => {
-    setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
-  }
+  const toggleAll = () => setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
 
   const handleDragStart = (e: React.DragEvent, itemId: string) => {
     e.dataTransfer.setData('text/plain', itemId)
     e.dataTransfer.effectAllowed = 'move'
     setDraggedItem(itemId)
   }
-
-  const handleDragEnd = () => {
-    setDraggedItem(null)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
-
+  const handleDragEnd = () => setDraggedItem(null)
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
   const handleDropOnDrawer = (e: React.DragEvent, drawerId: string | null) => {
     e.preventDefault()
     const itemId = e.dataTransfer.getData('text/plain')
-    if (itemId) {
-      moveItem(itemId, drawerId, 0, 0)
-    }
+    if (itemId) moveItem(itemId, drawerId, 0, 0)
     setDraggedItem(null)
+  }
+
+  // ── Shared item props builder ─────────────────────────────────────────────────
+
+  const itemProps = (item: Item, drawer: Drawer | null) => ({
+    item,
+    drawer,
+    categories,
+    isSelected: selectedItemIds.has(item.id),
+    isDragging: draggedItem === item.id,
+    onSelect: () => handleClick(item.id,
+      () => selectedItemIds.has(item.id) ? toggleItemSelection(item.id) : (drawer && selectDrawer(drawer.id), selectItem(item.id)),
+      () => onEditItem(item)
+    ),
+    onCtrlSelect: () => toggleItemSelection(item.id),
+    onEdit: () => onEditItem(item),
+    onDuplicate: () => handleDuplicateItem(item.id),
+    onDelete: () => setPendingDelete({ type: 'item', id: item.id, name: item.name }),
+    onDragStart: handleDragStart,
+    onDragEnd: handleDragEnd,
+    allDrawers: drawers,
+    onMoveToDrawer: (drawerId: string | null) => moveItem(item.id, drawerId, 0, 0),
+    displayUnit: config.displayUnit,
+    config,
+  })
+
+  // ── Category form handlers ────────────────────────────────────────────────────
+
+  const openAddCategory = () => { setEditingCategory(null); setCategoryFormOpen(true) }
+  const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryFormOpen(true) }
+  const handleCategoryFormSave = (name: string, color: string) => {
+    if (editingCategory) updateCategory({ ...editingCategory, name, color })
+    else addCategory(name, color)
   }
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-2 select-none">
-        <div className="flex items-center justify-between px-2 py-1 mb-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
-          <div className="flex items-center gap-1">
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <button className={cn(
-                      "cursor-pointer transition-colors",
-                      sortMode !== 'insertion' ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                    )}>
-                      <ArrowUpDown className="h-3.5 w-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="right">Sort items</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end" className="w-44">
-                {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
-                  <DropdownMenuItem key={mode} onClick={() => setSortMode(mode)} className="gap-2">
-                    <Check className={cn("h-3.5 w-3.5 shrink-0", sortMode === mode ? "opacity-100" : "opacity-0")} />
-                    {SORT_LABELS[mode]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {filteredDrawers.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={toggleAll} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-                    <ChevronsUpDown className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{allExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
-              </Tooltip>
-            )}
-            <button onClick={onAddDrawer} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-border shrink-0">
+        <button
+          className={cn(
+            'flex-1 py-2 text-xs font-medium transition-colors',
+            activeTab === 'drawers' ? 'text-foreground border-b-2 border-primary -mb-px' : 'text-muted-foreground hover:text-foreground'
+          )}
+          onClick={() => setActiveTab('drawers')}
+        >
+          Drawers
+        </button>
+        <button
+          className={cn(
+            'flex-1 py-2 text-xs font-medium transition-colors',
+            activeTab === 'categories' ? 'text-foreground border-b-2 border-primary -mb-px' : 'text-muted-foreground hover:text-foreground'
+          )}
+          onClick={() => setActiveTab('categories')}
+        >
+          Categories
+        </button>
+      </div>
 
+      <div className="p-2 select-none">
+        {/* Search box — shared between tabs */}
         <div className="relative mb-2">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -286,203 +301,79 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             className="w-full rounded-md border border-input bg-transparent pl-7 pr-7 py-1 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
               <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
 
-        {drawers.length === 0 ? (
-          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-            No drawers yet. Add one to get started.
-          </div>
-        ) : filteredDrawers.length === 0 && searchTerm ? (
-          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-            No results for &ldquo;{searchQuery}&rdquo;
-          </div>
+        {activeTab === 'drawers' ? (
+          <DrawersTab
+            filteredDrawers={filteredDrawers}
+            filteredItemsByDrawer={filteredItemsByDrawer}
+            filteredUnassigned={filteredUnassigned}
+            drawers={drawers}
+            categories={categories}
+            effectiveExpanded={effectiveExpanded}
+            expandedCategoryGroups={expandedCategoryGroups}
+            sortMode={sortMode}
+            setSortMode={setSortMode}
+            searchTerm={searchTerm}
+            searchQuery={searchQuery}
+            draggedItem={draggedItem}
+            allExpanded={allExpanded}
+            toggleAll={toggleAll}
+            toggleDrawer={toggleDrawer}
+            toggleCategoryGroup={toggleCategoryGroup}
+            onAddDrawer={onAddDrawer}
+            onEditDrawer={onEditDrawer}
+            duplicateDrawer={duplicateDrawer}
+            setPendingDelete={setPendingDelete}
+            handleDragOver={handleDragOver}
+            handleDropOnDrawer={handleDropOnDrawer}
+            itemProps={itemProps}
+            config={config}
+          />
         ) : (
-          <div className="flex flex-col gap-0.5">
-            {filteredDrawers.map(drawer => {
-              const drawerItems = sortItems(filteredItemsByDrawer.get(drawer.id) ?? [], sortMode, config)
-              const isExpanded = effectiveExpanded.has(drawer.id)
-              const isSelected = selectedDrawerId === drawer.id
-              const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
-
-              return (
-                <Collapsible 
-                  key={drawer.id} 
-                  open={isExpanded}
-                  onOpenChange={() => toggleDrawer(drawer.id)}
-                >
-                  <ContextMenu>
-                    <ContextMenuTrigger asChild>
-                      <div
-                        className={cn(
-                          "group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer",
-                          "hover:bg-accent/50 transition-colors",
-                          isSelected && "bg-accent",
-                          draggedItem && "transition-all"
-                        )}
-                        onClick={() => handleClick(drawer.id, () => selectDrawer(drawer.id), () => onEditDrawer(drawer))}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDropOnDrawer(e, drawer.id)}
-                      >
-                        <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <button className="p-0.5 rounded hover:bg-accent">
-                            {isExpanded ? (
-                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            )}
-                          </button>
-                        </CollapsibleTrigger>
-
-                        <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-
-                        <span className="flex-1 truncate text-sm">{drawer.name}</span>
-
-                        {hasOversizedItems && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
-                            </TooltipTrigger>
-                            <TooltipContent side="right">
-                              Contains items that exceed drawer height
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-
-                        <span className="text-xs text-muted-foreground">
-                          {drawerItems.length}
-                        </span>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
-                              <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
-                            <DrawerMenuActions
-                              variant="dropdown"
-                              onEdit={() => onEditDrawer(drawer)}
-                              onDuplicate={() => duplicateDrawer(drawer.id)}
-                              onDelete={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
-                            />
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent className="w-40">
-                      <DrawerMenuActions
-                        variant="context"
-                        onEdit={() => onEditDrawer(drawer)}
-                        onDuplicate={() => duplicateDrawer(drawer.id)}
-                        onDelete={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}
-                      />
-                    </ContextMenuContent>
-                  </ContextMenu>
-
-                  <CollapsibleContent>
-                    <div className="ml-4 pl-2 border-l border-border/50 flex flex-col gap-0.5 py-0.5">
-                      {drawerItems.length === 0 ? (
-                        <div className="px-2 py-1 text-xs text-muted-foreground italic">
-                          No items
-                        </div>
-                      ) : (
-                        drawerItems.map(item => (
-                          <TreeItem
-                            key={item.id}
-                            item={item}
-                            drawer={drawer}
-                            isSelected={selectedItemIds.has(item.id)}
-                            isDragging={draggedItem === item.id}
-                            onSelect={() => handleClick(item.id,
-                              () => selectedItemIds.has(item.id) ? toggleItemSelection(item.id) : (selectDrawer(drawer.id), selectItem(item.id)),
-                              () => onEditItem(item)
-                            )}
-                            onCtrlSelect={() => toggleItemSelection(item.id)}
-                            onEdit={() => onEditItem(item)}
-                            onDuplicate={() => handleDuplicateItem(item.id)}
-                            onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                            allDrawers={drawers}
-                            onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
-                            displayUnit={config.displayUnit}
-                            config={config}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )
-            })}
-          </div>
+          <CategoriesTab
+            categories={categories}
+            allItems={allItems}
+            itemsByCategory={itemsByCategory}
+            expandedCategoryGroups={expandedCategoryGroups}
+            toggleCategoryGroup={toggleCategoryGroup}
+            drawers={drawers}
+            searchTerm={searchTerm}
+            selectedItemIds={selectedItemIds}
+            onOpenAddCategory={openAddCategory}
+            onEditCategory={openEditCategory}
+            onDeleteCategory={(cat) => setPendingDelete({ type: 'category', id: cat.id, name: cat.name })}
+            itemProps={itemProps}
+            config={config}
+          />
         )}
-
-        {/* Unassigned Items */}
-        <div className="mt-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">
-            Unassigned Items
-          </div>
-          
-          <div
-            className={cn(
-              "rounded-md border border-dashed border-border/50 min-h-[60px] p-1",
-              draggedItem && "border-primary/50 bg-primary/5"
-            )}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDropOnDrawer(e, null)}
-          >
-            {filteredUnassigned.length === 0 ? (
-              <div className="flex items-center justify-center h-[52px] text-xs text-muted-foreground">
-                {searchTerm ? 'No matches' : 'Drop items here to unassign'}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-0.5">
-                {sortItems(filteredUnassigned, sortMode, config).map(item => (
-                  <TreeItem
-                    key={item.id}
-                    item={item}
-                    drawer={null}
-                    isSelected={selectedItemIds.has(item.id)}
-                    isDragging={draggedItem === item.id}
-                    onSelect={() => handleClick(item.id,
-                      () => selectedItemIds.has(item.id) ? toggleItemSelection(item.id) : selectItem(item.id),
-                      () => onEditItem(item)
-                    )}
-                    onCtrlSelect={() => toggleItemSelection(item.id)}
-                    onEdit={() => onEditItem(item)}
-                    onDuplicate={() => duplicateItem(item.id)}
-                    onDelete={() => setPendingDelete({ type: 'item', id: item.id, name: item.name })}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    allDrawers={drawers}
-                    onMoveToDrawer={(drawerId) => moveItem(item.id, drawerId, 0, 0)}
-                    displayUnit={config.displayUnit}
-                    config={config}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
+      {/* Category form modal */}
+      <CategoryForm
+        key={categoryFormOpen ? (editingCategory?.id ?? 'new') : 'closed'}
+        open={categoryFormOpen}
+        onOpenChange={setCategoryFormOpen}
+        category={editingCategory}
+        defaultColor={nextAvailableColor(categories)}
+        onSave={handleCategoryFormSave}
+      />
+
+      {/* Delete confirm */}
       <DeleteConfirmDialog
         key={pendingDelete?.id ?? 'none'}
         open={pendingDelete !== null}
-        type={pendingDelete?.type ?? 'item'}
+        type={pendingDelete?.type === 'category' ? 'item' : (pendingDelete?.type ?? 'item')}
         name={pendingDelete?.name ?? ''}
         onConfirm={(deleteContents) => {
           if (!pendingDelete) return
           if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id, deleteContents)
-          else deleteItem(pendingDelete.id)
+          else if (pendingDelete.type === 'item') deleteItem(pendingDelete.id)
+          else if (pendingDelete.type === 'category') deleteCategory(pendingDelete.id)
           setPendingDelete(null)
         }}
         onCancel={() => setPendingDelete(null)}
@@ -491,9 +382,315 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   )
 }
 
+// ── Drawers tab ───────────────────────────────────────────────────────────────
+
+function DrawersTab({
+  filteredDrawers, filteredItemsByDrawer, filteredUnassigned, drawers, categories,
+  effectiveExpanded, expandedCategoryGroups, sortMode, setSortMode, searchTerm,
+  searchQuery, draggedItem, allExpanded, toggleAll, toggleDrawer, toggleCategoryGroup,
+  onAddDrawer, onEditDrawer, duplicateDrawer, setPendingDelete,
+  handleDragOver, handleDropOnDrawer, itemProps, config,
+}: {
+  filteredDrawers: Drawer[]; filteredItemsByDrawer: Map<string, Item[]>; filteredUnassigned: Item[]
+  drawers: Drawer[]; categories: Category[]; effectiveExpanded: Set<string>
+  expandedCategoryGroups: Set<string>; sortMode: SortMode; setSortMode: (m: SortMode) => void
+  searchTerm: string; searchQuery: string; draggedItem: string | null; allExpanded: boolean
+  toggleAll: () => void; toggleDrawer: (id: string) => void; toggleCategoryGroup: (key: string) => void
+  onAddDrawer: () => void; onEditDrawer: (d: Drawer) => void; duplicateDrawer: (id: string) => void
+  setPendingDelete: (v: { type: 'drawer' | 'item' | 'category'; id: string; name: string } | null) => void
+  handleDragOver: (e: React.DragEvent) => void; handleDropOnDrawer: (e: React.DragEvent, id: string | null) => void
+  itemProps: (item: Item, drawer: Drawer | null) => TreeItemProps; config: GridfinityConfig
+}) {
+  return (
+    <>
+      {/* Header row */}
+      <div className="flex items-center justify-between px-2 py-1 mb-1">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawers</span>
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button className={cn('cursor-pointer transition-colors', sortMode !== 'insertion' ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right">Sort items</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="w-44">
+              {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
+                <DropdownMenuItem key={mode} onClick={() => setSortMode(mode)} className="gap-2">
+                  <Check className={cn('h-3.5 w-3.5 shrink-0', sortMode === mode ? 'opacity-100' : 'opacity-0')} />
+                  {SORT_LABELS[mode]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {filteredDrawers.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={toggleAll} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronsUpDown className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{allExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
+            </Tooltip>
+          )}
+          <button onClick={onAddDrawer} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {drawers.length === 0 ? (
+        <div className="px-2 py-4 text-sm text-muted-foreground text-center">No drawers yet. Add one to get started.</div>
+      ) : filteredDrawers.length === 0 && searchTerm ? (
+        <div className="px-2 py-4 text-sm text-muted-foreground text-center">No results for &ldquo;{searchQuery}&rdquo;</div>
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          {filteredDrawers.map(drawer => {
+            const drawerItems = sortItems(filteredItemsByDrawer.get(drawer.id) ?? [], sortMode, config)
+            const isExpanded = effectiveExpanded.has(drawer.id)
+            const isSelected = false // drawers don't have a selected state in the tree header
+            const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
+
+            // Group items within this drawer by category
+            const categoryGroups: { categoryId: string | null; label: string; color: string; items: Item[] }[] = []
+            const groupMap = new Map<string | null, Item[]>()
+            for (const item of drawerItems) {
+              const list = groupMap.get(item.categoryId) ?? []
+              list.push(item)
+              groupMap.set(item.categoryId, list)
+            }
+            // Named categories first (in definition order), then uncategorized
+            for (const cat of categories) {
+              const items = groupMap.get(cat.id)
+              if (items) categoryGroups.push({ categoryId: cat.id, label: cat.name, color: cat.color, items })
+            }
+            const uncategorized = groupMap.get(null)
+            if (uncategorized) categoryGroups.push({ categoryId: null, label: 'Uncategorized', color: getCategoryColor(null, categories), items: uncategorized })
+
+            return (
+              <Collapsible key={drawer.id} open={isExpanded} onOpenChange={() => toggleDrawer(drawer.id)}>
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>
+                    <div
+                      className={cn('group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent/50 transition-colors', isSelected && 'bg-accent', draggedItem && 'transition-all')}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDropOnDrawer(e, drawer.id)}
+                    >
+                      <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <button className="p-0.5 rounded hover:bg-accent">
+                          {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </button>
+                      </CollapsibleTrigger>
+                      <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="flex-1 truncate text-sm">{drawer.name}</span>
+                      {hasOversizedItems && (
+                        <Tooltip>
+                          <TooltipTrigger asChild><AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" /></TooltipTrigger>
+                          <TooltipContent side="right">Contains items that exceed drawer height</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <span className="text-xs text-muted-foreground">{drawerItems.length}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
+                            <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DrawerMenuActions variant="dropdown" onEdit={() => onEditDrawer(drawer)} onDuplicate={() => duplicateDrawer(drawer.id)} onDelete={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })} />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-40">
+                    <DrawerMenuActions variant="context" onEdit={() => onEditDrawer(drawer)} onDuplicate={() => duplicateDrawer(drawer.id)} onDelete={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })} />
+                  </ContextMenuContent>
+                </ContextMenu>
+
+                <CollapsibleContent>
+                  <div className="ml-4 pl-2 border-l border-border/50 flex flex-col gap-0.5 py-0.5">
+                    {drawerItems.length === 0 ? (
+                      <div className="px-2 py-1 text-xs text-muted-foreground italic">No items</div>
+                    ) : categoryGroups.length === 1 && categoryGroups[0].categoryId === null ? (
+                      // All items uncategorized — render flat (no sub-grouping)
+                      categoryGroups[0].items.map(item => <TreeItem key={item.id} {...itemProps(item, drawer)} />)
+                    ) : (
+                      categoryGroups.map(group => {
+                        const groupKey = `${drawer.id}:${group.categoryId ?? 'null'}`
+                        const isGroupOpen = expandedCategoryGroups.has(groupKey)
+                        return (
+                          <Collapsible key={groupKey} open={isGroupOpen} onOpenChange={() => toggleCategoryGroup(groupKey)}>
+                            <CollapsibleTrigger asChild>
+                              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer hover:bg-accent/30 transition-colors">
+                                {isGroupOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                                <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: group.color }} />
+                                <span className="flex-1 truncate text-xs text-muted-foreground">{group.label}</span>
+                                <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="ml-3 pl-2 border-l border-border/30 flex flex-col gap-0.5 py-0.5">
+                                {group.items.map(item => <TreeItem key={item.id} {...itemProps(item, drawer)} />)}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )
+                      })
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Unassigned */}
+      <div className="mt-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">Unassigned Items</div>
+        <div
+          className={cn('rounded-md border border-dashed border-border/50 min-h-[60px] p-1', draggedItem && 'border-primary/50 bg-primary/5')}
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDropOnDrawer(e, null)}
+        >
+          {filteredUnassigned.length === 0 ? (
+            <div className="flex items-center justify-center h-[52px] text-xs text-muted-foreground">
+              {searchTerm ? 'No matches' : 'Drop items here to unassign'}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-0.5">
+              {sortItems(filteredUnassigned, sortMode, config).map(item => (
+                <TreeItem key={item.id} {...itemProps(item, null)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Categories tab ────────────────────────────────────────────────────────────
+
+function CategoriesTab({
+  categories, allItems, itemsByCategory, expandedCategoryGroups, toggleCategoryGroup,
+  drawers, searchTerm, selectedItemIds, onOpenAddCategory, onEditCategory,
+  onDeleteCategory, itemProps, config,
+}: {
+  categories: Category[]; allItems: Item[]; itemsByCategory: Map<string | null, Item[]>
+  expandedCategoryGroups: Set<string>; toggleCategoryGroup: (key: string) => void
+  drawers: Drawer[]; searchTerm: string; selectedItemIds: Set<string>
+  onOpenAddCategory: () => void; onEditCategory: (cat: Category) => void
+  onDeleteCategory: (cat: Category) => void
+  itemProps: (item: Item, drawer: Drawer | null) => TreeItemProps; config: GridfinityConfig
+}) {
+  const filteredItemsByCategory = useMemo<Map<string | null, Item[]>>(() => {
+    if (!searchTerm) return itemsByCategory
+    const result = new Map<string | null, Item[]>()
+    for (const [key, items] of itemsByCategory) {
+      const filtered = items.filter(i => i.name.toLowerCase().includes(searchTerm))
+      if (filtered.length) result.set(key, filtered)
+    }
+    return result
+  }, [searchTerm, itemsByCategory])
+
+  const drawerMap = useMemo(() => new Map(drawers.map(d => [d.id, d])), [drawers])
+
+  const renderCategoryGroup = (categoryId: string | null, label: string, color: string) => {
+    const items = filteredItemsByCategory.get(categoryId)
+    if (!items) return null
+    const groupKey = `cat:${categoryId ?? 'null'}`
+    const isOpen = expandedCategoryGroups.has(groupKey)
+    const category = categories.find(c => c.id === categoryId) ?? null
+
+    return (
+      <Collapsible key={groupKey} open={isOpen} onOpenChange={() => toggleCategoryGroup(groupKey)}>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div className="group flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent/50 transition-colors">
+              <CollapsibleTrigger asChild onClick={e => e.stopPropagation()}>
+                <button className="p-0.5 rounded hover:bg-accent">
+                  {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+              <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+              <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="flex-1 truncate text-sm">{label}</span>
+              <span className="text-xs text-muted-foreground">{items.length}</span>
+              {category && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                    <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
+                      <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem onClick={() => onEditCategory(category)}><Pencil className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => onDeleteCategory(category)}><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </ContextMenuTrigger>
+          {category && (
+            <ContextMenuContent className="w-36">
+              <ContextMenuItem onClick={() => onEditCategory(category)}><Pencil className="h-4 w-4 mr-2" />Edit</ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem variant="destructive" onClick={() => onDeleteCategory(category)}><Trash2 className="h-4 w-4 mr-2" />Delete</ContextMenuItem>
+            </ContextMenuContent>
+          )}
+        </ContextMenu>
+        <CollapsibleContent>
+          <div className="ml-4 pl-2 border-l border-border/50 flex flex-col gap-0.5 py-0.5">
+            {items.map(item => {
+              const drawer = item.drawerId ? drawerMap.get(item.drawerId) ?? null : null
+              return <TreeItem key={item.id} {...itemProps(item, drawer)} secondaryLabel={drawer?.name ?? 'Unassigned'} />
+            })}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    )
+  }
+
+  const hasAny = categories.some(c => filteredItemsByCategory.has(c.id)) || filteredItemsByCategory.has(null)
+
+  return (
+    <>
+      <div className="flex items-center justify-between px-2 py-1 mb-1">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Categories</span>
+        <button onClick={onOpenAddCategory} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {categories.length === 0 && !searchTerm ? (
+        <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+          No categories yet.<br />
+          <button onClick={onOpenAddCategory} className="text-primary underline-offset-2 hover:underline mt-1">Add one</button>
+        </div>
+      ) : !hasAny ? (
+        <div className="px-2 py-4 text-sm text-muted-foreground text-center">No results for &ldquo;{searchTerm}&rdquo;</div>
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          {categories.map(cat => renderCategoryGroup(cat.id, cat.name, cat.color))}
+          {renderCategoryGroup(null, 'Uncategorized', getCategoryColor(null, categories))}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── TreeItem ──────────────────────────────────────────────────────────────────
+
 interface TreeItemProps {
   item: Item
   drawer: Drawer | null
+  categories: Category[]
   isSelected: boolean
   isDragging: boolean
   onSelect: () => void
@@ -507,28 +704,17 @@ interface TreeItemProps {
   onMoveToDrawer: (drawerId: string | null) => void
   displayUnit: DimensionUnit
   config: GridfinityConfig
+  secondaryLabel?: string
 }
 
 function TreeItem({
-  item,
-  drawer,
-  isSelected,
-  isDragging,
-  onSelect,
-  onCtrlSelect,
-  onEdit,
-  onDuplicate,
-  onDelete,
-  onDragStart,
-  onDragEnd,
-  allDrawers,
-  onMoveToDrawer,
-  displayUnit,
-  config,
+  item, drawer, categories, isSelected, isDragging, onSelect, onCtrlSelect, onEdit, onDuplicate,
+  onDelete, onDragStart, onDragEnd, allDrawers, onMoveToDrawer, displayUnit, config, secondaryLabel,
 }: TreeItemProps) {
   const isOversized = drawer ? isItemOversized(item, drawer) : false
   const dims = calculateItemGridDimensions(item, config)
   const heightLabel = `${dims.gridWidth * dims.gridDepth}U`
+  const color = getCategoryColor(item.categoryId, categories)
 
   return (
     <ContextMenu>
@@ -538,39 +724,26 @@ function TreeItem({
           onDragStart={(e) => onDragStart(e, item.id)}
           onDragEnd={onDragEnd}
           className={cn(
-            "group flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer",
-            "hover:bg-accent/50 transition-colors",
-            isSelected && "bg-accent",
-            isDragging && "opacity-50",
-            isOversized && "text-destructive"
+            'group flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer hover:bg-accent/50 transition-colors',
+            isSelected && 'bg-accent',
+            isDragging && 'opacity-50',
+            isOversized && 'text-destructive'
           )}
           onClick={(e) => e.ctrlKey || e.metaKey ? onCtrlSelect() : onSelect()}
         >
-          <div
-            className="h-3 w-3 rounded-sm shrink-0"
-            style={{ backgroundColor: item.color }}
-          />
-
-          <Box className={cn(
-            "h-3.5 w-3.5 shrink-0",
-            isOversized ? "text-destructive" : "text-muted-foreground"
-          )} />
-
+          <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+          <Box className={cn('h-3.5 w-3.5 shrink-0', isOversized ? 'text-destructive' : 'text-muted-foreground')} />
           <span className="flex-1 truncate text-sm">{item.name}</span>
-
+          {secondaryLabel && <span className="text-xs text-muted-foreground truncate max-w-[60px]">{secondaryLabel}</span>}
           <span className="text-xs text-muted-foreground shrink-0">{heightLabel}</span>
-
           {isOversized && drawer && (
             <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
-              </TooltipTrigger>
+              <TooltipTrigger asChild><AlertTriangle className="h-3 w-3 text-destructive shrink-0" /></TooltipTrigger>
               <TooltipContent side="right">
                 Item height ({formatDimension(getRotatedDimensions(item).height, displayUnit)}) exceeds drawer height ({formatDimension(drawer.height, displayUnit)})
               </TooltipContent>
             </Tooltip>
           )}
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
@@ -578,44 +751,23 @@ function TreeItem({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <ItemMenuActions
-                variant="dropdown"
-                item={item}
-                allDrawers={allDrawers}
-                onEdit={onEdit}
-                onDuplicate={onDuplicate}
-                onDelete={onDelete}
-                onMoveToDrawer={onMoveToDrawer}
-              />
+              <ItemMenuActions variant="dropdown" item={item} allDrawers={allDrawers} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ItemMenuActions
-          variant="context"
-          item={item}
-          allDrawers={allDrawers}
-          onEdit={onEdit}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          onMoveToDrawer={onMoveToDrawer}
-        />
+        <ItemMenuActions variant="context" item={item} allDrawers={allDrawers} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} />
       </ContextMenuContent>
     </ContextMenu>
   )
 }
 
-// ── Shared menu action components ────────────────────────────────────────────
+// ── Shared menu action components ─────────────────────────────────────────────
 
 type MenuVariant = 'dropdown' | 'context'
 
-function DrawerMenuActions({ variant, onEdit, onDuplicate, onDelete }: {
-  variant: MenuVariant
-  onEdit: () => void
-  onDuplicate: () => void
-  onDelete: () => void
-}) {
+function DrawerMenuActions({ variant, onEdit, onDuplicate, onDelete }: { variant: MenuVariant; onEdit: () => void; onDuplicate: () => void; onDelete: () => void }) {
   const Item = (variant === 'dropdown' ? DropdownMenuItem : ContextMenuItem) as typeof DropdownMenuItem
   const Separator = (variant === 'dropdown' ? DropdownMenuSeparator : ContextMenuSeparator) as typeof DropdownMenuSeparator
   return (
@@ -629,13 +781,8 @@ function DrawerMenuActions({ variant, onEdit, onDuplicate, onDelete }: {
 }
 
 function ItemMenuActions({ variant, item, allDrawers, onEdit, onDuplicate, onDelete, onMoveToDrawer }: {
-  variant: MenuVariant
-  item: Item
-  allDrawers: Drawer[]
-  onEdit: () => void
-  onDuplicate: () => void
-  onDelete: () => void
-  onMoveToDrawer: (drawerId: string | null) => void
+  variant: MenuVariant; item: Item; allDrawers: Drawer[]; onEdit: () => void; onDuplicate: () => void
+  onDelete: () => void; onMoveToDrawer: (drawerId: string | null) => void
 }) {
   const MenuItem = (variant === 'dropdown' ? DropdownMenuItem : ContextMenuItem) as typeof DropdownMenuItem
   const Separator = (variant === 'dropdown' ? DropdownMenuSeparator : ContextMenuSeparator) as typeof DropdownMenuSeparator
@@ -649,9 +796,7 @@ function ItemMenuActions({ variant, item, allDrawers, onEdit, onDuplicate, onDel
       <Sub>
         <SubTrigger><ArrowRightLeft className="h-4 w-4 mr-2" />Move to</SubTrigger>
         <SubContent className="max-h-60 overflow-auto">
-          <MenuItem onClick={() => onMoveToDrawer(null)} disabled={!item.drawerId}>
-            <Package className="h-4 w-4 mr-2" />Unassigned
-          </MenuItem>
+          <MenuItem onClick={() => onMoveToDrawer(null)} disabled={!item.drawerId}><Package className="h-4 w-4 mr-2" />Unassigned</MenuItem>
           <Separator />
           {allDrawers.map(d => (
             <MenuItem key={d.id} onClick={() => onMoveToDrawer(d.id)} disabled={d.id === item.drawerId}>
