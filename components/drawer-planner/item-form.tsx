@@ -171,7 +171,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Item' : 'Add Item'}</DialogTitle>
           <DialogDescription>
@@ -207,10 +207,10 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
               {gridMode === 'manual' && <span className="text-xs text-muted-foreground">optional</span>}
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {(['Width', 'Height', 'Depth'] as const).map((label, i) => {
-                const val = [width, height, depth][i]
-                const setter = [setWidth, setHeight, setDepth][i]
-                const placeholder = unit === 'cm' ? (i === 1 ? '10' : '3') : (i === 1 ? '100' : '30')
+              {(['Width', 'Depth', 'Height'] as const).map((label, i) => {
+                const val = [width, depth, height][i]
+                const setter = [setWidth, setDepth, setHeight][i]
+                const placeholder = unit === 'cm' ? (i === 2 ? '10' : '3') : (i === 2 ? '100' : '30')
                 return (
                   <div key={label} className="space-y-1">
                     <Label className="text-xs text-muted-foreground">{label}</Label>
