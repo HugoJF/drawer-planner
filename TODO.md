@@ -2,6 +2,17 @@
 
 ## Planned features
 
+### Grid color driver: category vs height heatmap
+Add a config option (`gridColorMode: 'category' | 'height'`) to switch what drives item color in the grid view.
+
+- **Category** (current): item color = `getCategoryColor(item.categoryId, categories)`
+- **Height**: color is interpolated across a gradient based on `heightUnits` relative to the drawer's max height — e.g. cool → warm (blue → red) as height increases, giving a visual heatmap of vertical space usage
+
+Implementation sketch:
+- Add `gridColorMode` to `GridfinityConfig` + `DEFAULT_CONFIG`, add a toggle to settings panel
+- In `drawer-grid.tsx`, replace the two `getCategoryColor(...)` calls with a `getItemColor(item, drawer, config, categories)` helper that branches on `gridColorMode`
+- For height mode: `ratio = heightUnits / (drawer.height / config.heightUnit)`, map to a CSS color via `oklch` or a fixed palette (e.g. 5 stops: blue → cyan → green → amber → red)
+
 ### Ctrl+A — Select all
 Select all items in the currently visible drawer.
 - Hook into the existing `useKeyboardShortcut` hook: `{ key: 'a', ctrl: true }`
@@ -56,6 +67,41 @@ A modal or popover listing all available shortcuts; triggered by `?` key or a `?
 - Shortcuts to document: Ctrl+Z/Y (undo/redo), Ctrl+F (search), Delete (delete), E (edit), R (rotate), Ctrl+A (select all), arrows (move), Ctrl+C/V (copy/paste), Escape (clear search/selection)
 - Simple static component — no logic, just a formatted table
 - Could reuse the existing `Dialog` / Radix UI primitives
+
+### Category expansion: "just open" vs "always open"
+The current expansion setting (None / Categorized / All) always forces the open state — manual toggles have no effect in Categorized/All modes. Split the behavior into two axes:
+- **Which categories expand**: None / Categorized / All (existing)
+- **How**: "Just open" — applies on load/setting change, user can still collapse manually; "Always open" — config locks the state, toggle clicks do nothing (current behavior)
+
+Implementation sketch:
+- Add a second config field, e.g. `categoryExpansionMode: 'just-open' | 'always-open'`
+- In `isCategoryGroupOpen` (`drawer-tree.tsx`): for 'just-open', seed `expandedCategoryGroups` via `useEffect` on config change instead of computing deterministically
+- The `useEffect` would set all matching keys into `expandedCategoryGroups`; subsequent manual toggles work normally since `expandedCategoryGroups.has(key)` is the source of truth
+
+### Groups (quick-win via multi-select)
+Items can belong to a named group (`groupId: string | null` on `Item`). The key behaviors:
+
+- **Click a grouped item** → instantly multi-selects the entire group (all items sharing that `groupId`)
+- **Click again (on an already-selected grouped item)** → narrows selection to just that one item
+- **Multi-select drag** already moves all selected items together — no Ctrl needed once the group is selected
+
+Likely quick to implement because:
+- Multi-select, group drag, and `selectedItemIds` already exist
+- The click handler in `drawer-grid.tsx` / `drawer-tree.tsx` just needs a branch: if the clicked item has a `groupId` and is not yet selected → `selectAll(groupMembers)`, if already selected → `selectItem(id)` (single)
+- Groups need UI to assign (could be a field in the item form, or a "group selected" bulk action)
+- No new drag logic needed — existing `repositionItems` handles it
+
+Open questions:
+- How to create/name groups (item form field vs. "group selected items" button in bulk context menu?)
+- Show group membership visually on the grid (e.g. shared border/outline color)?
+- Sidebar: show group as a sub-level, or just a badge on the item row?
+
+### Resizable sidebar
+Let the user drag the sidebar edge to resize it.
+- Add a drag handle on the right edge of the sidebar (`cursor-col-resize`)
+- Track width in component state, clamped to a sensible min/max (e.g. 180px – 480px)
+- Persist the chosen width to `localStorage` so it survives reloads
+- Replace the fixed `w-72` class with an inline `style={{ width }}` when the sidebar is open
 
 ---
 

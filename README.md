@@ -9,15 +9,17 @@ A visual planner for organizing [Gridfinity](https://www.youtube.com/watch?v=ra_
 - **Visual grid editor** — drag items to reposition, resize with handles, draw-to-create new items directly on the grid
 - **Multi-selection** — Ctrl+click to toggle selection; drag all selected unlocked items together as a group with ghost overlays
 - **Bulk operations** — delete, lock/unlock, or move multiple items at once via context menu or keyboard
+- **Categories** — assign items to named, colored categories via form or context menu; color is derived from the category, not the item
+- **Sidebar tabs** — Drawers tab (Drawer → Category → Item) and Categories tab (cross-drawer Category → Item view with edit/delete); categories have their own context menu in both tabs
 - **Rotation modes** — place items upright, on their side, or rotated 90°, each affecting grid footprint differently
 - **Overlap & oversize warnings** — instant visual feedback when items collide or are too tall for the drawer
 - **Lock items** — prevent accidental moves or edits on placed items
 - **Search** — filter items by name (Ctrl+F); matches highlight in the grid, non-matches dim
-- **Sidebar tree** — navigate all drawers and their contents, drag items between drawers
-- **Undo / redo** — 50-step history with Ctrl+Z / Ctrl+Y
+- **Undo / redo** — 50-step history with Ctrl+Z / Ctrl+Y; history panel with click-to-jump
 - **Import & export** — save your layout to JSON and load it back anytime
-- **mm / cm / in** — switch display units without losing data (all stored internally in mm)
+- **mm / cm** — switch display units without losing data (all stored internally in mm)
 - **Stats panel** — grid utilization, volume percentage, dead room (unused height), and height warnings per drawer
+- **Configurable sidebar** — toggle drawer/category item counts; choose between area (20U) or dimension (5×4) item size display; control category default expansion (none, categorized, all)
 
 ## Keyboard Shortcuts
 
