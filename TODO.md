@@ -44,12 +44,6 @@ Open questions:
 - Show group membership visually on the grid (e.g. shared border/outline color)?
 - Sidebar: show group as a sub-level, or just a badge on the item row?
 
-### Improve rotation options
-The current three rotation modes (normal, lay down, rotated 90°) don't cover all real-world placements — e.g. a graduated cylinder (proveta) standing upright vs. on its side at various angles. Consider:
-- More rotation variants, or a free numeric rotation field
-- Distinguishing which physical axis maps to which grid axis per rotation
-- Possibly a visual rotation picker instead of the cycle button
-
 ### Resizable sidebar
 Let the user drag the sidebar edge to resize it.
 - Add a drag handle on the right edge of the sidebar (`cursor-col-resize`)

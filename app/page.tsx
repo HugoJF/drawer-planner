@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useDrawerStore } from '@/lib/store'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
@@ -54,6 +54,10 @@ function DashboardContent() {
 
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === 'undefined') return 288
+    return parseInt(localStorage.getItem('sidebarWidth') ?? '288', 10)
+  })
   const [drawerFormOpen, setDrawerFormOpen] = useState(false)
   const [itemFormOpen, setItemFormOpen] = useState(false)
   const [editingDrawer, setEditingDrawer] = useState<Drawer | null>(null)
@@ -80,6 +84,7 @@ function DashboardContent() {
   )
 
   const { toast } = useToast()
+  const isResizing = useRef(false)
 
   const isFormOpen = drawerFormOpen || itemFormOpen
   const hasSelection = selectedItemIds.size > 0
@@ -158,6 +163,30 @@ function DashboardContent() {
   useKeyboardShortcut({ key: 'ArrowLeft',  enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected(-1,  0), [moveSelected]))
   useKeyboardShortcut({ key: 'ArrowRight', enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 1,  0), [moveSelected]))
 
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizing.current = true
+    const startX = e.clientX
+    const startWidth = sidebarWidth
+
+    const onMove = (e: MouseEvent) => {
+      if (!isResizing.current) return
+      const width = Math.min(480, Math.max(180, startWidth + e.clientX - startX))
+      setSidebarWidth(width)
+    }
+    const onUp = () => {
+      isResizing.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    localStorage.setItem('sidebarWidth', String(sidebarWidth))
+  }, [sidebarWidth])
+
   const handleAddDrawer = () => {
     setEditingDrawer(null)
     setDrawerFormOpen(true)
@@ -193,9 +222,10 @@ function DashboardContent() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex flex-col border-r border-border bg-card/50 transition-all duration-300",
-          sidebarOpen ? "w-72" : "w-0"
+          "relative flex flex-col border-r border-border bg-card/50",
+          sidebarOpen ? "" : "w-0 overflow-hidden"
         )}
+        style={sidebarOpen ? { width: sidebarWidth } : undefined}
       >
         {sidebarOpen && (
           <>
@@ -219,6 +249,11 @@ function DashboardContent() {
             </div>
             {/* Sidebar Stats at bottom */}
             <SidebarStats />
+            {/* Resize handle */}
+            <div
+              className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+              onMouseDown={handleResizeStart}
+            />
           </>
         )}
       </aside>
