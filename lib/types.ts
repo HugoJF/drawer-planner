@@ -76,39 +76,6 @@ export interface DrawerStats {
   tallestItemHeight: number // mm
 }
 
-export interface DragState {
-  itemId: string | null
-  sourceDrawerId: string | null
-  targetDrawerId: string | null
-  targetGridX: number
-  targetGridY: number
-  isDragging: boolean
-}
-
-// State management types
-export type AppAction =
-  | { type: 'ADD_DRAWER'; payload: Omit<Drawer, 'id' | 'gridCols' | 'gridRows'> }
-  | { type: 'UPDATE_DRAWER'; payload: Drawer }
-  | { type: 'DELETE_DRAWER'; payload: string }
-  | { type: 'ADD_ITEM'; payload: Omit<Item, 'id'> }
-  | { type: 'UPDATE_ITEM'; payload: Item }
-  | { type: 'DELETE_ITEM'; payload: string }
-  | { type: 'MOVE_ITEM'; payload: { itemId: string; drawerId: string | null; gridX: number; gridY: number } }
-  | { type: 'UPDATE_CONFIG'; payload: Partial<GridfinityConfig> }
-  | { type: 'SET_SELECTED_DRAWER'; payload: string | null }
-  | { type: 'SET_SELECTED_ITEM'; payload: string | null }
-  | { type: 'LOAD_STATE'; payload: AppState }
-  | { type: 'DUPLICATE_DRAWER'; payload: string }
-  | { type: 'DUPLICATE_ITEM'; payload: string }
-
-export interface AppState {
-  config: GridfinityConfig
-  drawers: Drawer[]
-  items: Item[]
-  selectedDrawerId: string | null
-  selectedItemId: string | null
-}
-
 export const DEFAULT_CONFIG: GridfinityConfig = {
   cellSize: 42,
   heightUnit: 7,

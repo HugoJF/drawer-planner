@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import {
   calculateItemGridDimensions,
   isItemOversized,
-  isValidPlacement,
   findOverlappingItems,
   getRotatedDimensions,
   getDistinctRotations,

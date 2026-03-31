@@ -183,14 +183,6 @@ export function isItemOversized(item: Item, drawer: Drawer): boolean {
 }
 
 /**
- * Find drawers where item would fit height-wise
- */
-export function findSuitableDrawers(item: Item, drawers: Drawer[]): Drawer[] {
-  const dims = getRotatedDimensions(item)
-  return drawers.filter(drawer => drawer.height >= dims.height)
-}
-
-/**
  * Find the first available position in a drawer for an item (row-major scan).
  * Returns null if no position fits.
  */
@@ -358,16 +350,3 @@ export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
-/**
- * Get suggested rotation for an item to fit drawer height
- */
-export function getSuggestedRotation(
-  item: Item,
-  drawer: Drawer
-): ItemRotation | null {
-  for (const rotation of ALL_ROTATIONS) {
-    const dims = getRotatedDimensions({ ...item, rotation })
-    if (dims.height <= drawer.height) return rotation
-  }
-  return null
-}

@@ -1,5 +1,11 @@
 # TODO
 
+## Code cleanup
+
+- Remove all unused variables that are actually stale (DragState as example, it's duplicated);
+- shortcuts-dialog.tsx has SHORTCUTS which is not the source of truth for the actual shortcuts (how can this be improved?);
+- 
+
 ## Planned features
 
 ### Copy / Paste (Ctrl+C / Ctrl+V)
