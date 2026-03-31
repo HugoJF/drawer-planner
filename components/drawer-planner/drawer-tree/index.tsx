@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { CategoryForm } from '@/components/drawer-planner/category-form'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
+import { SHORTCUTS } from '@/lib/shortcuts'
 import type { Drawer, Item, ItemRotation, Category } from '@/lib/types'
 import { ITEM_COLORS } from '@/lib/types'
 import { DrawersTab } from './drawers-tab'
@@ -61,7 +62,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
   }, [duplicateItem, toast])
 
-  useKeyboardShortcut({ key: 'f', ctrl: true }, () => {
+  useKeyboardShortcut(SHORTCUTS.search, () => {
     searchInputRef.current?.focus()
     searchInputRef.current?.select()
   })

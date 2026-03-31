@@ -1,9 +1,5 @@
 # TODO
 
-## Code cleanup
-
-- `shortcuts-dialog.tsx` has a hardcoded `SHORTCUTS` array that is not the source of truth for the actual registered shortcuts — consider deriving it from the `useKeyboardShortcut` calls or a shared config
-
 ## Planned features
 
 ### Copy / Paste (Ctrl+C / Ctrl+V)

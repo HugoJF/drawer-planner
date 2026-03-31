@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react'
 
-interface ShortcutOptions {
+export interface ShortcutOptions {
   key: string
   ctrl?: boolean
   shift?: boolean

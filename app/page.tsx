@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useDrawerStore } from '@/lib/store'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
+import { SHORTCUTS } from '@/lib/shortcuts'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
 import { DrawerGrid } from '@/components/drawer-planner/drawer-grid'
 import { SidebarStats } from '@/components/drawer-planner/sidebar-stats'
@@ -91,18 +92,18 @@ function DashboardContent() {
   const singleSelected = selectedItemIds.size === 1
 
   // Undo / redo — always active
-  useKeyboardShortcut({ key: 'z', ctrl: true }, undo)
-  useKeyboardShortcut({ key: 'y', ctrl: true }, redo)
-  useKeyboardShortcut({ key: 'z', ctrl: true, shift: true }, redo)
+  useKeyboardShortcut(SHORTCUTS.undo, undo)
+  useKeyboardShortcut(SHORTCUTS.redo, redo)
+  useKeyboardShortcut(SHORTCUTS.redoAlt, redo)
 
   // Select all items in the current drawer
-  useKeyboardShortcut({ key: 'a', ctrl: true, enabled: !isFormOpen }, useCallback(() => {
+  useKeyboardShortcut({ ...SHORTCUTS.selectAll, enabled: !isFormOpen }, useCallback(() => {
     if (selectedDrawerId)
       selectItems(allItems.filter(i => i.drawerId === selectedDrawerId).map(i => i.id))
   }, [selectedDrawerId, allItems, selectItems]))
 
   // Open keyboard shortcuts cheatsheet
-  useKeyboardShortcut({ key: '?', enabled: !isFormOpen }, useCallback(() => {
+  useKeyboardShortcut({ ...SHORTCUTS.shortcuts, enabled: !isFormOpen }, useCallback(() => {
     setShortcutsOpen(true)
   }, []))
 
@@ -111,17 +112,17 @@ function DashboardContent() {
     const ids = [...selectedItemIds]
     ids.length === 1 ? deleteItem(ids[0]) : deleteItems(ids)
   }, [selectedItemIds, deleteItem, deleteItems])
-  useKeyboardShortcut({ key: 'Delete',    enabled: !isFormOpen && hasSelection }, deleteSelected)
-  useKeyboardShortcut({ key: 'Backspace', enabled: !isFormOpen && hasSelection }, deleteSelected)
+  useKeyboardShortcut({ ...SHORTCUTS.delete,    enabled: !isFormOpen && hasSelection }, deleteSelected)
+  useKeyboardShortcut({ ...SHORTCUTS.backspace, enabled: !isFormOpen && hasSelection }, deleteSelected)
 
   // Duplicate selected item (single selection)
-  useKeyboardShortcut({ key: 'd', enabled: !isFormOpen && singleSelected }, useCallback(() => {
+  useKeyboardShortcut({ ...SHORTCUTS.duplicate, enabled: !isFormOpen && singleSelected }, useCallback(() => {
     const placed = duplicateItem([...selectedItemIds][0])
     if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
   }, [selectedItemIds, duplicateItem, toast]))
 
   // Edit selected item (single selection)
-  useKeyboardShortcut({ key: 'e', enabled: !isFormOpen && singleSelected }, useCallback(() => {
+  useKeyboardShortcut({ ...SHORTCUTS.edit, enabled: !isFormOpen && singleSelected }, useCallback(() => {
     const item = allItems.find(i => i.id === [...selectedItemIds][0])
     if (!item) return
     setEditingItem(item)
@@ -130,7 +131,7 @@ function DashboardContent() {
   }, [allItems, selectedItemIds]))
 
   // Cycle rotation of selected item (single selection)
-  useKeyboardShortcut({ key: 'r', enabled: !isFormOpen && singleSelected }, useCallback(() => {
+  useKeyboardShortcut({ ...SHORTCUTS.rotate, enabled: !isFormOpen && singleSelected }, useCallback(() => {
     const item = allItems.find(i => i.id === [...selectedItemIds][0])
     if (!item) return
     updateItem({ ...item, ...applyNextRotation(item) })
@@ -158,10 +159,10 @@ function DashboardContent() {
     }
   }, [selectedDrawer, allItems, selectedItemIds, selectedDrawerId, config, moveItem, repositionItems])
 
-  useKeyboardShortcut({ key: 'ArrowUp',    enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 0, -1), [moveSelected]))
-  useKeyboardShortcut({ key: 'ArrowDown',  enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 0,  1), [moveSelected]))
-  useKeyboardShortcut({ key: 'ArrowLeft',  enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected(-1,  0), [moveSelected]))
-  useKeyboardShortcut({ key: 'ArrowRight', enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 1,  0), [moveSelected]))
+  useKeyboardShortcut({ ...SHORTCUTS.moveUp,    enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 0, -1), [moveSelected]))
+  useKeyboardShortcut({ ...SHORTCUTS.moveDown,  enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 0,  1), [moveSelected]))
+  useKeyboardShortcut({ ...SHORTCUTS.moveLeft,  enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected(-1,  0), [moveSelected]))
+  useKeyboardShortcut({ ...SHORTCUTS.moveRight, enabled: !isFormOpen && hasSelection }, useCallback(() => moveSelected( 1,  0), [moveSelected]))
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
