@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Settings2, Download, Upload } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { useDrawerStore } from '@/lib/store'
 import { DEFAULT_CONFIG, type DimensionUnit } from '@/lib/types'
 
@@ -75,7 +76,7 @@ export function SettingsPanel() {
           <span className="hidden sm:inline">Settings</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
+      <PopoverContent className="w-96" align="end">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-medium">Settings</h4>
@@ -190,6 +191,60 @@ export function SettingsPanel() {
                 />
                 <span className="text-xs text-muted-foreground">mm</span>
               </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <p className="text-xs text-muted-foreground">Sidebar</p>
+
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <Label className="text-xs">Drawer item count</Label>
+                <p className="text-[10px] text-muted-foreground">Show count next to drawer name</p>
+              </div>
+              <Switch checked={config.showDrawerCount ?? true} onCheckedChange={v => updateConfig({ showDrawerCount: v })} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <Label className="text-xs">Category item count</Label>
+                <p className="text-[10px] text-muted-foreground">Show count next to category name</p>
+              </div>
+              <Switch checked={config.showCategoryCount ?? true} onCheckedChange={v => updateConfig({ showCategoryCount: v })} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <Label className="text-xs">Item size display</Label>
+                <p className="text-[10px] text-muted-foreground">Area (20U) or dimensions (5×4)</p>
+              </div>
+              <Select
+                value={config.itemSizeDisplay ?? 'area'}
+                onValueChange={v => updateConfig({ itemSizeDisplay: v as 'area' | 'dimensions' })}
+              >
+                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="area">Area (20U)</SelectItem>
+                  <SelectItem value="dimensions">Dims (5×4)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <Label className="text-xs">Category expansion</Label>
+                <p className="text-[10px] text-muted-foreground">Default open state for categories</p>
+              </div>
+              <Select
+                value={config.categoryExpansion ?? 'none'}
+                onValueChange={v => updateConfig({ categoryExpansion: v as 'none' | 'all' | 'categorized' })}
+              >
+                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="categorized">Categorized</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

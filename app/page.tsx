@@ -189,7 +189,7 @@ function DashboardContent() {
       <aside
         className={cn(
           "flex flex-col border-r border-border bg-card/50 transition-all duration-300",
-          sidebarOpen ? "w-64" : "w-0"
+          sidebarOpen ? "w-72" : "w-0"
         )}
       >
         {sidebarOpen && (

@@ -8,6 +8,10 @@ export interface GridfinityConfig {
   tolerance: number      // Default: 0.5mm
   wallThickness: number  // Default: 1.2mm
   displayUnit: DimensionUnit // Default: 'mm'
+  showDrawerCount: boolean   // Default: true
+  showCategoryCount: boolean // Default: true
+  itemSizeDisplay: 'area' | 'dimensions' // Default: 'area' — "20U" vs "5×4"
+  categoryExpansion: 'none' | 'all' | 'categorized' // Default: 'none'
 }
 
 export interface Drawer {
@@ -109,6 +113,10 @@ export const DEFAULT_CONFIG: GridfinityConfig = {
   tolerance: 0.5,
   wallThickness: 1.2,
   displayUnit: 'mm',
+  showDrawerCount: true,
+  showCategoryCount: true,
+  itemSizeDisplay: 'area',
+  categoryExpansion: 'none',
 }
 
 // Unit conversion utilities
