@@ -44,12 +44,6 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const updateCategory     = useDrawerStore(s => s.updateCategory)
   const deleteCategory     = useDrawerStore(s => s.deleteCategory)
 
-  const { toast } = useToast()
-  const handleDuplicateItem = useCallback((id: string) => {
-    const placed = duplicateItem(id)
-    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
-  }, [duplicateItem, toast])
-
   const [activeTab, setActiveTab] = useState<SidebarTab>('drawers')
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [expandedCategoryGroups, setExpandedCategoryGroups] = useState<Set<string>>(new Set())
@@ -60,6 +54,12 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
+
+  const { toast } = useToast()
+  const handleDuplicateItem = useCallback((id: string) => {
+    const placed = duplicateItem(id)
+    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+  }, [duplicateItem, toast])
 
   useKeyboardShortcut({ key: 'f', ctrl: true }, () => {
     searchInputRef.current?.focus()

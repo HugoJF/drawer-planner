@@ -62,6 +62,44 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const [newCatName, setNewCatName] = useState('')
   const newCatInputRef = useRef<HTMLInputElement>(null)
 
+  // Preview calculations
+  const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
+  const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
+  const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
+  const hasPhysical = widthMm > 0 && depthMm > 0
+
+  const previewItem: Item = {
+    id: 'preview', name, width: widthMm, height: heightMm, depth: depthMm,
+    categoryId, rotation, drawerId: null, gridX: 0, gridY: 0, gridMode,
+    manualGridCols: manualCols, manualGridRows: manualRows, locked: false,
+  }
+
+  const previewDims = (gridMode === 'auto' ? hasPhysical : true)
+    ? calculateItemGridDimensions(previewItem, config)
+    : null
+
+  const rotatedDims = hasPhysical ? getRotatedDimensions(previewItem) : null
+
+  const distinctRotations = useMemo(
+    () => getDistinctRotations(previewItem),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [widthMm, heightMm, depthMm]
+  )
+
+  useEffect(() => {
+    if (!distinctRotations.includes(rotation)) {
+      const currentDims = getRotatedDimensions(previewItem)
+      const currentKey = `${currentDims.width}|${currentDims.depth}|${currentDims.height}`
+      const match = distinctRotations.find(r => {
+        const d = getRotatedDimensions(previewItem, r)
+        return `${d.width}|${d.depth}|${d.height}` === currentKey
+      })
+      setRotation(match ?? distinctRotations[0])
+    }
+  }, [distinctRotations, rotation, previewItem])
+
+  const autoInvalid = gridMode === 'auto' && (!width || !height || !depth)
+
   const nextColor = (): string => {
     const used = new Set(categories.map(c => c.color))
     return ITEM_COLORS.find(c => !used.has(c)) ?? ITEM_COLORS[0]
@@ -127,44 +165,6 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     }
     onOpenChange(false)
   }
-
-  // Preview
-  const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
-  const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
-  const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
-  const hasPhysical = widthMm > 0 && depthMm > 0
-
-  const previewItem: Item = {
-    id: 'preview', name, width: widthMm, height: heightMm, depth: depthMm,
-    categoryId, rotation, drawerId: null, gridX: 0, gridY: 0, gridMode,
-    manualGridCols: manualCols, manualGridRows: manualRows, locked: false,
-  }
-
-  const previewDims = (gridMode === 'auto' ? hasPhysical : true)
-    ? calculateItemGridDimensions(previewItem, config)
-    : null
-
-  const rotatedDims = hasPhysical ? getRotatedDimensions(previewItem) : null
-
-  const distinctRotations = useMemo(
-    () => getDistinctRotations(previewItem),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [widthMm, heightMm, depthMm]
-  )
-
-  useEffect(() => {
-    if (!distinctRotations.includes(rotation)) {
-      const currentDims = getRotatedDimensions(previewItem)
-      const currentKey = `${currentDims.width}|${currentDims.depth}|${currentDims.height}`
-      const match = distinctRotations.find(r => {
-        const d = getRotatedDimensions(previewItem, r)
-        return `${d.width}|${d.depth}|${d.height}` === currentKey
-      })
-      setRotation(match ?? distinctRotations[0])
-    }
-  }, [distinctRotations, rotation, previewItem])
-
-  const autoInvalid = gridMode === 'auto' && (!width || !height || !depth)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

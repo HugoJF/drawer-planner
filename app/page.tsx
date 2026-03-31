@@ -31,10 +31,28 @@ import { calculateItemGridDimensions, applyNextRotation } from '@/lib/gridfinity
 import { labelAction } from '@/lib/history'
 
 function DashboardContent() {
+  // Store — data
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
-  const drawers = useDrawerStore(s => s.drawers)
-  const config = useDrawerStore(s => s.config)
+  const drawers          = useDrawerStore(s => s.drawers)
+  const config           = useDrawerStore(s => s.config)
+  const past             = useDrawerStore(s => s.past)
+  const future           = useDrawerStore(s => s.future)
+  const selectedItemIds  = useDrawerStore(s => s.selectedItemIds)
+  const allItems         = useDrawerStore(s => s.items)
+  const categories       = useDrawerStore(s => s.categories)
 
+  // Store — actions
+  const undo             = useDrawerStore(s => s.undo)
+  const redo             = useDrawerStore(s => s.redo)
+  const deleteItem       = useDrawerStore(s => s.deleteItem)
+  const deleteItems      = useDrawerStore(s => s.deleteItems)
+  const duplicateItem    = useDrawerStore(s => s.duplicateItem)
+  const updateItem       = useDrawerStore(s => s.updateItem)
+  const selectItems      = useDrawerStore(s => s.selectItems)
+  const moveItem         = useDrawerStore(s => s.moveItem)
+  const repositionItems  = useDrawerStore(s => s.repositionItems)
+
+  // UI state
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [drawerFormOpen, setDrawerFormOpen] = useState(false)
   const [itemFormOpen, setItemFormOpen] = useState(false)
@@ -42,25 +60,12 @@ function DashboardContent() {
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [newItemPosition, setNewItemPosition] = useState<{ gridX: number; gridY: number } | null>(null)
   const [newItemGridDimensions, setNewItemGridDimensions] = useState<{ cols: number; rows: number } | null>(null)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
 
-  const undo = useDrawerStore(s => s.undo)
-  const redo = useDrawerStore(s => s.redo)
-  const past   = useDrawerStore(s => s.past)
-  const future = useDrawerStore(s => s.future)
+  // Derived
   const canUndo = past.length > 0
   const canRedo = future.length > 0
 
-  const selectedItemIds = useDrawerStore(s => s.selectedItemIds)
-  const allItems = useDrawerStore(s => s.items)
-  const categories = useDrawerStore(s => s.categories)
-  const deleteItem = useDrawerStore(s => s.deleteItem)
-  const deleteItems = useDrawerStore(s => s.deleteItems)
-  const duplicateItem = useDrawerStore(s => s.duplicateItem)
-  const updateItem = useDrawerStore(s => s.updateItem)
-  const selectItems = useDrawerStore(s => s.selectItems)
-  const moveItem = useDrawerStore(s => s.moveItem)
-  const repositionItems = useDrawerStore(s => s.repositionItems)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const selectedDrawer = useMemo(
     () => drawers.find(d => d.id === selectedDrawerId) ?? null,
     [drawers, selectedDrawerId]
@@ -73,6 +78,7 @@ function DashboardContent() {
     () => canRedo ? labelAction({ drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds }, future[0]) : null,
     [canRedo, future, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds]
   )
+
   const { toast } = useToast()
 
   const isFormOpen = drawerFormOpen || itemFormOpen
