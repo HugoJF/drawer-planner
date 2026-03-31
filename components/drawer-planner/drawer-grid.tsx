@@ -10,6 +10,9 @@ import {
   isValidPlacement,
   findOverlappingItems,
   getRotatedDimensions,
+  getDistinctRotations,
+  getRotationLabel,
+  applyNextRotation,
   isItemFootprintOverflow,
 } from '@/lib/gridfinity'
 import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2, Lock, Unlock, Tag } from 'lucide-react'
@@ -35,7 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { Drawer, Item, ItemRotation, GridfinityConfig, Category } from '@/lib/types'
+import type { Drawer, Item, GridfinityConfig, Category } from '@/lib/types'
 import { formatDimension, getCategoryColor } from '@/lib/types'
 
 function lerp(a: number, b: number, t: number) {
@@ -254,15 +257,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   }, [])
 
   const handleRotate = useCallback((item: Item) => {
-    const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
-    const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
-    const isManual = (item.gridMode ?? 'auto') === 'manual'
-    const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
-    updateItem({
-      ...item,
-      rotation: next,
-      ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
-    })
+    updateItem({ ...item, ...applyNextRotation(item) })
   }, [updateItem])
 
   const handleMoveToDrawer = useCallback((item: Item, targetDrawerId: string) => {
@@ -655,7 +650,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                      Rotate ({item.rotation})
+                      Rotate ({getRotationLabel(item.rotation, item, config)})
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -728,6 +723,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               item={contextItem}
               allDrawers={drawers}
               categories={categories}
+              config={config}
               onEdit={() => onEditItem(contextItem)}
               onDuplicate={() => {
                 const placed = duplicateItem(contextItem.id)
@@ -737,6 +733,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               onDelete={() => setPendingDelete({ type: 'item', id: contextItem.id, name: contextItem.name })}
               onMoveToDrawer={(drawerId) => moveItem(contextItem.id, drawerId, 0, 0)}
               onMoveToCategory={(categoryId) => updateItem({ ...contextItem, categoryId })}
+              onRotateTo={(rotation) => updateItem({ ...contextItem, rotation })}
             />
           </ContextMenuContent>
           )

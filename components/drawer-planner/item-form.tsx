@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useDrawerStore } from '@/lib/store'
-import { calculateItemGridDimensions, getRotatedDimensions } from '@/lib/gridfinity'
+import { calculateItemGridDimensions, getRotatedDimensions, getDistinctRotations, getRotationLabel } from '@/lib/gridfinity'
 import { cn } from '@/lib/utils'
 import type { Item, ItemRotation, Category } from '@/lib/types'
 import { ITEM_COLORS, getCategoryColor, toDisplayUnit, fromDisplayUnit } from '@/lib/types'
@@ -52,7 +52,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const [height, setHeight] = useState(item && item.height > 0 ? toDisplayUnit(item.height, unit).toString() : '')
   const [depth, setDepth] = useState(item && item.depth > 0 ? toDisplayUnit(item.depth, unit).toString() : '')
   const [categoryId, setCategoryId] = useState<string | null>(item?.categoryId ?? null)
-  const [rotation, setRotation] = useState<ItemRotation>(item?.rotation ?? 'normal')
+  const [rotation, setRotation] = useState<ItemRotation>(item?.rotation ?? 'h-up')
   const [drawerId, setDrawerId] = useState<string | null>(item?.drawerId ?? selectedDrawerId)
   const [gridMode, setGridMode] = useState<'auto' | 'manual'>(item?.gridMode ?? (initialGridDimensions ? 'manual' : 'auto'))
   const [manualCols, setManualCols] = useState(item?.manualGridCols ?? initialGridDimensions?.cols ?? 1)
@@ -148,11 +148,24 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
   const rotatedDims = hasPhysical ? getRotatedDimensions(previewItem) : null
 
-  const rotationLabels: Record<ItemRotation, string> = {
-    normal: 'Normal (upright)',
-    layDown: 'Lay Down (on side)',
-    rotated: 'Rotated 90°',
-  }
+  const distinctRotations = useMemo(
+    () => getDistinctRotations(previewItem),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [widthMm, heightMm, depthMm]
+  )
+
+  // Snap stored rotation to the nearest equivalent distinct rotation
+  useEffect(() => {
+    if (!distinctRotations.includes(rotation)) {
+      const currentDims = getRotatedDimensions(previewItem)
+      const currentKey = `${currentDims.width}|${currentDims.depth}|${currentDims.height}`
+      const match = distinctRotations.find(r => {
+        const d = getRotatedDimensions(previewItem, r)
+        return `${d.width}|${d.depth}|${d.height}` === currentKey
+      })
+      setRotation(match ?? distinctRotations[0])
+    }
+  }, [distinctRotations, rotation, previewItem])
 
   const autoInvalid = gridMode === 'auto' && (!width || !height || !depth)
 
@@ -228,9 +241,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
               <Select value={rotation} onValueChange={v => setRotation(v as ItemRotation)}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="layDown">Lay Down</SelectItem>
-                  <SelectItem value="rotated">Rotated 90°</SelectItem>
+                  {distinctRotations.map(r => (
+                    <SelectItem key={r} value={r}>{getRotationLabel(r, previewItem, config)}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -284,7 +297,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
             )}
             {previewDims && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <RotateCw className="h-3 w-3" />{rotationLabels[rotation]}
+                <RotateCw className="h-3 w-3" />{getRotationLabel(rotation, previewItem, config)}
               </p>
             )}
           </div>

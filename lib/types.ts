@@ -38,7 +38,7 @@ export function getCategoryColor(categoryId: string | null, categories: Category
   return categories.find(c => c.id === categoryId)?.color ?? UNCATEGORIZED_COLOR
 }
 
-export type ItemRotation = 'normal' | 'layDown' | 'rotated'
+export type ItemRotation = 'h-up' | 'h-up-r' | 'd-up' | 'd-up-r' | 'w-up' | 'w-up-r'
 
 export interface Item {
   id: string

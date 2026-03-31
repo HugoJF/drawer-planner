@@ -32,22 +32,98 @@ export function calculateDrawerGrid(
 }
 
 /**
- * Get item dimensions based on rotation
- * - normal: Item stands upright (WxD footprint, H for height)
- * - layDown: Tall item lies flat (WxH footprint, D for height) 
- * - rotated: Swaps W and D (DxW footprint, H for height)
+ * Get item dimensions based on rotation.
+ * Each rotation picks which physical axis is vertical (the drawer-height axis)
+ * and whether the footprint is transposed 90° on the grid.
+ *
+ * h-up / h-up-r : original Height is vertical — item stands upright
+ * d-up / d-up-r : original Depth is vertical   — item lies flat (tipped forward)
+ * w-up / w-up-r : original Width is vertical   — item lies on its side
+ * The -r variants swap footprint W and D (90° rotation on the grid).
  */
 export function getRotatedDimensions(
-  item: Item, 
+  item: Item,
   rotation: ItemRotation = item.rotation
 ): { width: number; depth: number; height: number } {
   switch (rotation) {
-    case 'normal':
-      return { width: item.width, depth: item.depth, height: item.height }
-    case 'layDown':
-      return { width: item.width, depth: item.height, height: item.depth }
-    case 'rotated':
-      return { width: item.depth, depth: item.width, height: item.height }
+    case 'h-up':   return { width: item.width,  depth: item.depth,  height: item.height }
+    case 'h-up-r': return { width: item.depth,  depth: item.width,  height: item.height }
+    case 'd-up':   return { width: item.width,  depth: item.height, height: item.depth  }
+    case 'd-up-r': return { width: item.height, depth: item.width,  height: item.depth  }
+    case 'w-up':   return { width: item.depth,  depth: item.height, height: item.width  }
+    case 'w-up-r': return { width: item.height, depth: item.depth,  height: item.width  }
+  }
+}
+
+export const ALL_ROTATIONS: ItemRotation[] = ['h-up', 'h-up-r', 'd-up', 'd-up-r', 'w-up', 'w-up-r']
+
+/**
+ * Return only the distinct rotations for an item — i.e. those that produce
+ * a unique (footprintW, footprintD, height) triple. For symmetric items some
+ * orientations are physically identical and are filtered out.
+ */
+export function getDistinctRotations(item: Item): ItemRotation[] {
+  const seen = new Set<string>()
+  const result: ItemRotation[] = []
+  for (const r of ALL_ROTATIONS) {
+    const d = getRotatedDimensions(item, r)
+    const key = `${d.width}|${d.depth}|${d.height}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push(r)
+    }
+  }
+  return result
+}
+
+const ROTATION_BASE_NAMES: Record<ItemRotation, string> = {
+  'h-up':   'Upright',
+  'h-up-r': 'Upright (rotated)',
+  'd-up':   'Lay flat',
+  'd-up-r': 'Lay flat (rotated)',
+  'w-up':   'On side',
+  'w-up-r': 'On side (rotated)',
+}
+
+/**
+ * Human-readable label for a rotation, including computed footprint/height when dimensions are known.
+ * e.g. "Lay flat (5×25, 5U tall)"
+ */
+export function getRotationLabel(rotation: ItemRotation, item: Item, config: GridfinityConfig): string {
+  const base = ROTATION_BASE_NAMES[rotation]
+  if (item.width <= 0 || item.height <= 0 || item.depth <= 0) return base
+  const d = getRotatedDimensions(item, rotation)
+  const cols = Math.ceil(d.width / config.cellSize)
+  const rows = Math.ceil(d.depth / config.cellSize)
+  const heightU = Math.ceil(d.height / config.heightUnit)
+  return `${base} (${cols}×${rows}, ${heightU}U tall)`
+}
+
+/**
+ * Build the rotation update patch when cycling from one rotation to the next.
+ * Handles manual-mode col/row swap when the footprint axes transpose.
+ */
+export function applyNextRotation(item: Item): Partial<Item> {
+  const distinct = getDistinctRotations(item)
+  const currentDims = getRotatedDimensions(item)
+  const currentKey = `${currentDims.width}|${currentDims.depth}|${currentDims.height}`
+  let idx = distinct.findIndex(r => {
+    const d = getRotatedDimensions(item, r)
+    return `${d.width}|${d.depth}|${d.height}` === currentKey
+  })
+  if (idx === -1) idx = 0
+  const next = distinct[(idx + 1) % distinct.length]
+
+  const isManual = (item.gridMode ?? 'auto') === 'manual'
+  const newDims = getRotatedDimensions(item, next)
+  const shouldSwap = isManual
+    && currentDims.width === newDims.depth
+    && currentDims.depth === newDims.width
+    && currentDims.width !== currentDims.depth
+
+  return {
+    rotation: next,
+    ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
   }
 }
 
@@ -289,14 +365,9 @@ export function getSuggestedRotation(
   item: Item,
   drawer: Drawer
 ): ItemRotation | null {
-  const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
-  
-  for (const rotation of rotations) {
+  for (const rotation of ALL_ROTATIONS) {
     const dims = getRotatedDimensions({ ...item, rotation })
-    if (dims.height <= drawer.height) {
-      return rotation
-    }
+    if (dims.height <= drawer.height) return rotation
   }
-  
-  return null // No rotation works
+  return null
 }

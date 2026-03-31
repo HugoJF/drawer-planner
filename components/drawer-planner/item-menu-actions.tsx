@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Pencil, Copy, Lock, Unlock, ArrowRightLeft, Tag, Trash2, Package, FolderOpen, AlertTriangle } from 'lucide-react'
+import { Pencil, Copy, Lock, Unlock, ArrowRightLeft, Tag, Trash2, Package, FolderOpen, AlertTriangle, RotateCw, Check } from 'lucide-react'
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -16,9 +16,9 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from '@/components/ui/context-menu'
-import { isItemOversized } from '@/lib/gridfinity'
+import { isItemOversized, getDistinctRotations, getRotationLabel } from '@/lib/gridfinity'
 import { getCategoryColor } from '@/lib/types'
-import type { Item, Drawer, Category } from '@/lib/types'
+import type { Item, Drawer, Category, ItemRotation, GridfinityConfig } from '@/lib/types'
 
 export type MenuVariant = 'dropdown' | 'context'
 
@@ -27,17 +27,19 @@ interface ItemMenuActionsProps {
   item: Item
   allDrawers: Drawer[]
   categories: Category[]
+  config: GridfinityConfig
   onEdit: () => void
   onDuplicate: () => void
   onToggleLock: () => void
   onDelete: () => void
   onMoveToDrawer: (drawerId: string | null) => void
   onMoveToCategory: (categoryId: string | null) => void
+  onRotateTo: (rotation: ItemRotation) => void
 }
 
 export function ItemMenuActions({
-  variant, item, allDrawers, categories,
-  onEdit, onDuplicate, onToggleLock, onDelete, onMoveToDrawer, onMoveToCategory,
+  variant, item, allDrawers, categories, config,
+  onEdit, onDuplicate, onToggleLock, onDelete, onMoveToDrawer, onMoveToCategory, onRotateTo,
 }: ItemMenuActionsProps) {
   const MenuItem      = (variant === 'dropdown' ? DropdownMenuItem      : ContextMenuItem)      as typeof DropdownMenuItem
   const Separator     = (variant === 'dropdown' ? DropdownMenuSeparator  : ContextMenuSeparator)  as typeof DropdownMenuSeparator
@@ -49,6 +51,19 @@ export function ItemMenuActions({
     <>
       <MenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2" />Edit</MenuItem>
       <MenuItem onClick={onDuplicate}><Copy className="h-4 w-4 mr-2" />Duplicate</MenuItem>
+      <Sub>
+        <SubTrigger><RotateCw className="h-4 w-4 mr-2" />Rotate</SubTrigger>
+        <SubContent>
+          {getDistinctRotations(item).map(r => (
+            <MenuItem key={r} onClick={() => onRotateTo(r)}>
+              <span className="mr-2 w-4 flex-shrink-0">
+                {item.rotation === r && <Check className="h-3.5 w-3.5" />}
+              </span>
+              {getRotationLabel(r, item, config)}
+            </MenuItem>
+          ))}
+        </SubContent>
+      </Sub>
       <MenuItem onClick={onToggleLock}>
         {item.locked
           ? <><Unlock className="h-4 w-4 mr-2" />Unlock</>

@@ -24,10 +24,10 @@ import {
   Undo2,
   Redo2,
 } from 'lucide-react'
-import type { Drawer, Item, ItemRotation } from '@/lib/types'
+import type { Drawer, Item } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { calculateItemGridDimensions } from '@/lib/gridfinity'
+import { calculateItemGridDimensions, applyNextRotation } from '@/lib/gridfinity'
 import { labelAction } from '@/lib/history'
 
 function DashboardContent() {
@@ -122,15 +122,7 @@ function DashboardContent() {
   useKeyboardShortcut({ key: 'r', enabled: !isFormOpen && singleSelected }, useCallback(() => {
     const item = allItems.find(i => i.id === [...selectedItemIds][0])
     if (!item) return
-    const rotations: ItemRotation[] = ['normal', 'layDown', 'rotated']
-    const next = rotations[(rotations.indexOf(item.rotation) + 1) % rotations.length]
-    const isManual = (item.gridMode ?? 'auto') === 'manual'
-    const shouldSwap = isManual && (item.rotation === 'rotated') !== (next === 'rotated')
-    updateItem({
-      ...item,
-      rotation: next,
-      ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
-    })
+    updateItem({ ...item, ...applyNextRotation(item) })
   }, [allItems, selectedItemIds, updateItem]))
 
   // Move selected item(s) by one grid cell, clamped to drawer bounds

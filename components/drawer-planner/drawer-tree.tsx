@@ -58,7 +58,7 @@ import {
 } from '@/components/ui/tooltip'
 import { isItemOversized, getRotatedDimensions, calculateItemGridDimensions } from '@/lib/gridfinity'
 import { formatDimension, getCategoryColor } from '@/lib/types'
-import type { Drawer, Item, Category, DimensionUnit, GridfinityConfig } from '@/lib/types'
+import type { Drawer, Item, ItemRotation, Category, DimensionUnit, GridfinityConfig } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { CategoryForm } from '@/components/drawer-planner/category-form'
 import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
@@ -263,6 +263,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     onToggleLock: () => updateItem({ ...item, locked: !item.locked }),
     onMoveToDrawer: (drawerId: string | null) => moveItem(item.id, drawerId, 0, 0),
     onMoveToCategory: (categoryId: string | null) => updateItem({ ...item, categoryId }),
+    onRotateTo: (rotation: ItemRotation) => updateItem({ ...item, rotation }),
     displayUnit: config.displayUnit,
     config,
   })
@@ -756,6 +757,7 @@ interface TreeItemProps {
   onToggleLock: () => void
   onMoveToDrawer: (drawerId: string | null) => void
   onMoveToCategory: (categoryId: string | null) => void
+  onRotateTo: (rotation: ItemRotation) => void
   displayUnit: DimensionUnit
   config: GridfinityConfig
   secondaryLabel?: string
@@ -763,7 +765,7 @@ interface TreeItemProps {
 
 function TreeItem({
   item, drawer, categories, isSelected, isDragging, onSelect, onCtrlSelect, onEdit, onDuplicate,
-  onDelete, onDragStart, onDragEnd, allDrawers, onToggleLock, onMoveToDrawer, onMoveToCategory, displayUnit, config, secondaryLabel,
+  onDelete, onDragStart, onDragEnd, allDrawers, onToggleLock, onMoveToDrawer, onMoveToCategory, onRotateTo, displayUnit, config, secondaryLabel,
 }: TreeItemProps) {
   const isOversized = drawer ? isItemOversized(item, drawer) : false
   const dims = calculateItemGridDimensions(item, config)
@@ -812,13 +814,13 @@ function TreeItem({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <ItemMenuActions variant="dropdown" item={item} allDrawers={allDrawers} categories={categories} onEdit={onEdit} onDuplicate={onDuplicate} onToggleLock={onToggleLock} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} onMoveToCategory={onMoveToCategory} />
+              <ItemMenuActions variant="dropdown" item={item} allDrawers={allDrawers} categories={categories} config={config} onEdit={onEdit} onDuplicate={onDuplicate} onToggleLock={onToggleLock} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} onMoveToCategory={onMoveToCategory} onRotateTo={onRotateTo} />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ItemMenuActions variant="context" item={item} allDrawers={allDrawers} categories={categories} onEdit={onEdit} onDuplicate={onDuplicate} onToggleLock={onToggleLock} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} onMoveToCategory={onMoveToCategory} />
+        <ItemMenuActions variant="context" item={item} allDrawers={allDrawers} categories={categories} config={config} onEdit={onEdit} onDuplicate={onDuplicate} onToggleLock={onToggleLock} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} onMoveToCategory={onMoveToCategory} onRotateTo={onRotateTo} />
       </ContextMenuContent>
     </ContextMenu>
   )
