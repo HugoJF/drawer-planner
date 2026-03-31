@@ -601,8 +601,8 @@ function DrawersTab({
         </div>
       )}
 
-      {/* Unassigned */}
-      <div className="mt-4">
+      {/* Unassigned — hidden when empty and not dragging */}
+      {(filteredUnassigned.length > 0 || draggedItem) && <div className="mt-4">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">Unassigned Items</div>
         <div
           className={cn('rounded-md border border-dashed border-border/50 min-h-[60px] p-1', draggedItem && 'border-primary/50 bg-primary/5')}
@@ -621,7 +621,7 @@ function DrawersTab({
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </>
   )
 }
