@@ -5,11 +5,11 @@ import type {
   GridfinityConfig,
   Drawer,
   Item,
-  ItemRotation,
   Category,
   ExportData,
 } from '@/lib/types'
-import { DEFAULT_CONFIG } from '@/lib/types'
+import { DEFAULT_CONFIG, CURRENT_VERSION } from '@/lib/types'
+import { migrate } from '@/lib/migrations'
 import {
   calculateDrawerGrid,
   calculateItemGridDimensions,
@@ -389,7 +389,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           exportData: (): ExportData => {
             const state = get()
             return {
-              version: '1.0',
+              version: CURRENT_VERSION,
               exportDate: new Date().toISOString(),
               config: state.config,
               drawers: state.drawers,
@@ -401,16 +401,12 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           importData: (data) => {
             if (data.version && data.drawers && data.items) {
               push()
-              const legacyRotation: Record<string, ItemRotation> = { normal: 'h-up', layDown: 'd-up', rotated: 'h-up-r' }
+              const migrated = migrate(data as Parameters<typeof migrate>[0])
               set({
-                config: { ...DEFAULT_CONFIG, ...data.config },
-                drawers: data.drawers,
-                items: data.items.map(i => ({
-                  ...i,
-                  categoryId: (i as Item & { categoryId?: string | null }).categoryId ?? null,
-                  rotation: legacyRotation[i.rotation as unknown as string] ?? i.rotation,
-                })),
-                categories: data.categories ?? [],
+                config: { ...DEFAULT_CONFIG, ...(migrated.config as Partial<GridfinityConfig>) },
+                drawers: migrated.drawers as Drawer[],
+                items: migrated.items as Item[],
+                categories: migrated.categories as Category[],
                 selectedDrawerId: null,
                 selectedItemIds: new Set(),
               })
@@ -421,6 +417,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
       {
         name: 'gridfinity-drawer-planner',
         partialize: (state) => ({
+          version: CURRENT_VERSION,
           config: state.config,
           drawers: state.drawers,
           items: state.items,
@@ -428,15 +425,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
         }),
         onRehydrateStorage: () => (state) => {
           if (state) {
-            // TODO: promote to proper versioned migration (store has no version field yet)
-            const legacyRotation: Record<string, ItemRotation> = { normal: 'h-up', layDown: 'd-up', rotated: 'h-up-r' }
-            state.items = state.items.map(i => ({
-              ...i,
-              locked: (i as Item & { locked?: boolean }).locked ?? false,
-              categoryId: (i as Item & { categoryId?: string | null }).categoryId ?? null,
-              rotation: legacyRotation[i.rotation as unknown as string] ?? i.rotation,
-            }))
-            state.categories = state.categories ?? []
+            const migrated = migrate(state as unknown as Parameters<typeof migrate>[0])
+            state.items = migrated.items as Item[]
+            state.categories = migrated.categories as Category[]
           }
         },
         ...(storage ? { storage } : {}),

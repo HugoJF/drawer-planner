@@ -103,9 +103,11 @@ export function formatDimension(valueMm: number, unit: DimensionUnit): string {
   return `${value}${unit}`
 }
 
+export const CURRENT_VERSION = 1
+
 // Export/Import data structure
 export interface ExportData {
-  version: string
+  version: number
   exportDate: string
   config: GridfinityConfig
   drawers: Drawer[]

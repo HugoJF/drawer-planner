@@ -220,7 +220,7 @@ describe('importData', () => {
   }
 
   const validExport: ExportData = {
-    version: '1.0',
+    version: 1,
     exportDate: '2026-01-01T00:00:00.000Z',
     config: { ...DEFAULT_CONFIG, displayUnit: 'cm', cellSize: 50 },
     drawers: [sampleDrawer],
@@ -298,7 +298,7 @@ describe('importData', () => {
 
   test('does nothing when drawers is missing', () => {
     addDrawerAndGetId(store)
-    const invalid = { version: '1.0', items: [sampleItem] } as unknown as ExportData
+    const invalid = { version: 1, items: [sampleItem] } as unknown as ExportData
     store.getState().importData(invalid)
 
     expect(store.getState().drawers).toHaveLength(1)
@@ -306,7 +306,7 @@ describe('importData', () => {
 
   test('does nothing when items is missing', () => {
     addItemAndGetId(store)
-    const invalid = { version: '1.0', drawers: [sampleDrawer] } as unknown as ExportData
+    const invalid = { version: 1, drawers: [sampleDrawer] } as unknown as ExportData
     store.getState().importData(invalid)
 
     expect(store.getState().items).toHaveLength(1)
