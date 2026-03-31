@@ -60,6 +60,8 @@ import { formatDimension, getCategoryColor } from '@/lib/types'
 import type { Drawer, Item, Category, DimensionUnit, GridfinityConfig } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { CategoryForm } from '@/components/drawer-planner/category-form'
+import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
+import type { MenuVariant } from '@/components/drawer-planner/item-menu-actions'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import { ITEM_COLORS } from '@/lib/types'
 
@@ -119,6 +121,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const deleteItem     = useDrawerStore(s => s.deleteItem)
   const duplicateItem  = useDrawerStore(s => s.duplicateItem)
   const moveItem       = useDrawerStore(s => s.moveItem)
+  const updateItem     = useDrawerStore(s => s.updateItem)
   const addCategory    = useDrawerStore(s => s.addCategory)
   const updateCategory = useDrawerStore(s => s.updateCategory)
   const deleteCategory = useDrawerStore(s => s.deleteCategory)
@@ -213,6 +216,13 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next
   })
 
+  const categoryExpansion = config.categoryExpansion ?? 'none'
+  const isCategoryGroupOpen = useCallback((groupKey: string, categoryId: string | null): boolean => {
+    if (categoryExpansion === 'all') return true
+    if (categoryExpansion === 'categorized') return categoryId !== null
+    return expandedCategoryGroups.has(groupKey)
+  }, [categoryExpansion, expandedCategoryGroups])
+
   const allExpanded = filteredDrawers.length > 0 && filteredDrawers.every(d => effectiveExpanded.has(d.id))
   const toggleAll = () => setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
 
@@ -249,7 +259,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     onDragStart: handleDragStart,
     onDragEnd: handleDragEnd,
     allDrawers: drawers,
+    onToggleLock: () => updateItem({ ...item, locked: !item.locked }),
     onMoveToDrawer: (drawerId: string | null) => moveItem(item.id, drawerId, 0, 0),
+    onMoveToCategory: (categoryId: string | null) => updateItem({ ...item, categoryId }),
     displayUnit: config.displayUnit,
     config,
   })
@@ -315,7 +327,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             drawers={drawers}
             categories={categories}
             effectiveExpanded={effectiveExpanded}
-            expandedCategoryGroups={expandedCategoryGroups}
+            isCategoryGroupOpen={isCategoryGroupOpen}
             sortMode={sortMode}
             setSortMode={setSortMode}
             searchTerm={searchTerm}
@@ -328,6 +340,8 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             onAddDrawer={onAddDrawer}
             onEditDrawer={onEditDrawer}
             duplicateDrawer={duplicateDrawer}
+            onEditCategory={openEditCategory}
+            onDeleteCategory={(cat) => setPendingDelete({ type: 'category', id: cat.id, name: cat.name })}
             setPendingDelete={setPendingDelete}
             handleDragOver={handleDragOver}
             handleDropOnDrawer={handleDropOnDrawer}
@@ -339,7 +353,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             categories={categories}
             allItems={allItems}
             itemsByCategory={itemsByCategory}
-            expandedCategoryGroups={expandedCategoryGroups}
+            isCategoryGroupOpen={isCategoryGroupOpen}
             toggleCategoryGroup={toggleCategoryGroup}
             drawers={drawers}
             searchTerm={searchTerm}
@@ -386,17 +400,18 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
 function DrawersTab({
   filteredDrawers, filteredItemsByDrawer, filteredUnassigned, drawers, categories,
-  effectiveExpanded, expandedCategoryGroups, sortMode, setSortMode, searchTerm,
+  effectiveExpanded, isCategoryGroupOpen, sortMode, setSortMode, searchTerm,
   searchQuery, draggedItem, allExpanded, toggleAll, toggleDrawer, toggleCategoryGroup,
-  onAddDrawer, onEditDrawer, duplicateDrawer, setPendingDelete,
+  onAddDrawer, onEditDrawer, duplicateDrawer, onEditCategory, onDeleteCategory, setPendingDelete,
   handleDragOver, handleDropOnDrawer, itemProps, config,
 }: {
   filteredDrawers: Drawer[]; filteredItemsByDrawer: Map<string, Item[]>; filteredUnassigned: Item[]
   drawers: Drawer[]; categories: Category[]; effectiveExpanded: Set<string>
-  expandedCategoryGroups: Set<string>; sortMode: SortMode; setSortMode: (m: SortMode) => void
+  isCategoryGroupOpen: (groupKey: string, categoryId: string | null) => boolean; sortMode: SortMode; setSortMode: (m: SortMode) => void
   searchTerm: string; searchQuery: string; draggedItem: string | null; allExpanded: boolean
   toggleAll: () => void; toggleDrawer: (id: string) => void; toggleCategoryGroup: (key: string) => void
   onAddDrawer: () => void; onEditDrawer: (d: Drawer) => void; duplicateDrawer: (id: string) => void
+  onEditCategory: (cat: Category) => void; onDeleteCategory: (cat: Category) => void
   setPendingDelete: (v: { type: 'drawer' | 'item' | 'category'; id: string; name: string } | null) => void
   handleDragOver: (e: React.DragEvent) => void; handleDropOnDrawer: (e: React.DragEvent, id: string | null) => void
   itemProps: (item: Item, drawer: Drawer | null) => TreeItemProps; config: GridfinityConfig
@@ -477,6 +492,7 @@ function DrawersTab({
                   <ContextMenuTrigger asChild>
                     <div
                       className={cn('group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent/50 transition-colors', isSelected && 'bg-accent', draggedItem && 'transition-all')}
+                      onClick={() => toggleDrawer(drawer.id)}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDropOnDrawer(e, drawer.id)}
                     >
@@ -493,7 +509,7 @@ function DrawersTab({
                           <TooltipContent side="right">Contains items that exceed drawer height</TooltipContent>
                         </Tooltip>
                       )}
-                      <span className="text-xs text-muted-foreground">{drawerItems.length}</span>
+                      {(config.showDrawerCount ?? true) && <span className="text-xs text-muted-foreground">{drawerItems.length}</span>}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
@@ -521,17 +537,50 @@ function DrawersTab({
                     ) : (
                       categoryGroups.map(group => {
                         const groupKey = `${drawer.id}:${group.categoryId ?? 'null'}`
-                        const isGroupOpen = expandedCategoryGroups.has(groupKey)
+                        const isGroupOpen = isCategoryGroupOpen(groupKey, group.categoryId)
                         return (
                           <Collapsible key={groupKey} open={isGroupOpen} onOpenChange={() => toggleCategoryGroup(groupKey)}>
-                            <CollapsibleTrigger asChild>
-                              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer hover:bg-accent/30 transition-colors">
-                                {isGroupOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                                <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: group.color }} />
-                                <span className="flex-1 truncate text-xs text-muted-foreground">{group.label}</span>
-                                <span className="text-xs text-muted-foreground">{group.items.length}</span>
-                              </div>
-                            </CollapsibleTrigger>
+                            <ContextMenu>
+                              <ContextMenuTrigger asChild>
+                                <div className="group/cat flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => toggleCategoryGroup(groupKey)}>
+                                  <CollapsibleTrigger asChild onClick={e => e.stopPropagation()}>
+                                    <button className="p-0.5 rounded hover:bg-accent">
+                                      {isGroupOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                                    </button>
+                                  </CollapsibleTrigger>
+                                  <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: group.color }} />
+                                  <span className="flex-1 truncate text-xs text-muted-foreground">{group.label}</span>
+                                  {(config.showCategoryCount ?? true) && <span className="text-xs text-muted-foreground">{group.items.length}</span>}
+                                  {group.categoryId !== null && (() => {
+                                    const cat = categories.find(c => c.id === group.categoryId)!
+                                    return (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                                          <button className="p-0.5 rounded opacity-0 group-hover/cat:opacity-100 hover:bg-accent transition-opacity">
+                                            <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+                                          </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-36">
+                                          <DropdownMenuItem onClick={() => onEditCategory(cat)}><Pencil className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem variant="destructive" onClick={() => onDeleteCategory(cat)}><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )
+                                  })()}
+                                </div>
+                              </ContextMenuTrigger>
+                              {group.categoryId !== null && (() => {
+                                const cat = categories.find(c => c.id === group.categoryId)!
+                                return (
+                                  <ContextMenuContent className="w-36">
+                                    <ContextMenuItem onClick={() => onEditCategory(cat)}><Pencil className="h-4 w-4 mr-2" />Edit</ContextMenuItem>
+                                    <ContextMenuSeparator />
+                                    <ContextMenuItem variant="destructive" onClick={() => onDeleteCategory(cat)}><Trash2 className="h-4 w-4 mr-2" />Delete</ContextMenuItem>
+                                  </ContextMenuContent>
+                                )
+                              })()}
+                            </ContextMenu>
                             <CollapsibleContent>
                               <div className="ml-3 pl-2 border-l border-border/30 flex flex-col gap-0.5 py-0.5">
                                 {group.items.map(item => <TreeItem key={item.id} {...itemProps(item, drawer)} />)}
@@ -577,12 +626,12 @@ function DrawersTab({
 // ── Categories tab ────────────────────────────────────────────────────────────
 
 function CategoriesTab({
-  categories, allItems, itemsByCategory, expandedCategoryGroups, toggleCategoryGroup,
+  categories, allItems, itemsByCategory, isCategoryGroupOpen, toggleCategoryGroup,
   drawers, searchTerm, selectedItemIds, onOpenAddCategory, onEditCategory,
   onDeleteCategory, itemProps, config,
 }: {
   categories: Category[]; allItems: Item[]; itemsByCategory: Map<string | null, Item[]>
-  expandedCategoryGroups: Set<string>; toggleCategoryGroup: (key: string) => void
+  isCategoryGroupOpen: (groupKey: string, categoryId: string | null) => boolean; toggleCategoryGroup: (key: string) => void
   drawers: Drawer[]; searchTerm: string; selectedItemIds: Set<string>
   onOpenAddCategory: () => void; onEditCategory: (cat: Category) => void
   onDeleteCategory: (cat: Category) => void
@@ -604,14 +653,14 @@ function CategoriesTab({
     const items = filteredItemsByCategory.get(categoryId)
     if (!items) return null
     const groupKey = `cat:${categoryId ?? 'null'}`
-    const isOpen = expandedCategoryGroups.has(groupKey)
+    const isOpen = isCategoryGroupOpen(groupKey, categoryId)
     const category = categories.find(c => c.id === categoryId) ?? null
 
     return (
       <Collapsible key={groupKey} open={isOpen} onOpenChange={() => toggleCategoryGroup(groupKey)}>
         <ContextMenu>
           <ContextMenuTrigger asChild>
-            <div className="group flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent/50 transition-colors">
+            <div className="group flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => toggleCategoryGroup(groupKey)}>
               <CollapsibleTrigger asChild onClick={e => e.stopPropagation()}>
                 <button className="p-0.5 rounded hover:bg-accent">
                   {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -620,7 +669,7 @@ function CategoriesTab({
               <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
               <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span className="flex-1 truncate text-sm">{label}</span>
-              <span className="text-xs text-muted-foreground">{items.length}</span>
+              {(config.showCategoryCount ?? true) && <span className="text-xs text-muted-foreground">{items.length}</span>}
               {category && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
@@ -701,7 +750,9 @@ interface TreeItemProps {
   onDragStart: (e: React.DragEvent, itemId: string) => void
   onDragEnd: () => void
   allDrawers: Drawer[]
+  onToggleLock: () => void
   onMoveToDrawer: (drawerId: string | null) => void
+  onMoveToCategory: (categoryId: string | null) => void
   displayUnit: DimensionUnit
   config: GridfinityConfig
   secondaryLabel?: string
@@ -709,11 +760,13 @@ interface TreeItemProps {
 
 function TreeItem({
   item, drawer, categories, isSelected, isDragging, onSelect, onCtrlSelect, onEdit, onDuplicate,
-  onDelete, onDragStart, onDragEnd, allDrawers, onMoveToDrawer, displayUnit, config, secondaryLabel,
+  onDelete, onDragStart, onDragEnd, allDrawers, onToggleLock, onMoveToDrawer, onMoveToCategory, displayUnit, config, secondaryLabel,
 }: TreeItemProps) {
   const isOversized = drawer ? isItemOversized(item, drawer) : false
   const dims = calculateItemGridDimensions(item, config)
-  const heightLabel = `${dims.gridWidth * dims.gridDepth}U`
+  const heightLabel = (config.itemSizeDisplay ?? 'area') === 'dimensions'
+    ? `${dims.gridWidth}×${dims.gridDepth}`
+    : `${dims.gridWidth * dims.gridDepth}U`
   const color = getCategoryColor(item.categoryId, categories)
 
   return (
@@ -731,7 +784,6 @@ function TreeItem({
           )}
           onClick={(e) => e.ctrlKey || e.metaKey ? onCtrlSelect() : onSelect()}
         >
-          <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
           <Box className={cn('h-3.5 w-3.5 shrink-0', isOversized ? 'text-destructive' : 'text-muted-foreground')} />
           <span className="flex-1 truncate text-sm">{item.name}</span>
           {secondaryLabel && <span className="text-xs text-muted-foreground truncate max-w-[60px]">{secondaryLabel}</span>}
@@ -751,21 +803,19 @@ function TreeItem({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <ItemMenuActions variant="dropdown" item={item} allDrawers={allDrawers} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} />
+              <ItemMenuActions variant="dropdown" item={item} allDrawers={allDrawers} categories={categories} onEdit={onEdit} onDuplicate={onDuplicate} onToggleLock={onToggleLock} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} onMoveToCategory={onMoveToCategory} />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        <ItemMenuActions variant="context" item={item} allDrawers={allDrawers} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} />
+        <ItemMenuActions variant="context" item={item} allDrawers={allDrawers} categories={categories} onEdit={onEdit} onDuplicate={onDuplicate} onToggleLock={onToggleLock} onDelete={onDelete} onMoveToDrawer={onMoveToDrawer} onMoveToCategory={onMoveToCategory} />
       </ContextMenuContent>
     </ContextMenu>
   )
 }
 
 // ── Shared menu action components ─────────────────────────────────────────────
-
-type MenuVariant = 'dropdown' | 'context'
 
 function DrawerMenuActions({ variant, onEdit, onDuplicate, onDelete }: { variant: MenuVariant; onEdit: () => void; onDuplicate: () => void; onDelete: () => void }) {
   const Item = (variant === 'dropdown' ? DropdownMenuItem : ContextMenuItem) as typeof DropdownMenuItem
@@ -780,34 +830,3 @@ function DrawerMenuActions({ variant, onEdit, onDuplicate, onDelete }: { variant
   )
 }
 
-function ItemMenuActions({ variant, item, allDrawers, onEdit, onDuplicate, onDelete, onMoveToDrawer }: {
-  variant: MenuVariant; item: Item; allDrawers: Drawer[]; onEdit: () => void; onDuplicate: () => void
-  onDelete: () => void; onMoveToDrawer: (drawerId: string | null) => void
-}) {
-  const MenuItem = (variant === 'dropdown' ? DropdownMenuItem : ContextMenuItem) as typeof DropdownMenuItem
-  const Separator = (variant === 'dropdown' ? DropdownMenuSeparator : ContextMenuSeparator) as typeof DropdownMenuSeparator
-  const Sub = (variant === 'dropdown' ? DropdownMenuSub : ContextMenuSub) as typeof DropdownMenuSub
-  const SubTrigger = (variant === 'dropdown' ? DropdownMenuSubTrigger : ContextMenuSubTrigger) as typeof DropdownMenuSubTrigger
-  const SubContent = (variant === 'dropdown' ? DropdownMenuSubContent : ContextMenuSubContent) as typeof DropdownMenuSubContent
-  return (
-    <>
-      <MenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2" />Edit</MenuItem>
-      <MenuItem onClick={onDuplicate}><Copy className="h-4 w-4 mr-2" />Duplicate</MenuItem>
-      <Sub>
-        <SubTrigger><ArrowRightLeft className="h-4 w-4 mr-2" />Move to</SubTrigger>
-        <SubContent className="max-h-60 overflow-auto">
-          <MenuItem onClick={() => onMoveToDrawer(null)} disabled={!item.drawerId}><Package className="h-4 w-4 mr-2" />Unassigned</MenuItem>
-          <Separator />
-          {allDrawers.map(d => (
-            <MenuItem key={d.id} onClick={() => onMoveToDrawer(d.id)} disabled={d.id === item.drawerId}>
-              <FolderOpen className="h-4 w-4 mr-2" />{d.name}
-              {isItemOversized(item, d) && <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />}
-            </MenuItem>
-          ))}
-        </SubContent>
-      </Sub>
-      <Separator />
-      <MenuItem variant="destructive" onClick={onDelete}><Trash2 className="h-4 w-4 mr-2" />Delete</MenuItem>
-    </>
-  )
-}
