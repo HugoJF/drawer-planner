@@ -35,8 +35,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { Drawer, Item, ItemRotation } from '@/lib/types'
+import type { Drawer, Item, ItemRotation, GridfinityConfig, Category } from '@/lib/types'
 import { formatDimension, getCategoryColor } from '@/lib/types'
+
+function heightToColor(ratio: number): string {
+  // Blue (0) → cyan → green → amber → red (1)
+  const hue = Math.round(240 - ratio * 240)
+  const chroma = 0.17
+  const lightness = 0.62 + ratio * 0.06  // slightly lighter at the high end
+  return `oklch(${lightness.toFixed(2)} ${chroma} ${hue})`
+}
+
+function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
+  if ((config.gridColorMode ?? 'category') === 'height') {
+    const { heightUnits } = calculateItemGridDimensions(item, config)
+    const maxUnits = Math.ceil(drawer.height / config.heightUnit)
+    const ratio = maxUnits > 0 ? Math.min(1, heightUnits / maxUnits) : 0
+    return heightToColor(ratio)
+  }
+  return getCategoryColor(item.categoryId, categories)
+}
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
 
@@ -420,7 +438,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   top: (dropTarget.y + dy) * (CELL_SIZE + 1) + 1,
                   width: w,
                   height: h,
-                  backgroundColor: getCategoryColor(di.categoryId, categories),
+                  backgroundColor: getItemColor(di, drawer, config, categories),
                   opacity: 0.7,
                   outline: '2px solid rgba(255,255,255,0.4)',
                 }}
@@ -515,7 +533,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   top: item.gridY * (CELL_SIZE + 1) + 1,
                   width: visW * CELL_SIZE + (visW - 1),
                   height: visD * CELL_SIZE + (visD - 1),
-                  backgroundColor: getCategoryColor(item.categoryId, categories),
+                  backgroundColor: getItemColor(item, drawer, config, categories),
                   zIndex: isSelected ? 10 : 1,
                   pointerEvents: drawState || (dragState && dragState.itemId !== item.id) || (resizeState && resizeState.itemId !== item.id) ? 'none' : undefined,
                   transition: isResizing ? 'none' : 'opacity 0.1s',
@@ -530,7 +548,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                         height: insetPxH,
                         minWidth: 3,
                         minHeight: 3,
-                        backgroundColor: `color-mix(in oklch, black 28%, ${getCategoryColor(item.categoryId, categories)})`,
+                        backgroundColor: `color-mix(in oklch, black 28%, ${getItemColor(item, drawer, config, categories)})`,
                         backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 6px)',
                         borderRadius: 2,
                       }}

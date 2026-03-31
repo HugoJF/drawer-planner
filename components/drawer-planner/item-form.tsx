@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -53,9 +54,10 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const [categoryId, setCategoryId] = useState<string | null>(item?.categoryId ?? null)
   const [rotation, setRotation] = useState<ItemRotation>(item?.rotation ?? 'normal')
   const [drawerId, setDrawerId] = useState<string | null>(item?.drawerId ?? selectedDrawerId)
-  const [gridMode, setGridMode] = useState<'auto' | 'manual'>(item?.gridMode ?? 'manual')
+  const [gridMode, setGridMode] = useState<'auto' | 'manual'>(item?.gridMode ?? (initialGridDimensions ? 'manual' : 'auto'))
   const [manualCols, setManualCols] = useState(item?.manualGridCols ?? initialGridDimensions?.cols ?? 1)
   const [manualRows, setManualRows] = useState(item?.manualGridRows ?? initialGridDimensions?.rows ?? 1)
+  const [notes, setNotes] = useState(item?.notes ?? '')
 
   // Inline quick-create state
   const [newCatName, setNewCatName] = useState('')
@@ -117,6 +119,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
       gridMode,
       manualGridCols: manualCols,
       manualGridRows: manualRows,
+      notes: notes.trim() || undefined,
     }
 
     if (isEditing && item) {
@@ -284,6 +287,17 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
                 <RotateCw className="h-3 w-3" />{rotationLabels[rotation]}
               </p>
             )}
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">Notes</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Optional notes…"
+              rows={2}
+              className="resize-none text-sm"
+            />
           </div>
 
           <DialogFooter>

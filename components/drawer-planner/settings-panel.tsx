@@ -196,6 +196,29 @@ export function SettingsPanel() {
 
           <Separator />
 
+          <p className="text-xs text-muted-foreground">Grid</p>
+
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <Label className="text-xs">Item color</Label>
+                <p className="text-[10px] text-muted-foreground">Category color or height heatmap</p>
+              </div>
+              <Select
+                value={config.gridColorMode ?? 'category'}
+                onValueChange={v => updateConfig({ gridColorMode: v as 'category' | 'height' })}
+              >
+                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="height">Height</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Separator />
+
           <p className="text-xs text-muted-foreground">Sidebar</p>
 
           <div className="grid gap-3">

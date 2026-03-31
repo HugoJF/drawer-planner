@@ -12,6 +12,7 @@ export interface GridfinityConfig {
   showCategoryCount: boolean // Default: true
   itemSizeDisplay: 'area' | 'dimensions' // Default: 'area' — "20U" vs "5×4"
   categoryExpansion: 'none' | 'all' | 'categorized' // Default: 'none'
+  gridColorMode: 'category' | 'height' // Default: 'category'
 }
 
 export interface Drawer {
@@ -54,6 +55,7 @@ export interface Item {
   manualGridCols?: number         // explicit footprint cols (post-rotation), manual mode only
   manualGridRows?: number         // explicit footprint rows (post-rotation), manual mode only
   locked: boolean
+  notes?: string
 }
 
 export interface ItemGridDimensions {
@@ -117,6 +119,7 @@ export const DEFAULT_CONFIG: GridfinityConfig = {
   showCategoryCount: true,
   itemSizeDisplay: 'area',
   categoryExpansion: 'none',
+  gridColorMode: 'category',
 }
 
 // Unit conversion utilities

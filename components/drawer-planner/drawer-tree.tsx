@@ -14,6 +14,7 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  StickyNote,
   ArrowRightLeft,
   Copy,
   Plus,
@@ -794,6 +795,12 @@ function TreeItem({
               <TooltipContent side="right">
                 Item height ({formatDimension(getRotatedDimensions(item).height, displayUnit)}) exceeds drawer height ({formatDimension(drawer.height, displayUnit)})
               </TooltipContent>
+            </Tooltip>
+          )}
+          {item.notes && (
+            <Tooltip>
+              <TooltipTrigger asChild><StickyNote className="h-3 w-3 text-muted-foreground shrink-0" /></TooltipTrigger>
+              <TooltipContent side="right" className="max-w-48 whitespace-pre-wrap">{item.notes}</TooltipContent>
             </Tooltip>
           )}
           <DropdownMenu>
