@@ -38,12 +38,19 @@ import {
 import type { Drawer, Item, ItemRotation, GridfinityConfig, Category } from '@/lib/types'
 import { formatDimension, getCategoryColor } from '@/lib/types'
 
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t
+}
+
 function heightToColor(ratio: number): string {
-  // Blue (0) → cyan → green → amber → red (1)
-  const hue = Math.round(240 - ratio * 240)
-  const chroma = 0.17
-  const lightness = 0.62 + ratio * 0.06  // slightly lighter at the high end
-  return `oklch(${lightness.toFixed(2)} ${chroma} ${hue})`
+  const blue = { r: 0, g: 120, b: 255 }
+  const red  = { r: 255, g: 60,  b: 60 }
+
+  const r = Math.round(lerp(blue.r, red.r, ratio))
+  const g = Math.round(lerp(blue.g, red.g, ratio))
+  const b = Math.round(lerp(blue.b, red.b, ratio))
+
+  return `rgb(${r}, ${g}, ${b})`
 }
 
 function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
