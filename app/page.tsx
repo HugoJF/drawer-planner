@@ -55,6 +55,7 @@ function DashboardContent() {
   const categories = useDrawerStore(s => s.categories)
   const deleteItem = useDrawerStore(s => s.deleteItem)
   const deleteItems = useDrawerStore(s => s.deleteItems)
+  const duplicateItem = useDrawerStore(s => s.duplicateItem)
   const updateItem = useDrawerStore(s => s.updateItem)
   const selectItems = useDrawerStore(s => s.selectItems)
   const moveItem = useDrawerStore(s => s.moveItem)
@@ -101,6 +102,12 @@ function DashboardContent() {
   }, [selectedItemIds, deleteItem, deleteItems])
   useKeyboardShortcut({ key: 'Delete',    enabled: !isFormOpen && hasSelection }, deleteSelected)
   useKeyboardShortcut({ key: 'Backspace', enabled: !isFormOpen && hasSelection }, deleteSelected)
+
+  // Duplicate selected item (single selection)
+  useKeyboardShortcut({ key: 'd', enabled: !isFormOpen && singleSelected }, useCallback(() => {
+    const placed = duplicateItem([...selectedItemIds][0])
+    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+  }, [selectedItemIds, duplicateItem, toast]))
 
   // Edit selected item (single selection)
   useKeyboardShortcut({ key: 'e', enabled: !isFormOpen && singleSelected }, useCallback(() => {

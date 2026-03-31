@@ -13,6 +13,7 @@ const SHORTCUTS = [
   { keys: ['Ctrl', 'F'], description: 'Search items' },
   { keys: ['Ctrl', 'A'], description: 'Select all items in drawer' },
   { keys: ['Delete'], description: 'Delete selected item(s)' },
+  { keys: ['D'], description: 'Duplicate selected item' },
   { keys: ['E'], description: 'Edit selected item' },
   { keys: ['R'], description: 'Rotate selected item' },
   { keys: ['↑ ↓ ← →'], description: 'Move selected item(s) one grid cell' },

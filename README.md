@@ -30,6 +30,7 @@ A visual planner for organizing [Gridfinity](https://www.youtube.com/watch?v=ra_
 | `Ctrl+F` | Search items |
 | `Ctrl+A` | Select all items in drawer |
 | `Delete` / `Backspace` | Delete selected item(s) |
+| `D` | Duplicate selected item |
 | `E` | Edit selected item |
 | `R` | Cycle rotation of selected item |
 | `↑ ↓ ← →` | Move selected item(s) one grid cell |
