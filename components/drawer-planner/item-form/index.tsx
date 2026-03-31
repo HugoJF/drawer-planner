@@ -23,9 +23,10 @@ import {
 import { useDrawerStore } from '@/lib/store'
 import { calculateItemGridDimensions, getRotatedDimensions, getDistinctRotations, getRotationLabel } from '@/lib/gridfinity'
 import { cn } from '@/lib/utils'
-import type { Item, ItemRotation, Category } from '@/lib/types'
-import { ITEM_COLORS, getCategoryColor, toDisplayUnit, fromDisplayUnit } from '@/lib/types'
-import { RotateCw, Plus, Check } from 'lucide-react'
+import type { Item, ItemRotation } from '@/lib/types'
+import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit } from '@/lib/types'
+import { RotateCw } from 'lucide-react'
+import { CategorySelector } from './category-selector'
 
 interface ItemFormProps {
   open: boolean
@@ -36,34 +37,31 @@ interface ItemFormProps {
 }
 
 export function ItemForm({ open, onOpenChange, item, initialPosition, initialGridDimensions }: ItemFormProps) {
-  const config       = useDrawerStore(s => s.config)
-  const drawers      = useDrawerStore(s => s.drawers)
-  const categories   = useDrawerStore(s => s.categories)
+  const config           = useDrawerStore(s => s.config)
+  const drawers          = useDrawerStore(s => s.drawers)
+  const categories       = useDrawerStore(s => s.categories)
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
-  const addItem      = useDrawerStore(s => s.addItem)
-  const updateItem   = useDrawerStore(s => s.updateItem)
-  const addCategory  = useDrawerStore(s => s.addCategory)
+  const addItem          = useDrawerStore(s => s.addItem)
+  const updateItem       = useDrawerStore(s => s.updateItem)
+  const addCategory      = useDrawerStore(s => s.addCategory)
   const isEditing = !!item
 
   const unit = config.displayUnit
 
-  const [name, setName] = useState(item?.name ?? '')
-  const [width, setWidth] = useState(item && item.width > 0 ? toDisplayUnit(item.width, unit).toString() : '')
-  const [height, setHeight] = useState(item && item.height > 0 ? toDisplayUnit(item.height, unit).toString() : '')
-  const [depth, setDepth] = useState(item && item.depth > 0 ? toDisplayUnit(item.depth, unit).toString() : '')
+  const [name, setName]           = useState(item?.name ?? '')
+  const [width, setWidth]         = useState(item && item.width > 0 ? toDisplayUnit(item.width, unit).toString() : '')
+  const [height, setHeight]       = useState(item && item.height > 0 ? toDisplayUnit(item.height, unit).toString() : '')
+  const [depth, setDepth]         = useState(item && item.depth > 0 ? toDisplayUnit(item.depth, unit).toString() : '')
   const [categoryId, setCategoryId] = useState<string | null>(item?.categoryId ?? null)
-  const [rotation, setRotation] = useState<ItemRotation>(item?.rotation ?? 'h-up')
-  const [drawerId, setDrawerId] = useState<string | null>(item?.drawerId ?? selectedDrawerId)
-  const [gridMode, setGridMode] = useState<'auto' | 'manual'>(item?.gridMode ?? (initialGridDimensions ? 'manual' : 'auto'))
+  const [rotation, setRotation]   = useState<ItemRotation>(item?.rotation ?? 'h-up')
+  const [drawerId, setDrawerId]   = useState<string | null>(item?.drawerId ?? selectedDrawerId)
+  const [gridMode, setGridMode]   = useState<'auto' | 'manual'>(item?.gridMode ?? (initialGridDimensions ? 'manual' : 'auto'))
   const [manualCols, setManualCols] = useState(item?.manualGridCols ?? initialGridDimensions?.cols ?? 1)
   const [manualRows, setManualRows] = useState(item?.manualGridRows ?? initialGridDimensions?.rows ?? 1)
-  const [notes, setNotes] = useState(item?.notes ?? '')
-
-  // Inline quick-create state
+  const [notes, setNotes]         = useState(item?.notes ?? '')
   const [newCatName, setNewCatName] = useState('')
   const newCatInputRef = useRef<HTMLInputElement>(null)
 
-  /** Pick the first palette color not already used by an existing category. */
   const nextColor = (): string => {
     const used = new Set(categories.map(c => c.color))
     return ITEM_COLORS.find(c => !used.has(c)) ?? ITEM_COLORS[0]
@@ -154,7 +152,6 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     [widthMm, heightMm, depthMm]
   )
 
-  // Snap stored rotation to the nearest equivalent distinct rotation
   useEffect(() => {
     if (!distinctRotations.includes(rotation)) {
       const currentDims = getRotatedDimensions(previewItem)
@@ -322,60 +319,5 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
         </form>
       </DialogContent>
     </Dialog>
-  )
-}
-
-// ── CategorySelector ──────────────────────────────────────────────────────────
-
-function CategorySelector({ categories, categoryId, onSelect, newCatName, onNewCatNameChange, onCreateCategory, newCatInputRef }: {
-  categories: Category[]
-  categoryId: string | null
-  onSelect: (id: string | null) => void
-  newCatName: string
-  onNewCatNameChange: (v: string) => void
-  onCreateCategory: () => void
-  newCatInputRef: React.RefObject<HTMLInputElement | null>
-}) {
-  return (
-    <div className="rounded-md border border-input bg-background text-sm overflow-hidden">
-      {/* None option */}
-      <button type="button" onClick={() => onSelect(null)}
-        className={cn('w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-accent/50 transition-colors text-left',
-          categoryId === null && 'bg-accent/30')}>
-        <div className="h-3 w-3 rounded-sm shrink-0 border border-border" />
-        <span className="flex-1 text-muted-foreground">None</span>
-        {categoryId === null && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-      </button>
-
-      {/* Existing categories */}
-      {categories.map(cat => (
-        <button key={cat.id} type="button" onClick={() => onSelect(cat.id)}
-          className={cn('w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-accent/50 transition-colors text-left border-t border-border/40',
-            categoryId === cat.id && 'bg-accent/30')}>
-          <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
-          <span className="flex-1 truncate">{cat.name}</span>
-          {categoryId === cat.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-        </button>
-      ))}
-
-      {/* Inline quick-create */}
-      <div className="flex items-center gap-1.5 px-2 py-1.5 border-t border-border/40">
-        <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <input
-          ref={newCatInputRef}
-          type="text"
-          value={newCatName}
-          onChange={e => onNewCatNameChange(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onCreateCategory() } }}
-          placeholder="New category…"
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
-        {newCatName.trim() && (
-          <button type="button" onClick={onCreateCategory} className="text-xs text-primary hover:underline shrink-0">
-            Add
-          </button>
-        )}
-      </div>
-    </div>
   )
 }
