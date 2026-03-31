@@ -335,8 +335,10 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             searchQuery={searchQuery}
             draggedItem={draggedItem}
             allExpanded={allExpanded}
+            selectedDrawerId={selectedDrawerId}
             toggleAll={toggleAll}
             toggleDrawer={toggleDrawer}
+            selectDrawer={selectDrawer}
             toggleCategoryGroup={toggleCategoryGroup}
             onAddDrawer={onAddDrawer}
             onEditDrawer={onEditDrawer}
@@ -402,15 +404,15 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 function DrawersTab({
   filteredDrawers, filteredItemsByDrawer, filteredUnassigned, drawers, categories,
   effectiveExpanded, isCategoryGroupOpen, sortMode, setSortMode, searchTerm,
-  searchQuery, draggedItem, allExpanded, toggleAll, toggleDrawer, toggleCategoryGroup,
+  searchQuery, draggedItem, allExpanded, selectedDrawerId, toggleAll, toggleDrawer, selectDrawer, toggleCategoryGroup,
   onAddDrawer, onEditDrawer, duplicateDrawer, onEditCategory, onDeleteCategory, setPendingDelete,
   handleDragOver, handleDropOnDrawer, itemProps, config,
 }: {
   filteredDrawers: Drawer[]; filteredItemsByDrawer: Map<string, Item[]>; filteredUnassigned: Item[]
   drawers: Drawer[]; categories: Category[]; effectiveExpanded: Set<string>
   isCategoryGroupOpen: (groupKey: string, categoryId: string | null) => boolean; sortMode: SortMode; setSortMode: (m: SortMode) => void
-  searchTerm: string; searchQuery: string; draggedItem: string | null; allExpanded: boolean
-  toggleAll: () => void; toggleDrawer: (id: string) => void; toggleCategoryGroup: (key: string) => void
+  searchTerm: string; searchQuery: string; draggedItem: string | null; allExpanded: boolean; selectedDrawerId: string | null
+  toggleAll: () => void; toggleDrawer: (id: string) => void; selectDrawer: (id: string) => void; toggleCategoryGroup: (key: string) => void
   onAddDrawer: () => void; onEditDrawer: (d: Drawer) => void; duplicateDrawer: (id: string) => void
   onEditCategory: (cat: Category) => void; onDeleteCategory: (cat: Category) => void
   setPendingDelete: (v: { type: 'drawer' | 'item' | 'category'; id: string; name: string } | null) => void
@@ -468,7 +470,7 @@ function DrawersTab({
           {filteredDrawers.map(drawer => {
             const drawerItems = sortItems(filteredItemsByDrawer.get(drawer.id) ?? [], sortMode, config)
             const isExpanded = effectiveExpanded.has(drawer.id)
-            const isSelected = false // drawers don't have a selected state in the tree header
+            const isSelected = drawer.id === selectedDrawerId
             const hasOversizedItems = drawerItems.some(item => isItemOversized(item, drawer))
 
             // Group items within this drawer by category
@@ -493,7 +495,7 @@ function DrawersTab({
                   <ContextMenuTrigger asChild>
                     <div
                       className={cn('group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer hover:bg-accent/50 transition-colors', isSelected && 'bg-accent', draggedItem && 'transition-all')}
-                      onClick={() => toggleDrawer(drawer.id)}
+                      onClick={() => { selectDrawer(drawer.id); if (!isExpanded) toggleDrawer(drawer.id) }}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDropOnDrawer(e, drawer.id)}
                     >
