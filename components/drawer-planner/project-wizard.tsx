@@ -21,7 +21,9 @@ export function ProjectWizard() {
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      return
+    }
     const reader = new FileReader()
     reader.onload = (event) => {
       try {
@@ -42,7 +44,9 @@ export function ProjectWizard() {
       }
     }
     reader.readAsText(file)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   return (

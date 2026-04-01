@@ -10,8 +10,12 @@ export interface ShortcutOptions {
 
 export function useKeyboardShortcut(shortcut: ShortcutOptions, callback: () => void) {
   const handler = useCallback((e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-    if (shortcut.enabled === false) return
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return
+    }
+    if (shortcut.enabled === false) {
+      return
+    }
     const ctrlMatch = shortcut.ctrl ? (e.ctrlKey || e.metaKey) : (!e.ctrlKey && !e.metaKey)
     const shiftMatch = shortcut.shift ? e.shiftKey : !e.shiftKey
     const altMatch = shortcut.alt ? e.altKey : !e.altKey

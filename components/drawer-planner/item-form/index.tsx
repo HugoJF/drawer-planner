@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo, useEffect } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -31,9 +31,9 @@ import { CategorySelector } from './category-selector'
 interface ItemFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  item?: Item | null
-  initialPosition?: { gridX: number; gridY: number } | null
-  initialGridDimensions?: { cols: number; rows: number } | null
+  item: Item | null
+  initialPosition: { gridX: number; gridY: number } | null
+  initialGridDimensions: { cols: number; rows: number } | null
 }
 
 export function ItemForm({ open, onOpenChange, item, initialPosition, initialGridDimensions }: ItemFormProps) {
@@ -68,9 +68,26 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
   const hasPhysical = widthMm > 0 && depthMm > 0
 
+  const distinctRotations = useMemo(
+    () => getDistinctRotations({ width: widthMm, height: heightMm, depth: depthMm } as Item),
+    [widthMm, heightMm, depthMm]
+  )
+
+  const effectiveRotation = useMemo(() => {
+    if (distinctRotations.includes(rotation)) {
+      return rotation
+    }
+    const dimKey = (r: ItemRotation) => {
+      const d = getRotatedDimensions({ width: widthMm, height: heightMm, depth: depthMm } as Item, r)
+      return `${d.width}|${d.depth}|${d.height}`
+    }
+    const currentKey = dimKey(rotation)
+    return distinctRotations.find(r => dimKey(r) === currentKey) ?? distinctRotations[0]
+  }, [distinctRotations, rotation, widthMm, heightMm, depthMm])
+
   const previewItem: Item = {
     id: 'preview', name, width: widthMm, height: heightMm, depth: depthMm,
-    categoryId, rotation, drawerId: null, gridX: 0, gridY: 0, gridMode,
+    categoryId, rotation: effectiveRotation, drawerId: null, gridX: 0, gridY: 0, gridMode,
     manualGridCols: manualCols, manualGridRows: manualRows, locked: false,
   }
 
@@ -79,24 +96,6 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     : null
 
   const rotatedDims = hasPhysical ? getRotatedDimensions(previewItem) : null
-
-  const distinctRotations = useMemo(
-    () => getDistinctRotations(previewItem),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [widthMm, heightMm, depthMm]
-  )
-
-  useEffect(() => {
-    if (!distinctRotations.includes(rotation)) {
-      const currentDims = getRotatedDimensions(previewItem)
-      const currentKey = `${currentDims.width}|${currentDims.depth}|${currentDims.height}`
-      const match = distinctRotations.find(r => {
-        const d = getRotatedDimensions(previewItem, r)
-        return `${d.width}|${d.depth}|${d.height}` === currentKey
-      })
-      setRotation(match ?? distinctRotations[0])
-    }
-  }, [distinctRotations, rotation, previewItem])
 
   const autoInvalid = gridMode === 'auto' && (!width || !height || !depth)
 
@@ -107,7 +106,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
   const handleCreateCategory = () => {
     const trimmed = newCatName.trim()
-    if (!trimmed) return
+    if (!trimmed) {
+      return
+    }
     const id = addCategory(trimmed, nextColor())
     setCategoryId(id)
     setNewCatName('')
@@ -130,7 +131,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim()) {
+      return
+    }
 
     const widthDisplay  = parseFloat(width)
     const heightDisplay = parseFloat(height)
@@ -150,7 +153,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
       height: heightMm,
       depth: depthMm,
       categoryId,
-      rotation,
+      rotation: effectiveRotation,
       drawerId,
       gridMode,
       manualGridCols: manualCols,
@@ -235,7 +238,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
             </div>
             <div className="space-y-2">
               <Label>Rotation</Label>
-              <Select value={rotation} onValueChange={v => setRotation(v as ItemRotation)}>
+              <Select value={effectiveRotation} onValueChange={v => setRotation(v as ItemRotation)}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {distinctRotations.map(r => (

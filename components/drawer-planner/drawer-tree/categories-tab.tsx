@@ -41,11 +41,15 @@ export function CategoriesTab({
   onDeleteCategory, itemProps, config,
 }: CategoriesTabProps) {
   const filteredItemsByCategory = useMemo<Map<string | null, Item[]>>(() => {
-    if (!searchTerm) return itemsByCategory
+    if (!searchTerm) {
+      return itemsByCategory
+    }
     const result = new Map<string | null, Item[]>()
     for (const [key, items] of itemsByCategory) {
       const filtered = items.filter(i => i.name.toLowerCase().includes(searchTerm))
-      if (filtered.length) result.set(key, filtered)
+      if (filtered.length) {
+        result.set(key, filtered)
+      }
     }
     return result
   }, [searchTerm, itemsByCategory])
@@ -54,7 +58,9 @@ export function CategoriesTab({
 
   const renderCategoryGroup = (categoryId: string | null, label: string, color: string) => {
     const items = filteredItemsByCategory.get(categoryId)
-    if (!items) return null
+    if (!items) {
+      return null
+    }
     const groupKey = `cat:${categoryId ?? 'null'}`
     const isOpen = isCategoryGroupOpen(groupKey, categoryId)
     const category = categories.find(c => c.id === categoryId) ?? null

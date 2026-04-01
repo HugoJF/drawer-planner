@@ -89,7 +89,9 @@ export function SettingsPanel() {
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      return
+    }
 
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -131,14 +133,18 @@ export function SettingsPanel() {
   }
 
   const handleConflictReplace = () => {
-    if (!pendingImport?.projectId) return
+    if (!pendingImport?.projectId) {
+      return
+    }
     applyImport(pendingImport, pendingImport.projectId)
     setConflictOpen(false)
     setPendingImport(null)
   }
 
   const handleConflictAsNew = () => {
-    if (!pendingImport) return
+    if (!pendingImport) {
+      return
+    }
     const projectData: ProjectData = {
       config: { ...DEFAULT_CONFIG, ...pendingImport.config },
       drawers: pendingImport.drawers,

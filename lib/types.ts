@@ -35,7 +35,9 @@ export interface Category {
 export const UNCATEGORIZED_COLOR = '#94a3b8'
 
 export function getCategoryColor(categoryId: string | null, categories: Category[]): string {
-  if (!categoryId) return UNCATEGORIZED_COLOR
+  if (!categoryId) {
+    return UNCATEGORIZED_COLOR
+  }
   return categories.find(c => c.id === categoryId)?.color ?? UNCATEGORIZED_COLOR
 }
 

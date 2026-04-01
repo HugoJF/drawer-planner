@@ -117,10 +117,14 @@ export function DrawersTab({
             }
             for (const cat of categories) {
               const items = groupMap.get(cat.id)
-              if (items) categoryGroups.push({ categoryId: cat.id, label: cat.name, color: cat.color, items })
+              if (items) {
+                categoryGroups.push({ categoryId: cat.id, label: cat.name, color: cat.color, items })
+              }
             }
             const uncategorized = groupMap.get(null)
-            if (uncategorized) categoryGroups.push({ categoryId: null, label: 'Uncategorized', color: getCategoryColor(null, categories), items: uncategorized })
+            if (uncategorized) {
+              categoryGroups.push({ categoryId: null, label: 'Uncategorized', color: getCategoryColor(null, categories), items: uncategorized })
+            }
 
             return (
               <Collapsible key={drawer.id} open={isExpanded} onOpenChange={() => toggleDrawer(drawer.id)}>

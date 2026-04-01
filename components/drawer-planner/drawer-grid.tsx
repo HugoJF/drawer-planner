@@ -142,7 +142,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const map = new Map<string, string>() // "x,y" -> itemId
     const draggingIds = new Set(dragState?.itemOffsets.map(o => o.id) ?? [])
     items.forEach(item => {
-      if (draggingIds.has(item.id)) return // skip all co-dragged items
+      if (draggingIds.has(item.id)) {
+        return // skip all co-dragged items
+      }
       const dims = calculateItemGridDimensions(item, config)
       for (let x = item.gridX; x < item.gridX + dims.gridWidth; x++) {
         for (let y = item.gridY; y < item.gridY + dims.gridDepth; y++) {
@@ -156,7 +158,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const cellStep = CELL_SIZE + 1 // cell width + 1px gap
 
   const computeDropPosition = useCallback((clientX: number, clientY: number) => {
-    if (!dragState || !gridRef.current) return null
+    if (!dragState || !gridRef.current) {
+      return null
+    }
     const gridRect = gridRef.current.getBoundingClientRect()
     const cellX = Math.round((clientX - gridRect.left - dragState.grabPxX) / cellStep)
     const cellY = Math.round((clientY - gridRect.top  - dragState.grabPxY) / cellStep)
@@ -170,7 +174,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     const pos = computeDropPosition(e.clientX, e.clientY)
-    if (pos) setDropTarget(pos)
+    if (pos) {
+      setDropTarget(pos)
+    }
   }, [computeDropPosition])
 
   const handleGridDragLeave = useCallback((e: React.DragEvent) => {
@@ -277,7 +283,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       if (el.dataset.itemId) {
         const found = items.find(i => i.id === el!.dataset.itemId) ?? null
         setContextItem(found)
-        if (found && !selectedItemIds.has(found.id)) selectItem(found.id)
+        if (found && !selectedItemIds.has(found.id)) {
+          selectItem(found.id)
+        }
         return
       }
       el = el.parentElement
@@ -286,7 +294,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   }, [items, selectedItemIds, selectItem])
 
   const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!resizeState) return
+    if (!resizeState) {
+      return
+    }
     const dx = Math.round((e.clientX - resizeState.startMouseX) / cellStep)
     const dy = Math.round((e.clientY - resizeState.startMouseY) / cellStep)
     const newW = Math.max(1, resizeState.startGridWidth + (resizeState.handle !== 's' ? dx : 0))
@@ -308,7 +318,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       setResizeState(null)
       return
     }
-    if (!drawState) return
+    if (!drawState) {
+      return
+    }
     const gx = Math.min(drawState.startX, drawState.endX)
     const gy = Math.min(drawState.startY, drawState.endY)
     const cols = Math.abs(drawState.endX - drawState.startX) + 1
@@ -324,18 +336,26 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   const handleGridMouseDown = useCallback((e: React.MouseEvent) => {
     const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
-    if (!target || dragState || resizeState) return
+    if (!target || dragState || resizeState) {
+      return
+    }
     const gx = parseInt(target.dataset.gx!)
     const gy = parseInt(target.dataset.gy!)
-    if (occupancyMap.has(`${gx},${gy}`)) return
+    if (occupancyMap.has(`${gx},${gy}`)) {
+      return
+    }
     e.preventDefault()
     setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
   }, [dragState, resizeState, occupancyMap])
 
   const handleGridMouseOver = useCallback((e: React.MouseEvent) => {
-    if (!drawState) return
+    if (!drawState) {
+      return
+    }
     const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
-    if (!target) return
+    if (!target) {
+      return
+    }
     const gx = parseInt(target.dataset.gx!)
     const gy = parseInt(target.dataset.gy!)
     setDrawState(s => s ? { ...s, endX: gx, endY: gy } : null)
@@ -426,7 +446,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           {/* Drag ghost overlays — all co-dragged items follow the drop target */}
           {dragState && dropTarget && dragState.itemOffsets.map(({ id, dx, dy }) => {
             const di = items.find(i => i.id === id)
-            if (!di) return null
+            if (!di) {
+              return null
+            }
             const diDims = calculateItemGridDimensions(di, config)
             const w = diDims.gridWidth * CELL_SIZE + (diDims.gridWidth - 1)
             const h = diDims.gridDepth * CELL_SIZE + (diDims.gridDepth - 1)
@@ -450,7 +472,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           {/* Resize ghost overlay */}
           {resizeState && (() => {
             const item = items.find(i => i.id === resizeState.itemId)
-            if (!item) return null
+            if (!item) {
+              return null
+            }
             const w = resizeState.previewWidth * CELL_SIZE + (resizeState.previewWidth - 1)
             const h = resizeState.previewDepth * CELL_SIZE + (resizeState.previewDepth - 1)
             return (
@@ -726,7 +750,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               onEdit={() => onEditItem(contextItem)}
               onDuplicate={() => {
                 const placed = duplicateItem(contextItem.id)
-                if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+                if (!placed) {
+                  toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+                }
               }}
               onToggleLock={() => updateItem({ ...contextItem, locked: !contextItem.locked })}
               onDelete={() => setPendingDelete({ type: 'item', id: contextItem.id, name: contextItem.name })}
@@ -758,10 +784,16 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         type={pendingDelete?.type ?? 'item'}
         name={pendingDelete?.name ?? ''}
         onConfirm={(deleteContents) => {
-          if (!pendingDelete) return
-          if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id, deleteContents)
-          else if (pendingDelete.ids) deleteItems(pendingDelete.ids)
-          else deleteItem(pendingDelete.id)
+          if (!pendingDelete) {
+            return
+          }
+          if (pendingDelete.type === 'drawer') {
+            deleteDrawer(pendingDelete.id, deleteContents)
+          } else if (pendingDelete.ids) {
+            deleteItems(pendingDelete.ids)
+          } else {
+            deleteItem(pendingDelete.id)
+          }
           setPendingDelete(null)
         }}
         onCancel={() => setPendingDelete(null)}

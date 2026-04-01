@@ -62,7 +62,9 @@ function DashboardContent() {
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window === 'undefined') return 288
+    if (typeof window === 'undefined') {
+      return 288
+    }
     return parseInt(localStorage.getItem('sidebarWidth') ?? '288', 10)
   })
   const [drawerFormOpen, setDrawerFormOpen] = useState(false)
@@ -105,8 +107,9 @@ function DashboardContent() {
 
   // Select all items in the current drawer
   useKeyboardShortcut({ ...SHORTCUTS.selectAll, enabled: !isFormOpen }, useCallback(() => {
-    if (selectedDrawerId)
+    if (selectedDrawerId) {
       selectItems(allItems.filter(i => i.drawerId === selectedDrawerId).map(i => i.id))
+    }
   }, [selectedDrawerId, allItems, selectItems]))
 
   // Open keyboard shortcuts cheatsheet
@@ -122,7 +125,9 @@ function DashboardContent() {
   // Paste clipboard items into the active drawer
   useKeyboardShortcut({ ...SHORTCUTS.paste, enabled: !isFormOpen }, useCallback(() => {
     const items = clipboard.current
-    if (!items.length || !selectedDrawerId || !selectedDrawer) return
+    if (!items.length || !selectedDrawerId || !selectedDrawer) {
+      return
+    }
 
     // Normalize positions relative to the group's top-left corner
     const minX = Math.min(...items.map(i => i.gridX))
@@ -141,7 +146,9 @@ function DashboardContent() {
     // Build occupied-cell set from items already in this drawer
     const occupied = new Set<string>()
     for (const item of allItems) {
-      if (item.drawerId !== selectedDrawerId) continue
+      if (item.drawerId !== selectedDrawerId) {
+        continue
+      }
       const d = calculateItemGridDimensions(item, config)
       for (let x = item.gridX; x < item.gridX + d.gridWidth; x++)
         for (let y = item.gridY; y < item.gridY + d.gridDepth; y++)
@@ -157,7 +164,9 @@ function DashboardContent() {
           const rx = item.gridX - minX, ry = item.gridY - minY
           for (let x = ox + rx; x < ox + rx + d.gridWidth; x++)
             for (let y = oy + ry; y < oy + ry + d.gridDepth; y++)
-              if (occupied.has(`${x},${y}`)) return false
+              if (occupied.has(`${x},${y}`)) {
+                return false
+              }
           return true
         })
         if (clear) { origin = { x: ox, y: oy }; break outer }
@@ -174,7 +183,9 @@ function DashboardContent() {
       gridY: oy + (item.gridY - minY),
     })))
 
-    if (!origin) toast({ title: 'No space available', description: 'Items pasted at origin — check for overlaps.' })
+    if (!origin) {
+      toast({ title: 'No space available', description: 'Items pasted at origin — check for overlaps.' })
+    }
   }, [selectedDrawerId, selectedDrawer, allItems, config, addItems, toast]))
 
   // Delete selected item(s)
@@ -188,13 +199,17 @@ function DashboardContent() {
   // Duplicate selected item (single selection)
   useKeyboardShortcut({ ...SHORTCUTS.duplicate, enabled: !isFormOpen && singleSelected }, useCallback(() => {
     const placed = duplicateItem([...selectedItemIds][0])
-    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+    if (!placed) {
+      toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+    }
   }, [selectedItemIds, duplicateItem, toast]))
 
   // Edit selected item (single selection)
   useKeyboardShortcut({ ...SHORTCUTS.edit, enabled: !isFormOpen && singleSelected }, useCallback(() => {
     const item = allItems.find(i => i.id === [...selectedItemIds][0])
-    if (!item) return
+    if (!item) {
+      return
+    }
     setEditingItem(item)
     setNewItemPosition(null)
     setItemFormOpen(true)
@@ -203,15 +218,21 @@ function DashboardContent() {
   // Cycle rotation of selected item (single selection)
   useKeyboardShortcut({ ...SHORTCUTS.rotate, enabled: !isFormOpen && singleSelected }, useCallback(() => {
     const item = allItems.find(i => i.id === [...selectedItemIds][0])
-    if (!item) return
+    if (!item) {
+      return
+    }
     updateItem({ ...item, ...applyNextRotation(item) })
   }, [allItems, selectedItemIds, updateItem]))
 
   // Move selected item(s) by one grid cell, clamped to drawer bounds
   const moveSelected = useCallback((dx: number, dy: number) => {
-    if (!selectedDrawer) return
+    if (!selectedDrawer) {
+      return
+    }
     const drawerItems = allItems.filter(i => selectedItemIds.has(i.id) && i.drawerId === selectedDrawerId)
-    if (drawerItems.length === 0) return
+    if (drawerItems.length === 0) {
+      return
+    }
     const clampedPos = (item: Item, dx: number, dy: number) => {
       const dims = calculateItemGridDimensions(item, config)
       return {
@@ -241,7 +262,9 @@ function DashboardContent() {
     const startWidth = sidebarWidth
 
     const onMove = (e: MouseEvent) => {
-      if (!isResizing.current) return
+      if (!isResizing.current) {
+        return
+      }
       const width = Math.min(480, Math.max(180, startWidth + e.clientX - startX))
       setSidebarWidth(width)
     }
@@ -288,7 +311,9 @@ function DashboardContent() {
     setItemFormOpen(true)
   }
 
-  if (projects.length === 0) return <ProjectWizard />
+  if (projects.length === 0) {
+    return <ProjectWizard />
+  }
 
   return (
     <div className="flex h-screen bg-background">

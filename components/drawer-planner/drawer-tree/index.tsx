@@ -59,7 +59,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const { toast } = useToast()
   const handleDuplicateItem = useCallback((id: string) => {
     const placed = duplicateItem(id)
-    if (!placed) toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+    if (!placed) {
+      toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+    }
   }, [duplicateItem, toast])
 
   useKeyboardShortcut(SHORTCUTS.search, () => {
@@ -75,7 +77,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     const byCategory = new Map<string | null, Item[]>()
 
     for (const item of allItems) {
-      if (item.drawerId === null) unassigned.push(item)
+      if (item.drawerId === null) {
+        unassigned.push(item)
+      }
       else {
         const list = byDrawer.get(item.drawerId) ?? []
         list.push(item)
@@ -91,7 +95,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const searchTerm = searchQuery.toLowerCase().trim()
 
   const { filteredDrawers, filteredItemsByDrawer, filteredUnassigned } = useMemo(() => {
-    if (!searchTerm) return { filteredDrawers: drawers, filteredItemsByDrawer: itemsByDrawer, filteredUnassigned: unassignedItems }
+    if (!searchTerm) {
+      return { filteredDrawers: drawers, filteredItemsByDrawer: itemsByDrawer, filteredUnassigned: unassignedItems }
+    }
     const newItemsByDrawer = new Map<string, Item[]>()
     const matchingDrawers: typeof drawers = []
     for (const drawer of drawers) {
@@ -101,7 +107,10 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
         matchingDrawers.push(drawer)
       } else {
         const matching = drawerItems.filter(i => i.name.toLowerCase().includes(searchTerm))
-        if (matching.length > 0) { newItemsByDrawer.set(drawer.id, matching); matchingDrawers.push(drawer) }
+        if (matching.length > 0) {
+          newItemsByDrawer.set(drawer.id, matching)
+          matchingDrawers.push(drawer)
+        }
       }
     }
     return {
@@ -112,7 +121,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   }, [searchTerm, drawers, itemsByDrawer, unassignedItems])
 
   const effectiveExpanded = useMemo(() => {
-    if (!searchTerm) return expandedDrawers
+    if (!searchTerm) {
+      return expandedDrawers
+    }
     return new Set(filteredDrawers.map(d => d.id))
   }, [searchTerm, filteredDrawers, expandedDrawers])
 
@@ -137,8 +148,12 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
   const categoryExpansion = config.categoryExpansion ?? 'none'
   const isCategoryGroupOpen = useCallback((groupKey: string, categoryId: string | null): boolean => {
-    if (categoryExpansion === 'all') return true
-    if (categoryExpansion === 'categorized') return categoryId !== null
+    if (categoryExpansion === 'all') {
+      return true
+    }
+    if (categoryExpansion === 'categorized') {
+      return categoryId !== null
+    }
     return expandedCategoryGroups.has(groupKey)
   }, [categoryExpansion, expandedCategoryGroups])
 
@@ -155,7 +170,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const handleDropOnDrawer = (e: React.DragEvent, drawerId: string | null) => {
     e.preventDefault()
     const itemId = e.dataTransfer.getData('text/plain')
-    if (itemId) moveItem(itemId, drawerId, 0, 0)
+    if (itemId) {
+      moveItem(itemId, drawerId, 0, 0)
+    }
     setDraggedItem(null)
   }
 
@@ -191,7 +208,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const openAddCategory = () => { setEditingCategory(null); setCategoryFormOpen(true) }
   const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryFormOpen(true) }
   const handleCategoryFormSave = (name: string, color: string) => {
-    if (editingCategory) updateCategory({ ...editingCategory, name, color })
+    if (editingCategory) {
+      updateCategory({ ...editingCategory, name, color })
+    }
     else addCategory(name, color)
   }
 
@@ -302,10 +321,16 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
         type={pendingDelete?.type === 'category' ? 'item' : (pendingDelete?.type ?? 'item')}
         name={pendingDelete?.name ?? ''}
         onConfirm={(deleteContents) => {
-          if (!pendingDelete) return
-          if (pendingDelete.type === 'drawer') deleteDrawer(pendingDelete.id, deleteContents)
-          else if (pendingDelete.type === 'item') deleteItem(pendingDelete.id)
-          else if (pendingDelete.type === 'category') deleteCategory(pendingDelete.id)
+          if (!pendingDelete) {
+            return
+          }
+          if (pendingDelete.type === 'drawer') {
+            deleteDrawer(pendingDelete.id, deleteContents)
+          } else if (pendingDelete.type === 'item') {
+            deleteItem(pendingDelete.id)
+          } else if (pendingDelete.type === 'category') {
+            deleteCategory(pendingDelete.id)
+          }
           setPendingDelete(null)
         }}
         onCancel={() => setPendingDelete(null)}

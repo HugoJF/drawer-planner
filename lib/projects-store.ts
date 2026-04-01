@@ -9,9 +9,13 @@ import { generateId } from '@/lib/gridfinity'
 // ---- Plain localStorage helpers (not Zustand state) ----
 
 export function getProjectData(id: string): ProjectData | null {
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined') {
+    return null
+  }
   const raw = localStorage.getItem(`gdp-project-${id}`)
-  if (!raw) return null
+  if (!raw) {
+    return null
+  }
   try {
     return JSON.parse(raw) as ProjectData
   } catch {
@@ -20,12 +24,16 @@ export function getProjectData(id: string): ProjectData | null {
 }
 
 export function saveProjectData(id: string, data: ProjectData): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') {
+    return
+  }
   localStorage.setItem(`gdp-project-${id}`, JSON.stringify(data))
 }
 
 function removeProjectData(id: string): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') {
+    return
+  }
   localStorage.removeItem(`gdp-project-${id}`)
 }
 
@@ -87,7 +95,9 @@ const projectsStoreInstance = createStore<ProjectsStore>()(
 
       switchProject: (id) => {
         const { activeProjectId } = get()
-        if (id === activeProjectId) return
+        if (id === activeProjectId) {
+          return
+        }
         _isSwitching = true
         try {
           // Save current project before switching
@@ -146,7 +156,9 @@ const projectsStoreInstance = createStore<ProjectsStore>()(
     {
       name: 'gdp-projects-meta',
       onRehydrateStorage: () => (state) => {
-        if (!state) return
+        if (!state) {
+          return
+        }
         // Migration: if no projects exist, attempt to load from the old single-project key
         if (state.projects.length === 0 && typeof window !== 'undefined') {
           const raw = localStorage.getItem('gridfinity-drawer-planner')
@@ -187,7 +199,9 @@ const projectsStoreInstance = createStore<ProjectsStore>()(
 // ---- Module-level sync subscriber ----
 // Fires on every drawer store mutation; skipped during project switches
 drawerStore.subscribe((state, prev) => {
-  if (_isSwitching) return
+  if (_isSwitching) {
+    return
+  }
   if (
     state.drawers === prev.drawers &&
     state.items === prev.items &&
@@ -196,7 +210,9 @@ drawerStore.subscribe((state, prev) => {
   ) return
 
   const { activeProjectId, projects } = projectsStoreInstance.getState()
-  if (!activeProjectId) return
+  if (!activeProjectId) {
+    return
+  }
 
   saveProjectData(activeProjectId, {
     config: state.config,

@@ -16,7 +16,9 @@ export function oneTo2(raw: StateV1): StateV2 {
     version: 2,
     items: (raw.items ?? []).map((i) => {
       const item = i as Record<string, unknown>
-      if (item.gridMode !== undefined) return item
+      if (item.gridMode !== undefined) {
+        return item
+      }
       return { ...item, gridMode: 'auto' }
     }),
   }

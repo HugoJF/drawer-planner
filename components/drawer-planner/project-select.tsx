@@ -29,9 +29,15 @@ function relativeTime(iso: string): string {
   const m = ms / 60000
   const h = m / 60
   const d = h / 24
-  if (d >= 1) return `${Math.floor(d)}d ago`
-  if (h >= 1) return `${Math.floor(h)}h ago`
-  if (m >= 1) return `${Math.floor(m)}m ago`
+  if (d >= 1) {
+    return `${Math.floor(d)}d ago`
+  }
+  if (h >= 1) {
+    return `${Math.floor(h)}h ago`
+  }
+  if (m >= 1) {
+    return `${Math.floor(m)}m ago`
+  }
   return 'just now'
 }
 
@@ -95,11 +101,15 @@ export function ProjectSelect() {
   }
 
   const handleDeleteConfirm = () => {
-    if (activeProjectId) deleteProject(activeProjectId)
+    if (activeProjectId) {
+      deleteProject(activeProjectId)
+    }
     setDeleteOpen(false)
   }
 
-  if (!activeProjectId) return null
+  if (!activeProjectId) {
+    return null
+  }
 
   return (
     <>

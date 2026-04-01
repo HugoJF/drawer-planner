@@ -15,7 +15,9 @@ export const SORT_LABELS: Record<SortMode, string> = {
 }
 
 export function sortItems(items: Item[], mode: SortMode, config: GridfinityConfig): Item[] {
-  if (mode === 'insertion') return items
+  if (mode === 'insertion') {
+    return items
+  }
   return [...items].sort((a, b) => {
     switch (mode) {
       case 'name': return a.name.localeCompare(b.name)

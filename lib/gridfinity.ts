@@ -91,7 +91,9 @@ const ROTATION_BASE_NAMES: Record<ItemRotation, string> = {
  */
 export function getRotationLabel(rotation: ItemRotation, item: Item, config: GridfinityConfig): string {
   const base = ROTATION_BASE_NAMES[rotation]
-  if (item.width <= 0 || item.height <= 0 || item.depth <= 0) return base
+  if (item.width <= 0 || item.height <= 0 || item.depth <= 0) {
+    return base
+  }
   const d = getRotatedDimensions(item, rotation)
   const cols = Math.ceil(d.width / config.cellSize)
   const rows = Math.ceil(d.depth / config.cellSize)
@@ -111,7 +113,9 @@ export function applyNextRotation(item: Item): Partial<Item> {
     const d = getRotatedDimensions(item, r)
     return `${d.width}|${d.depth}|${d.height}` === currentKey
   })
-  if (idx === -1) idx = 0
+  if (idx === -1) {
+    idx = 0
+  }
   const next = distinct[(idx + 1) % distinct.length]
 
   const isManual = item.gridMode === 'manual'
@@ -165,9 +169,13 @@ export function calculateItemGridDimensions(
  * Only relevant in manual mode with known dimensions.
  */
 export function isItemFootprintOverflow(item: Item, config: GridfinityConfig): boolean {
-  if (item.gridMode === 'auto') return false
+  if (item.gridMode === 'auto') {
+    return false
+  }
   const rotated = getRotatedDimensions(item)
-  if (rotated.width <= 0 || rotated.depth <= 0) return false
+  if (rotated.width <= 0 || rotated.depth <= 0) {
+    return false
+  }
   return (
     rotated.width > (item.manualGridCols ?? 1) * config.cellSize ||
     rotated.depth > (item.manualGridRows ?? 1) * config.cellSize
@@ -194,7 +202,9 @@ export function findAvailablePosition(
 ): { gridX: number; gridY: number } | null {
   const occupied = new Set<string>()
   for (const other of existingItems) {
-    if (other.drawerId !== drawer.id) continue
+    if (other.drawerId !== drawer.id) {
+      continue
+    }
     const d = calculateItemGridDimensions(other, config)
     for (let x = other.gridX; x < other.gridX + d.gridWidth; x++) {
       for (let y = other.gridY; y < other.gridY + d.gridDepth; y++) {
@@ -210,7 +220,9 @@ export function findAvailablePosition(
           if (occupied.has(`${x + dx},${y + dy}`)) { fits = false; break outer }
         }
       }
-      if (fits) return { gridX: x, gridY: y }
+      if (fits) {
+        return { gridX: x, gridY: y }
+      }
     }
   }
   return null
@@ -244,7 +256,9 @@ export function checkOverlap(
   item2: Item,
   config: GridfinityConfig
 ): boolean {
-  if (item1.drawerId !== item2.drawerId || !item1.drawerId) return false
+  if (item1.drawerId !== item2.drawerId || !item1.drawerId) {
+    return false
+  }
   
   const dims1 = calculateItemGridDimensions(item1, config)
   const dims2 = calculateItemGridDimensions(item2, config)

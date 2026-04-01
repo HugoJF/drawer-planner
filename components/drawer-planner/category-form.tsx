@@ -32,7 +32,9 @@ export function CategoryForm({ open, onOpenChange, category, defaultColor, onSav
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim()) {
+      return
+    }
     onSave(name.trim(), color)
     onOpenChange(false)
   }

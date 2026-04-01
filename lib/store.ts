@@ -102,7 +102,11 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           selectItem: (id) => set({ selectedItemIds: id ? new Set([id]) : new Set() }),
           toggleItemSelection: (id) => set((state) => {
             const next = new Set(state.selectedItemIds)
-            if (next.has(id)) next.delete(id); else next.add(id)
+            if (next.has(id)) {
+              next.delete(id)
+            } else {
+              next.add(id)
+            }
             return { selectedItemIds: next }
           }),
           selectItems: (ids) => set({ selectedItemIds: new Set(ids) }),
@@ -163,7 +167,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             push()
             const state = get()
             const src = state.drawers.find((d) => d.id === id)
-            if (!src) return
+            if (!src) {
+              return
+            }
             const newId = generateId()
             const newDrawer: Drawer = { ...src, id: newId, name: `${src.name} (copy)` }
             const newItems = state.items
@@ -186,7 +192,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           },
 
           addItems: (items) => {
-            if (items.length === 0) return
+            if (items.length === 0) {
+              return
+            }
             push()
             const newItems = items.map(item => ({ locked: false, ...item, id: generateId() }))
             set((state) => ({
@@ -233,7 +241,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             push()
             const state = get()
             const src = state.items.find((i) => i.id === id)
-            if (!src) return false
+            if (!src) {
+              return false
+            }
             const drawer = src.drawerId
               ? state.drawers.find((d) => d.id === src.drawerId)
               : null
@@ -319,7 +329,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
 
           undo: () => {
             const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
-            if (past.length === 0) return
+            if (past.length === 0) {
+              return
+            }
             const prev = past[past.length - 1]
             set({
               past: past.slice(0, -1),
@@ -335,7 +347,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
 
           redo: () => {
             const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
-            if (future.length === 0) return
+            if (future.length === 0) {
+              return
+            }
             const next = future[0]
             set({
               future: future.slice(1),
@@ -352,7 +366,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           jumpToHistory: (index) => {
             const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
             const target = past[index]
-            if (!target) return
+            if (!target) {
+              return
+            }
             const current = { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
             set({
               past: past.slice(0, index),
@@ -369,7 +385,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           jumpToFuture: (index) => {
             const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
             const target = future[index]
-            if (!target) return
+            if (!target) {
+              return
+            }
             const current = { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
             set({
               past: [...past, current, ...future.slice(0, index)].slice(-50),

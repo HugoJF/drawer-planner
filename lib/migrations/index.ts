@@ -12,7 +12,9 @@ export function migrate(raw: RawInput): MigratedState {
     state = { ...nullTo1(state as StateV0) }
   }
 
-  if ((state.version as number) < 2) state = { ...oneTo2(state as StateV1) }
+  if ((state.version as number) < 2) {
+    state = { ...oneTo2(state as StateV1) }
+  }
 
   return state as MigratedState
 }
