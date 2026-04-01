@@ -31,6 +31,8 @@ export const SHORTCUTS = {
   selectAll: { key: 'a', ctrl: true,              description: 'Select all in drawer' },
   delete:    { key: 'Delete',                     description: 'Delete selected item(s)' },
   backspace: { key: 'Backspace',                  description: null },
+  copy:      { key: 'c', ctrl: true,              description: 'Copy selected item(s)' },
+  paste:     { key: 'v', ctrl: true,              description: 'Paste item(s)' },
   duplicate: { key: 'd',                          description: 'Duplicate selected item' },
   edit:      { key: 'e',                          description: 'Edit selected item' },
   rotate:    { key: 'r',                          description: 'Rotate selected item' },

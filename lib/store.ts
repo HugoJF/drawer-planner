@@ -42,6 +42,7 @@ export interface DrawerStore {
   deleteDrawer: (id: string, deleteContents?: boolean) => void
   duplicateDrawer: (id: string) => void
   addItem: (item: Omit<Item, 'id' | 'locked'>) => void
+  addItems: (items: Omit<Item, 'id' | 'locked'>[]) => void
   updateItem: (item: Item) => void
   deleteItem: (id: string) => void
   deleteItems: (ids: string[]) => void
@@ -181,6 +182,16 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             set((state) => ({
               items: [...state.items, newItem],
               selectedItemIds: new Set([newItem.id]),
+            }))
+          },
+
+          addItems: (items) => {
+            if (items.length === 0) return
+            push()
+            const newItems = items.map(item => ({ locked: false, ...item, id: generateId() }))
+            set((state) => ({
+              items: [...state.items, ...newItems],
+              selectedItemIds: new Set(newItems.map(i => i.id)),
             }))
           },
 

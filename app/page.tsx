@@ -57,6 +57,7 @@ function DashboardContent() {
   const selectItems      = useDrawerStore(s => s.selectItems)
   const moveItem         = useDrawerStore(s => s.moveItem)
   const repositionItems  = useDrawerStore(s => s.repositionItems)
+  const addItems         = useDrawerStore(s => s.addItems)
 
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -91,6 +92,7 @@ function DashboardContent() {
 
   const { toast } = useToast()
   const isResizing = useRef(false)
+  const clipboard = useRef<Item[]>([])
 
   const isFormOpen = drawerFormOpen || itemFormOpen
   const hasSelection = selectedItemIds.size > 0
@@ -111,6 +113,69 @@ function DashboardContent() {
   useKeyboardShortcut({ ...SHORTCUTS.shortcuts, enabled: !isFormOpen }, useCallback(() => {
     setShortcutsOpen(true)
   }, []))
+
+  // Copy selected items into clipboard
+  useKeyboardShortcut({ ...SHORTCUTS.copy, enabled: !isFormOpen && hasSelection }, useCallback(() => {
+    clipboard.current = allItems.filter(i => selectedItemIds.has(i.id))
+  }, [allItems, selectedItemIds]))
+
+  // Paste clipboard items into the active drawer
+  useKeyboardShortcut({ ...SHORTCUTS.paste, enabled: !isFormOpen }, useCallback(() => {
+    const items = clipboard.current
+    if (!items.length || !selectedDrawerId || !selectedDrawer) return
+
+    // Normalize positions relative to the group's top-left corner
+    const minX = Math.min(...items.map(i => i.gridX))
+    const minY = Math.min(...items.map(i => i.gridY))
+
+    // Compute bounding box of the group (in grid cells)
+    const groupW = Math.max(...items.map(i => {
+      const d = calculateItemGridDimensions(i, config)
+      return (i.gridX - minX) + d.gridWidth
+    }))
+    const groupH = Math.max(...items.map(i => {
+      const d = calculateItemGridDimensions(i, config)
+      return (i.gridY - minY) + d.gridDepth
+    }))
+
+    // Build occupied-cell set from items already in this drawer
+    const occupied = new Set<string>()
+    for (const item of allItems) {
+      if (item.drawerId !== selectedDrawerId) continue
+      const d = calculateItemGridDimensions(item, config)
+      for (let x = item.gridX; x < item.gridX + d.gridWidth; x++)
+        for (let y = item.gridY; y < item.gridY + d.gridDepth; y++)
+          occupied.add(`${x},${y}`)
+    }
+
+    // Scan for a free origin that fits the entire group
+    let origin: { x: number; y: number } | null = null
+    outer: for (let oy = 0; oy <= selectedDrawer.gridRows - groupH; oy++) {
+      for (let ox = 0; ox <= selectedDrawer.gridCols - groupW; ox++) {
+        const clear = items.every(item => {
+          const d = calculateItemGridDimensions(item, config)
+          const rx = item.gridX - minX, ry = item.gridY - minY
+          for (let x = ox + rx; x < ox + rx + d.gridWidth; x++)
+            for (let y = oy + ry; y < oy + ry + d.gridDepth; y++)
+              if (occupied.has(`${x},${y}`)) return false
+          return true
+        })
+        if (clear) { origin = { x: ox, y: oy }; break outer }
+      }
+    }
+
+    const ox = origin?.x ?? 0
+    const oy = origin?.y ?? 0
+
+    addItems(items.map(item => ({
+      ...item,
+      drawerId: selectedDrawerId,
+      gridX: ox + (item.gridX - minX),
+      gridY: oy + (item.gridY - minY),
+    })))
+
+    if (!origin) toast({ title: 'No space available', description: 'Items pasted at origin — check for overlaps.' })
+  }, [selectedDrawerId, selectedDrawer, allItems, config, addItems, toast]))
 
   // Delete selected item(s)
   const deleteSelected = useCallback(() => {
