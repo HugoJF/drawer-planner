@@ -301,7 +301,7 @@ export function SettingsPanel() {
                   value={config.gridColorMode ?? 'category'}
                   onValueChange={v => updateConfig({ gridColorMode: v as 'category' | 'height' })}
                 >
-                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="category">Category</SelectItem>
                     <SelectItem value="height">Height</SelectItem>
@@ -338,7 +338,7 @@ export function SettingsPanel() {
                   value={config.itemSizeDisplay ?? 'area'}
                   onValueChange={v => updateConfig({ itemSizeDisplay: v as 'area' | 'dimensions' })}
                 >
-                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="area">Area (20U)</SelectItem>
                     <SelectItem value="dimensions">Dims (5×4)</SelectItem>
@@ -348,13 +348,13 @@ export function SettingsPanel() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <Label className="text-xs">Category expansion</Label>
-                  <p className="text-[10px] text-muted-foreground">Default open state for categories</p>
+                  <p className="text-[10px] text-muted-foreground">Which categories open by default</p>
                 </div>
                 <Select
                   value={config.categoryExpansion ?? 'none'}
                   onValueChange={v => updateConfig({ categoryExpansion: v as 'none' | 'all' | 'categorized' })}
                 >
-                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     <SelectItem value="categorized">Categorized</SelectItem>
@@ -362,6 +362,24 @@ export function SettingsPanel() {
                   </SelectContent>
                 </Select>
               </div>
+              {(config.categoryExpansion ?? 'none') !== 'none' && (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <Label className="text-xs">Expansion behavior</Label>
+                    <p className="text-[10px] text-muted-foreground">Just open: user can collapse; Always open: locked</p>
+                  </div>
+                  <Select
+                    value={config.categoryExpansionMode ?? 'always-open'}
+                    onValueChange={v => updateConfig({ categoryExpansionMode: v as 'just-open' | 'always-open' })}
+                  >
+                    <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="just-open">Just open</SelectItem>
+                      <SelectItem value="always-open">Always open</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <Label className="text-xs">Stats panel</Label>
