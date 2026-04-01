@@ -37,6 +37,7 @@ function addDrawerAndItem(store: Store) {
     drawerId,
     gridX: 0,
     gridY: 0,
+    gridMode: 'auto' as const,
   })
   const itemId = store.getState().selectedItemIds.values().next().value!
   return { drawerId, itemId }
@@ -166,6 +167,7 @@ describe('undo — selection', () => {
       drawerId,
       gridX: 0,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const itemId = store.getState().selectedItemIds.values().next().value!
     expect(store.getState().selectedItemIds.has(itemId)).toBe(true)

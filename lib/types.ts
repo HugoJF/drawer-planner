@@ -52,7 +52,7 @@ export interface Item {
   drawerId: string | null
   gridX: number          // grid position
   gridY: number
-  gridMode?: 'auto' | 'manual'   // default: 'auto'
+  gridMode: 'auto' | 'manual'
   manualGridCols?: number         // explicit footprint cols (post-rotation), manual mode only
   manualGridRows?: number         // explicit footprint rows (post-rotation), manual mode only
   locked: boolean

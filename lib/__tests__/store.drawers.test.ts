@@ -34,6 +34,7 @@ function itemPayload(overrides?: Partial<Omit<Item, 'id'>>): Omit<Item, 'id'> {
     drawerId: null,
     gridX: 0,
     gridY: 0,
+    gridMode: 'auto' as const,
     locked: false,
     ...overrides,
   }

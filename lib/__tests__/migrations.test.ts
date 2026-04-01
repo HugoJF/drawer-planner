@@ -79,23 +79,26 @@ describe('nullTo1', () => {
 // ---------------------------------------------------------------------------
 
 describe('migrate', () => {
-  test('no version → runs null→1, sets version: 1', () => {
+  test('no version → runs null→1 then 1→2, sets version: 2', () => {
     const result = migrate({ items: [{ ...baseItem, rotation: 'normal' }], drawers: [], categories: [] })
-    expect(result.version).toBe(1)
+    expect(result.version).toBe(2)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
+    expect((result.items as Item[])[0].gridMode).toBe('auto')
   })
 
-  test('string version (e.g. "1.0") → treated as unknown, runs null→1', () => {
+  test('string version (e.g. "1.0") → treated as unknown, runs null→1 then 1→2', () => {
     const result = migrate({ version: '1.0', items: [{ ...baseItem, rotation: 'normal' }], drawers: [], categories: [] })
-    expect(result.version).toBe(1)
+    expect(result.version).toBe(2)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
+    expect((result.items as Item[])[0].gridMode).toBe('auto')
   })
 
-  test('version: 1 → passes through unchanged, no rotation remapping', () => {
+  test('version: 1 → bumped to 2, backfills gridMode: auto', () => {
     const items = [{ ...baseItem, rotation: 'h-up', locked: false, categoryId: null }]
     const result = migrate({ version: 1, items, drawers: [], categories: [] })
-    expect(result.version).toBe(1)
+    expect(result.version).toBe(2)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
+    expect((result.items as Item[])[0].gridMode).toBe('auto')
   })
 
   test('version: 1 with already-current rotations are not double-mapped', () => {

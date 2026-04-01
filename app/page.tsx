@@ -275,10 +275,10 @@ function DashboardContent() {
     setItemFormOpen(true)
   }
 
-  const handleAddItemAtCell = (gridX: number, gridY: number, initialCols?: number, initialRows?: number) => {
+  const handleAddItemAtCell = (gridX: number, gridY: number, initialCols: number, initialRows: number) => {
     setEditingItem(null)
     setNewItemPosition({ gridX, gridY })
-    setNewItemGridDimensions(initialCols && initialRows ? { cols: initialCols, rows: initialRows } : null)
+    setNewItemGridDimensions({ cols: initialCols, rows: initialRows })
     setItemFormOpen(true)
   }
 

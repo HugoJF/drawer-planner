@@ -114,7 +114,7 @@ export function applyNextRotation(item: Item): Partial<Item> {
   if (idx === -1) idx = 0
   const next = distinct[(idx + 1) % distinct.length]
 
-  const isManual = (item.gridMode ?? 'auto') === 'manual'
+  const isManual = item.gridMode === 'manual'
   const newDims = getRotatedDimensions(item, next)
   const shouldSwap = isManual
     && currentDims.width === newDims.depth
@@ -139,7 +139,7 @@ export function calculateItemGridDimensions(
   const dims = getRotatedDimensions(item)
   const heightUnits = dims.height > 0 ? Math.ceil(dims.height / config.heightUnit) : 0
 
-  if ((item.gridMode ?? 'auto') === 'manual') {
+  if (item.gridMode === 'manual') {
     return {
       gridWidth: Math.max(1, item.manualGridCols ?? 1),
       gridDepth: Math.max(1, item.manualGridRows ?? 1),
@@ -165,7 +165,7 @@ export function calculateItemGridDimensions(
  * Only relevant in manual mode with known dimensions.
  */
 export function isItemFootprintOverflow(item: Item, config: GridfinityConfig): boolean {
-  if ((item.gridMode ?? 'auto') !== 'manual') return false
+  if (item.gridMode === 'auto') return false
   const rotated = getRotatedDimensions(item)
   if (rotated.width <= 0 || rotated.depth <= 0) return false
   return (

@@ -71,7 +71,7 @@ interface DrawerGridProps {
   drawer: Drawer
   onEditDrawer: (drawer: Drawer) => void
   onEditItem: (item: Item) => void
-  onAddItemAtCell: (gridX: number, gridY: number, initialCols?: number, initialRows?: number) => void
+  onAddItemAtCell: (gridX: number, gridY: number, initialCols: number, initialRows: number) => void
 }
 
 interface DrawState {
@@ -495,7 +495,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const physW = rotatedDims.width
             const physD = rotatedDims.depth
             const hasRealDims = physW > 0 && physD > 0
-            const isManual = (item.gridMode ?? 'auto') === 'manual'
+            const isManual = item.gridMode === 'manual'
             const itemCardW = visW * CELL_SIZE + (visW - 1)
             const itemCardH = visD * CELL_SIZE + (visD - 1)
             const insetPxW = hasRealDims

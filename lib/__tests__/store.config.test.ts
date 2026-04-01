@@ -54,6 +54,7 @@ function addItemAndGetId(
     drawerId,
     gridX: 0,
     gridY: 0,
+    gridMode: 'auto' as const,
   })
   return store.getState().items[before].id
 }
@@ -216,6 +217,7 @@ describe('importData', () => {
     drawerId: 'imported-drawer-1',
     gridX: 0,
     gridY: 0,
+    gridMode: 'auto' as const,
     locked: false,
   }
 

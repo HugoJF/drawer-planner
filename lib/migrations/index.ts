@@ -1,4 +1,5 @@
 import { nullTo1, type StateV0 } from './null-to-1'
+import { oneTo2, type StateV1 } from './1-to-2'
 
 type RawInput = { version?: unknown; [key: string]: unknown }
 type MigratedState = { version: number; [key: string]: unknown }
@@ -11,10 +12,7 @@ export function migrate(raw: RawInput): MigratedState {
     state = { ...nullTo1(state as StateV0) }
   }
 
-  // Each future step checks state.version so the chain works regardless of starting point.
-  // Example: a state at v1 that needs to reach v3 would run both conversions in sequence.
-  // if ((state.version as number) < 2) state = oneTo2(state as StateV1)
-  // if ((state.version as number) < 3) state = twoTo3(state as StateV2)
+  if ((state.version as number) < 2) state = { ...oneTo2(state as StateV1) }
 
   return state as MigratedState
 }

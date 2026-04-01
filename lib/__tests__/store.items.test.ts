@@ -38,6 +38,7 @@ function addDrawerAndItem(store: Store, itemOverrides: Record<string, unknown> =
     drawerId,
     gridX: 0,
     gridY: 0,
+    gridMode: 'auto' as const,
     ...itemOverrides,
   })
   const itemId = store.getState().selectedItemIds.values().next().value!
@@ -101,6 +102,7 @@ describe('updateItem', () => {
       drawerId,
       gridX: 1,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
 
@@ -153,6 +155,7 @@ describe('deleteItem', () => {
       drawerId,
       gridX: 1,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
     store.getState().selectItem(id2)
@@ -196,6 +199,7 @@ describe('moveItem', () => {
       drawerId,
       gridX: 1,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
 
@@ -251,6 +255,7 @@ describe('duplicateItem', () => {
           drawerId,
           gridX: col,
           gridY: row,
+          gridMode: 'auto' as const,
         })
       }
     }
@@ -283,6 +288,7 @@ describe('duplicateItem', () => {
       drawerId: null,
       gridX: 2,
       gridY: 3,
+      gridMode: 'auto' as const,
     })
     const srcId = store.getState().selectedItemIds.values().next().value!
     store.getState().duplicateItem(srcId)
@@ -345,6 +351,7 @@ describe('duplicateItem — return value', () => {
       drawerId,
       gridX: 0,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const itemId = store.getState().selectedItemIds.values().next().value!
 
@@ -364,6 +371,7 @@ describe('duplicateItem — return value', () => {
       drawerId: null,
       gridX: 0,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const itemId = store.getState().selectedItemIds.values().next().value!
 

@@ -38,6 +38,7 @@ function addDrawerWithItem(store: Store, itemOverrides: Record<string, unknown> 
     drawerId,
     gridX: 0,
     gridY: 0,
+    gridMode: 'auto' as const,
     ...itemOverrides,
   })
   const itemId = store.getState().selectedItemIds.values().next().value!
@@ -143,6 +144,7 @@ describe('deleteDrawer (deleteContents = true)', () => {
       drawerId: firstId,
       gridX: 0,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
 
     store.getState().addItem({
@@ -155,6 +157,7 @@ describe('deleteDrawer (deleteContents = true)', () => {
       drawerId: secondId,
       gridX: 0,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const secondItemId = store.getState().selectedItemIds.values().next().value!
 
@@ -219,6 +222,7 @@ describe('deleteItem', () => {
       drawerId,
       gridX: 1,
       gridY: 0,
+      gridMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
     store.getState().selectItem(id2)
