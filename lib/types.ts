@@ -12,6 +12,7 @@ export interface GridfinityConfig {
   showCategoryCount: boolean // Default: true
   itemSizeDisplay: 'area' | 'dimensions' // Default: 'area' — "20U" vs "5×4"
   categoryExpansion: 'none' | 'all' | 'categorized' // Default: 'none'
+  categoryExpansionMode: 'just-open' | 'always-open' // Default: 'always-open'
   gridColorMode: 'category' | 'height' // Default: 'category'
   showSidebarStats: boolean              // Default: true
 }
@@ -89,6 +90,7 @@ export const DEFAULT_CONFIG: GridfinityConfig = {
   showCategoryCount: true,
   itemSizeDisplay: 'area',
   categoryExpansion: 'none',
+  categoryExpansionMode: 'always-open',
   gridColorMode: 'category',
   showSidebarStats: true,
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { Search, X } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
@@ -147,15 +147,39 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   })
 
   const categoryExpansion = config.categoryExpansion ?? 'none'
-  const isCategoryGroupOpen = useCallback((groupKey: string, categoryId: string | null): boolean => {
-    if (categoryExpansion === 'all') {
-      return true
+  const categoryExpansionMode = config.categoryExpansionMode ?? 'always-open'
+
+  // Seed expandedCategoryGroups whenever the expansion setting changes in just-open mode.
+  // Only re-seeds on config change — subsequent manual toggles work normally.
+  useEffect(() => {
+    if (categoryExpansionMode !== 'just-open') {
+      return
     }
-    if (categoryExpansion === 'categorized') {
-      return categoryId !== null
+    const keys = new Set<string>()
+    if (categoryExpansion === 'all') {
+      keys.add('cat:null')
+      for (const cat of categories) {
+        keys.add(`cat:${cat.id}`)
+      }
+    } else if (categoryExpansion === 'categorized') {
+      for (const cat of categories) {
+        keys.add(`cat:${cat.id}`)
+      }
+    }
+    setExpandedCategoryGroups(keys)
+  }, [categoryExpansion, categoryExpansionMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isCategoryGroupOpen = useCallback((groupKey: string, categoryId: string | null): boolean => {
+    if (categoryExpansionMode === 'always-open') {
+      if (categoryExpansion === 'all') {
+        return true
+      }
+      if (categoryExpansion === 'categorized') {
+        return categoryId !== null
+      }
     }
     return expandedCategoryGroups.has(groupKey)
-  }, [categoryExpansion, expandedCategoryGroups])
+  }, [categoryExpansion, categoryExpansionMode, expandedCategoryGroups])
 
   const allExpanded = filteredDrawers.length > 0 && filteredDrawers.every(d => effectiveExpanded.has(d.id))
   const toggleAll = () => setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
