@@ -256,7 +256,7 @@ function DashboardContent() {
               />
             </div>
             {/* Sidebar Stats at bottom */}
-            <SidebarStats />
+            {(config.showSidebarStats ?? true) && <SidebarStats />}
             {/* Resize handle */}
             <div
               className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"

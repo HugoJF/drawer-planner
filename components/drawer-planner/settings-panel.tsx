@@ -356,6 +356,13 @@ export function SettingsPanel() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <Label className="text-xs">Stats panel</Label>
+                  <p className="text-[10px] text-muted-foreground">Show drawer stats at bottom of sidebar</p>
+                </div>
+                <Switch checked={config.showSidebarStats ?? true} onCheckedChange={v => updateConfig({ showSidebarStats: v })} />
+              </div>
             </div>
 
             <Separator />
