@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useMemo, useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
@@ -48,7 +48,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
   const [activeTab, setActiveTab] = useState<SidebarTab>('drawers')
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
-  const [expandedCategoryGroups, setExpandedCategoryGroups] = useState<Set<string>>(new Set())
+  const [manualOverrides, setManualOverrides] = useState<Map<string, boolean>>(new Map())
   const [sortMode, setSortMode] = useState<'insertion' | 'name' | 'size' | 'y' | 'x'>('insertion')
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item' | 'category'; id: string; name: string } | null>(null)
@@ -141,30 +141,50 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
   const toggleDrawer = (id: string) => setExpandedDrawers(prev => toggleInSet(prev, id))
 
-  const toggleCategoryGroup = (key: string) => setExpandedCategoryGroups(prev => toggleInSet(prev, key))
-
   const categoryExpansion = config.categoryExpansion ?? 'none'
   const categoryExpansionMode = config.categoryExpansionMode ?? 'always-open'
 
-  // Seed expandedCategoryGroups whenever the expansion setting changes in just-open mode.
-  // Only re-seeds on config change — subsequent manual toggles work normally.
-  useEffect(() => {
-    if (categoryExpansionMode !== 'just-open') {
-      return
-    }
+  // Reset manual overrides whenever the expansion config changes (no effect needed).
+  const lastConfigKeyRef = useRef(`${categoryExpansion}:${categoryExpansionMode}`)
+  const configKey = `${categoryExpansion}:${categoryExpansionMode}`
+  if (lastConfigKeyRef.current !== configKey) {
+    lastConfigKeyRef.current = configKey
+    setManualOverrides(new Map())
+  }
+
+  // Config-derived base set + user's manual open/close overrides applied on top.
+  // No effect needed: categories is a proper dep, so new categories auto-expand per config.
+  const expandedCategoryGroups = useMemo(() => {
     const keys = new Set<string>()
-    if (categoryExpansion === 'all') {
-      keys.add('cat:null')
-      for (const cat of categories) {
-        keys.add(`cat:${cat.id}`)
-      }
-    } else if (categoryExpansion === 'categorized') {
-      for (const cat of categories) {
-        keys.add(`cat:${cat.id}`)
+    if (categoryExpansionMode === 'just-open') {
+      if (categoryExpansion === 'all') {
+        keys.add('cat:null')
+        for (const cat of categories) {
+          keys.add(`cat:${cat.id}`)
+        }
+      } else if (categoryExpansion === 'categorized') {
+        for (const cat of categories) {
+          keys.add(`cat:${cat.id}`)
+        }
       }
     }
-    setExpandedCategoryGroups(keys)
-  }, [categoryExpansion, categoryExpansionMode]) // eslint-disable-line react-hooks/exhaustive-deps
+    for (const [key, open] of manualOverrides) {
+      if (open) {
+        keys.add(key)
+      } else {
+        keys.delete(key)
+      }
+    }
+    return keys
+  }, [categoryExpansion, categoryExpansionMode, categories, manualOverrides])
+
+  const toggleCategoryGroup = (key: string) => {
+    setManualOverrides(prev => {
+      const next = new Map(prev)
+      next.set(key, !expandedCategoryGroups.has(key))
+      return next
+    })
+  }
 
   const isCategoryGroupOpen = useCallback((groupKey: string, categoryId: string | null): boolean => {
     if (categoryExpansionMode === 'always-open') {
@@ -182,14 +202,10 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const toggleAll = () => setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
 
   const handleBatchToggleCategoryGroups = useCallback((keys: string[], open: boolean) => {
-    setExpandedCategoryGroups(prev => {
-      const next = new Set(prev)
+    setManualOverrides(prev => {
+      const next = new Map(prev)
       for (const k of keys) {
-        if (open) {
-          next.add(k)
-        } else {
-          next.delete(k)
-        }
+        next.set(k, open)
       }
       return next
     })
