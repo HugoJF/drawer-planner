@@ -1,4 +1,5 @@
-import type { Category, Item, ItemRotation } from '../types'
+import type { Category, Item } from '../types'
+import { ItemRotation } from '../types'
 
 export interface StateV0 {
   config?: unknown
@@ -17,9 +18,9 @@ export interface StateV1 {
 
 export function nullTo1(raw: StateV0): StateV1 {
   const legacyRotation: Record<string, ItemRotation> = {
-    normal: 'h-up',
-    layDown: 'd-up',
-    rotated: 'h-up-r',
+    normal:  ItemRotation.HeightUp,
+    layDown: ItemRotation.DepthUp,
+    rotated: ItemRotation.HeightUpR,
   }
   return {
     ...raw,

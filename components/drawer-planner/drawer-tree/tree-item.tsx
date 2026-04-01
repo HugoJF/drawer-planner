@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { isItemOversized, getRotatedDimensions, calculateItemGridDimensions } from '@/lib/gridfinity'
-import { formatDimension } from '@/lib/types'
+import { formatDimension, ItemSizeDisplay } from '@/lib/types'
 import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
 import type { TreeItemProps } from './types'
 
@@ -29,7 +29,7 @@ export function TreeItem({
 }: TreeItemProps) {
   const isOversized = drawer ? isItemOversized(item, drawer) : false
   const dims = calculateItemGridDimensions(item, config)
-  const heightLabel = (config.itemSizeDisplay ?? 'area') === 'dimensions'
+  const heightLabel = (config.itemSizeDisplay ?? ItemSizeDisplay.Area) === ItemSizeDisplay.Dimensions
     ? `${dims.gridWidth}×${dims.gridDepth}`
     : `${dims.gridWidth * dims.gridDepth}U`
 

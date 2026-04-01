@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Drawer, Item, GridfinityConfig, Category } from '@/lib/types'
-import { formatDimension, getCategoryColor, UNCATEGORIZED_COLOR } from '@/lib/types'
+import { formatDimension, getCategoryColor, UNCATEGORIZED_COLOR, GridColorMode, GridMode } from '@/lib/types'
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
@@ -56,13 +56,13 @@ function heightToColor(ratio: number): string {
 }
 
 function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
-  const mode = config.gridColorMode ?? 'category'
-  if (mode === 'height') {
+  const mode = config.gridColorMode ?? GridColorMode.Category
+  if (mode === GridColorMode.Height) {
     const { heightUnits } = calculateItemGridDimensions(item, config)
     const maxUnits = Math.ceil(drawer.height / config.heightUnit)
     const ratio = maxUnits > 0 ? Math.min(1, heightUnits / maxUnits) : 0
     return heightToColor(ratio)
-  } else if (mode === 'density') {
+  } else if (mode === GridColorMode.Density) {
     const dims = getRotatedDimensions(item)
     const { gridWidth, gridDepth, heightUnits } = calculateItemGridDimensions(item, config)
     const realVol = dims.width * dims.depth * dims.height
@@ -345,7 +345,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       if (item) {
         updateItem({
           ...item,
-          gridMode: 'manual',
+          gridMode: GridMode.Manual,
           manualGridCols: resizeState.previewWidth,
           manualGridRows: resizeState.previewDepth,
         })
@@ -596,7 +596,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const physW = rotatedDims.width
             const physD = rotatedDims.depth
             const hasRealDims = physW > 0 && physD > 0
-            const isManual = item.gridMode === 'manual'
+            const isManual = item.gridMode === GridMode.Manual
             const itemCardW = gridSize(visW)
             const itemCardH = gridSize(visD)
             const insetPxW = hasRealDims

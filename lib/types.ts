@@ -2,6 +2,32 @@
 
 export type DimensionUnit = 'mm' | 'cm'
 
+export const ItemSizeDisplay = {
+  Area:       'area',
+  Dimensions: 'dimensions',
+} as const
+export type ItemSizeDisplay = typeof ItemSizeDisplay[keyof typeof ItemSizeDisplay]
+
+export const CategoryExpansion = {
+  None:        'none',
+  All:         'all',
+  Categorized: 'categorized',
+} as const
+export type CategoryExpansion = typeof CategoryExpansion[keyof typeof CategoryExpansion]
+
+export const CategoryExpansionMode = {
+  JustOpen:   'just-open',
+  AlwaysOpen: 'always-open',
+} as const
+export type CategoryExpansionMode = typeof CategoryExpansionMode[keyof typeof CategoryExpansionMode]
+
+export const GridColorMode = {
+  Category: 'category',
+  Height:   'height',
+  Density:  'density',
+} as const
+export type GridColorMode = typeof GridColorMode[keyof typeof GridColorMode]
+
 export interface GridfinityConfig {
   cellSize: number       // Default: 42mm
   heightUnit: number     // Default: 7mm (1U)
@@ -10,10 +36,10 @@ export interface GridfinityConfig {
   displayUnit: DimensionUnit // Default: 'mm'
   showDrawerCount: boolean   // Default: true
   showCategoryCount: boolean // Default: true
-  itemSizeDisplay: 'area' | 'dimensions' // Default: 'area' — "20U" vs "5×4"
-  categoryExpansion: 'none' | 'all' | 'categorized' // Default: 'none'
-  categoryExpansionMode: 'just-open' | 'always-open' // Default: 'always-open'
-  gridColorMode: 'category' | 'height' | 'density' // Default: 'category'
+  itemSizeDisplay: ItemSizeDisplay       // Default: 'area' — "20U" vs "5×4"
+  categoryExpansion: CategoryExpansion   // Default: 'none'
+  categoryExpansionMode: CategoryExpansionMode // Default: 'always-open'
+  gridColorMode: GridColorMode           // Default: 'category'
   showSidebarStats: boolean              // Default: true
   sidebarVersion: 'v1' | 'v2'           // Default: 'v1'
 }
@@ -43,7 +69,21 @@ export function getCategoryColor(categoryId: string | null, categories: Category
   return categories.find(c => c.id === categoryId)?.color ?? UNCATEGORIZED_COLOR
 }
 
-export type ItemRotation = 'h-up' | 'h-up-r' | 'd-up' | 'd-up-r' | 'w-up' | 'w-up-r'
+export const ItemRotation = {
+  HeightUp:  'h-up',
+  HeightUpR: 'h-up-r',
+  DepthUp:   'd-up',
+  DepthUpR:  'd-up-r',
+  WidthUp:   'w-up',
+  WidthUpR:  'w-up-r',
+} as const
+export type ItemRotation = typeof ItemRotation[keyof typeof ItemRotation]
+
+export const GridMode = {
+  Auto:   'auto',
+  Manual: 'manual',
+} as const
+export type GridMode = typeof GridMode[keyof typeof GridMode]
 
 export interface Item {
   id: string
@@ -56,7 +96,7 @@ export interface Item {
   drawerId: string | null
   gridX: number          // grid position
   gridY: number
-  gridMode: 'auto' | 'manual'
+  gridMode: GridMode
   manualGridCols?: number         // explicit footprint cols (post-rotation), manual mode only
   manualGridRows?: number         // explicit footprint rows (post-rotation), manual mode only
   locked: boolean
@@ -89,10 +129,10 @@ export const DEFAULT_CONFIG: GridfinityConfig = {
   displayUnit: 'mm',
   showDrawerCount: true,
   showCategoryCount: true,
-  itemSizeDisplay: 'area',
-  categoryExpansion: 'none',
-  categoryExpansionMode: 'always-open',
-  gridColorMode: 'category',
+  itemSizeDisplay: ItemSizeDisplay.Area,
+  categoryExpansion: CategoryExpansion.None,
+  categoryExpansionMode: CategoryExpansionMode.AlwaysOpen,
+  gridColorMode: GridColorMode.Category,
   showSidebarStats: true,
   sidebarVersion: 'v1',
 }

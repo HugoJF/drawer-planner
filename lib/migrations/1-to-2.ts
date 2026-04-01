@@ -10,6 +10,8 @@ export interface StateV2 {
   [key: string]: unknown
 }
 
+import { GridMode } from '../types'
+
 export function oneTo2(raw: StateV1): StateV2 {
   return {
     ...raw,
@@ -19,7 +21,7 @@ export function oneTo2(raw: StateV1): StateV2 {
       if (item.gridMode !== undefined) {
         return item
       }
-      return { ...item, gridMode: 'auto' }
+      return { ...item, gridMode: GridMode.Auto }
     }),
   }
 }

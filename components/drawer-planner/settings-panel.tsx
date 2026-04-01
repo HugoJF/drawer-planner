@@ -21,7 +21,7 @@ import { Settings2, Download, Upload } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { useDrawerStore } from '@/lib/store'
 import { useProjectsStore, saveProjectData } from '@/lib/projects-store'
-import { DEFAULT_CONFIG, CURRENT_VERSION, type DimensionUnit, type ExportData, type ProjectData } from '@/lib/types'
+import { DEFAULT_CONFIG, CURRENT_VERSION, type DimensionUnit, type ExportData, type ProjectData, GridColorMode, CategoryExpansion, CategoryExpansionMode, ItemSizeDisplay } from '@/lib/types'
 import { ImportConflictDialog } from './import-conflict-dialog'
 
 export function SettingsPanel() {
@@ -298,8 +298,8 @@ export function SettingsPanel() {
                   <p className="text-[10px] text-muted-foreground">Category color, height heatmap, or density heatmap</p>
                 </div>
                 <Select
-                  value={config.gridColorMode ?? 'category'}
-                  onValueChange={v => updateConfig({ gridColorMode: v as 'category' | 'height' | 'density' })}
+                  value={config.gridColorMode ?? GridColorMode.Category}
+                  onValueChange={v => updateConfig({ gridColorMode: v as GridColorMode })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -352,8 +352,8 @@ export function SettingsPanel() {
                   <p className="text-[10px] text-muted-foreground">Area (20U) or dimensions (5×4)</p>
                 </div>
                 <Select
-                  value={config.itemSizeDisplay ?? 'area'}
-                  onValueChange={v => updateConfig({ itemSizeDisplay: v as 'area' | 'dimensions' })}
+                  value={config.itemSizeDisplay ?? ItemSizeDisplay.Area}
+                  onValueChange={v => updateConfig({ itemSizeDisplay: v as ItemSizeDisplay })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -368,8 +368,8 @@ export function SettingsPanel() {
                   <p className="text-[10px] text-muted-foreground">Which categories open by default</p>
                 </div>
                 <Select
-                  value={config.categoryExpansion ?? 'none'}
-                  onValueChange={v => updateConfig({ categoryExpansion: v as 'none' | 'all' | 'categorized' })}
+                  value={config.categoryExpansion ?? CategoryExpansion.None}
+                  onValueChange={v => updateConfig({ categoryExpansion: v as CategoryExpansion })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -379,15 +379,15 @@ export function SettingsPanel() {
                   </SelectContent>
                 </Select>
               </div>
-              {(config.categoryExpansion ?? 'none') !== 'none' && (
+              {(config.categoryExpansion ?? CategoryExpansion.None) !== CategoryExpansion.None && (
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <Label className="text-xs">Expansion behavior</Label>
                     <p className="text-[10px] text-muted-foreground">Just open: user can collapse; Always open: locked</p>
                   </div>
                   <Select
-                    value={config.categoryExpansionMode ?? 'always-open'}
-                    onValueChange={v => updateConfig({ categoryExpansionMode: v as 'just-open' | 'always-open' })}
+                    value={config.categoryExpansionMode ?? CategoryExpansionMode.AlwaysOpen}
+                    onValueChange={v => updateConfig({ categoryExpansionMode: v as CategoryExpansionMode })}
                   >
                     <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                     <SelectContent>

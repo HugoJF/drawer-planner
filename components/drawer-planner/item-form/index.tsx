@@ -23,8 +23,8 @@ import {
 import { useDrawerStore } from '@/lib/store'
 import { calculateItemGridDimensions, getRotatedDimensions, getDistinctRotations, getRotationLabel } from '@/lib/gridfinity'
 import { cn } from '@/lib/utils'
-import type { Item, ItemRotation } from '@/lib/types'
-import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit } from '@/lib/types'
+import type { Item } from '@/lib/types'
+import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit, ItemRotation, GridMode } from '@/lib/types'
 import { RotateCw } from 'lucide-react'
 import { CategorySelector } from './category-selector'
 
@@ -53,9 +53,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const [height, setHeight]       = useState(item && item.height > 0 ? toDisplayUnit(item.height, unit).toString() : '')
   const [depth, setDepth]         = useState(item && item.depth > 0 ? toDisplayUnit(item.depth, unit).toString() : '')
   const [categoryId, setCategoryId] = useState<string | null>(item?.categoryId ?? null)
-  const [rotation, setRotation]   = useState<ItemRotation>(item?.rotation ?? 'h-up')
+  const [rotation, setRotation]   = useState<ItemRotation>(item?.rotation ?? ItemRotation.HeightUp)
   const [drawerId, setDrawerId]   = useState<string | null>(item?.drawerId ?? selectedDrawerId)
-  const [gridMode, setGridMode]   = useState<'auto' | 'manual'>(item?.gridMode ?? (initialGridDimensions ? 'manual' : 'auto'))
+  const [gridMode, setGridMode]   = useState<GridMode>(item?.gridMode ?? (initialGridDimensions ? GridMode.Manual : GridMode.Auto))
   const [manualCols, setManualCols] = useState(item?.manualGridCols ?? initialGridDimensions?.cols ?? 1)
   const [manualRows, setManualRows] = useState(item?.manualGridRows ?? initialGridDimensions?.rows ?? 1)
   const [notes, setNotes]         = useState(item?.notes ?? '')
@@ -91,13 +91,13 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     manualGridCols: manualCols, manualGridRows: manualRows, locked: false,
   }
 
-  const previewDims = (gridMode === 'auto' ? hasPhysical : true)
+  const previewDims = (gridMode === GridMode.Auto ? hasPhysical : true)
     ? calculateItemGridDimensions(previewItem, config)
     : null
 
   const rotatedDims = hasPhysical ? getRotatedDimensions(previewItem) : null
 
-  const autoInvalid = gridMode === 'auto' && (!width || !height || !depth)
+  const autoInvalid = gridMode === GridMode.Auto && (!width || !height || !depth)
 
   const nextColor = (): string => {
     const used = new Set(categories.map(c => c.color))
@@ -114,13 +114,13 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     setNewCatName('')
   }
 
-  const handleGridModeChange = (newMode: 'auto' | 'manual') => {
-    if (newMode === 'manual' && gridMode === 'auto') {
+  const handleGridModeChange = (newMode: GridMode) => {
+    if (newMode === GridMode.Manual && gridMode === GridMode.Auto) {
       const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
       const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
       const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
       if (widthMm > 0 && depthMm > 0) {
-        const fakeItem = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, categoryId, rotation, drawerId, gridX: 0, gridY: 0, gridMode: 'auto' as const, locked: false }
+        const fakeItem = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, categoryId, rotation, drawerId, gridX: 0, gridY: 0, gridMode: GridMode.Auto, locked: false }
         const dims = calculateItemGridDimensions(fakeItem, config)
         setManualCols(dims.gridWidth)
         setManualRows(dims.gridDepth)
@@ -142,7 +142,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     const heightMm = height ? fromDisplayUnit(heightDisplay, unit) : 0
     const depthMm  = depth  ? fromDisplayUnit(depthDisplay,  unit) : 0
 
-    if (gridMode === 'auto') {
+    if (gridMode === GridMode.Auto) {
       if (isNaN(widthDisplay) || isNaN(heightDisplay) || isNaN(depthDisplay) ||
           widthMm <= 0 || heightMm <= 0 || depthMm <= 0) return
     }
@@ -175,7 +175,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Item' : 'Add Item'}</DialogTitle>
           <DialogDescription>
-            {gridMode === 'manual'
+            {gridMode === GridMode.Manual
               ? 'Set grid footprint directly. Physical dimensions are optional.'
               : `Enter the item's physical dimensions in ${unit}.`}
           </DialogDescription>
@@ -204,7 +204,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Physical Dimensions ({unit})</Label>
-              {gridMode === 'manual' && <span className="text-xs text-muted-foreground">optional</span>}
+              {gridMode === GridMode.Manual && <span className="text-xs text-muted-foreground">optional</span>}
             </div>
             <div className="grid grid-cols-3 gap-3">
               {(['Width', 'Depth', 'Height'] as const).map((label, i) => {
@@ -215,7 +215,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
                   <div key={label} className="space-y-1">
                     <Label className="text-xs text-muted-foreground">{label}</Label>
                     <Input type="number" step="0.1" min="0.1" value={val} onChange={e => setter(e.target.value)}
-                      placeholder={placeholder} required={gridMode === 'auto'} />
+                      placeholder={placeholder} required={gridMode === GridMode.Auto} />
                   </div>
                 )
               })}
@@ -254,7 +254,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium">Grid Footprint</span>
               <div className="flex rounded-md border border-input overflow-hidden text-xs">
-                {(['auto', 'manual'] as const).map(mode => (
+                {([GridMode.Auto, GridMode.Manual] as const).map(mode => (
                   <button key={mode} type="button"
                     className={cn('px-3 py-1 font-medium transition-colors', mode === 'manual' && 'border-l border-input',
                       gridMode === mode ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent')}
@@ -265,7 +265,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
               </div>
             </div>
 
-            {gridMode === 'manual' ? (
+            {gridMode === GridMode.Manual ? (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
                   <Input type="number" min="1" step="1" value={manualCols}

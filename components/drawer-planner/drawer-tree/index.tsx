@@ -11,7 +11,7 @@ import { CategoryForm } from '@/components/drawer-planner/category-form'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import { SHORTCUTS } from '@/lib/shortcuts'
 import type { Drawer, Item, ItemRotation, Category } from '@/lib/types'
-import { ITEM_COLORS } from '@/lib/types'
+import { ITEM_COLORS, CategoryExpansion, CategoryExpansionMode } from '@/lib/types'
 import { DrawersTab } from './drawers-tab'
 import { CategoriesTab } from './categories-tab'
 import { DrawerScopedTab } from './drawer-scoped-tab'
@@ -141,8 +141,8 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
   const toggleDrawer = (id: string) => setExpandedDrawers(prev => toggleInSet(prev, id))
 
-  const categoryExpansion = config.categoryExpansion ?? 'none'
-  const categoryExpansionMode = config.categoryExpansionMode ?? 'always-open'
+  const categoryExpansion = config.categoryExpansion ?? CategoryExpansion.None
+  const categoryExpansionMode = config.categoryExpansionMode ?? CategoryExpansionMode.AlwaysOpen
 
   // Reset manual overrides whenever the expansion config changes (no effect needed).
   const lastConfigKeyRef = useRef(`${categoryExpansion}:${categoryExpansionMode}`)
@@ -156,13 +156,13 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   // No effect needed: categories is a proper dep, so new categories auto-expand per config.
   const expandedCategoryGroups = useMemo(() => {
     const keys = new Set<string>()
-    if (categoryExpansionMode === 'just-open') {
-      if (categoryExpansion === 'all') {
+    if (categoryExpansionMode === CategoryExpansionMode.JustOpen) {
+      if (categoryExpansion === CategoryExpansion.All) {
         keys.add('cat:null')
         for (const cat of categories) {
           keys.add(`cat:${cat.id}`)
         }
-      } else if (categoryExpansion === 'categorized') {
+      } else if (categoryExpansion === CategoryExpansion.Categorized) {
         for (const cat of categories) {
           keys.add(`cat:${cat.id}`)
         }
@@ -187,11 +187,11 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   }
 
   const isCategoryGroupOpen = useCallback((groupKey: string, categoryId: string | null): boolean => {
-    if (categoryExpansionMode === 'always-open') {
-      if (categoryExpansion === 'all') {
+    if (categoryExpansionMode === CategoryExpansionMode.AlwaysOpen) {
+      if (categoryExpansion === CategoryExpansion.All) {
         return true
       }
-      if (categoryExpansion === 'categorized') {
+      if (categoryExpansion === CategoryExpansion.Categorized) {
         return categoryId !== null
       }
     }

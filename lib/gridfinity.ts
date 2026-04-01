@@ -1,13 +1,13 @@
 // Gridfinity calculation utilities
 
-import type { 
-  GridfinityConfig, 
-  Drawer, 
-  Item, 
-  ItemGridDimensions, 
+import type {
+  GridfinityConfig,
+  Drawer,
+  Item,
+  ItemGridDimensions,
   DrawerStats,
-  ItemRotation 
 } from './types'
+import { ItemRotation, GridMode } from './types'
 
 /**
  * Calculate how many Gridfinity cells fit in a drawer dimension
@@ -46,16 +46,20 @@ export function getRotatedDimensions(
   rotation: ItemRotation = item.rotation
 ): { width: number; depth: number; height: number } {
   switch (rotation) {
-    case 'h-up':   return { width: item.width,  depth: item.depth,  height: item.height }
-    case 'h-up-r': return { width: item.depth,  depth: item.width,  height: item.height }
-    case 'd-up':   return { width: item.width,  depth: item.height, height: item.depth  }
-    case 'd-up-r': return { width: item.height, depth: item.width,  height: item.depth  }
-    case 'w-up':   return { width: item.depth,  depth: item.height, height: item.width  }
-    case 'w-up-r': return { width: item.height, depth: item.depth,  height: item.width  }
+    case ItemRotation.HeightUp:  return { width: item.width,  depth: item.depth,  height: item.height }
+    case ItemRotation.HeightUpR: return { width: item.depth,  depth: item.width,  height: item.height }
+    case ItemRotation.DepthUp:   return { width: item.width,  depth: item.height, height: item.depth  }
+    case ItemRotation.DepthUpR:  return { width: item.height, depth: item.width,  height: item.depth  }
+    case ItemRotation.WidthUp:   return { width: item.depth,  depth: item.height, height: item.width  }
+    case ItemRotation.WidthUpR:  return { width: item.height, depth: item.depth,  height: item.width  }
   }
 }
 
-export const ALL_ROTATIONS: ItemRotation[] = ['h-up', 'h-up-r', 'd-up', 'd-up-r', 'w-up', 'w-up-r']
+export const ALL_ROTATIONS: ItemRotation[] = [
+  ItemRotation.HeightUp, ItemRotation.HeightUpR,
+  ItemRotation.DepthUp,  ItemRotation.DepthUpR,
+  ItemRotation.WidthUp,  ItemRotation.WidthUpR,
+]
 
 /**
  * Return only the distinct rotations for an item — i.e. those that produce
@@ -77,12 +81,12 @@ export function getDistinctRotations(item: Item): ItemRotation[] {
 }
 
 const ROTATION_BASE_NAMES: Record<ItemRotation, string> = {
-  'h-up':   'Upright',
-  'h-up-r': 'Upright (rotated)',
-  'd-up':   'Lay flat',
-  'd-up-r': 'Lay flat (rotated)',
-  'w-up':   'On side',
-  'w-up-r': 'On side (rotated)',
+  [ItemRotation.HeightUp]:  'Upright',
+  [ItemRotation.HeightUpR]: 'Upright (rotated)',
+  [ItemRotation.DepthUp]:   'Lay flat',
+  [ItemRotation.DepthUpR]:  'Lay flat (rotated)',
+  [ItemRotation.WidthUp]:   'On side',
+  [ItemRotation.WidthUpR]:  'On side (rotated)',
 }
 
 /**
@@ -118,7 +122,7 @@ export function applyNextRotation(item: Item): Partial<Item> {
   }
   const next = distinct[(idx + 1) % distinct.length]
 
-  const isManual = item.gridMode === 'manual'
+  const isManual = item.gridMode === GridMode.Manual
   const newDims = getRotatedDimensions(item, next)
   const shouldSwap = isManual
     && currentDims.width === newDims.depth
@@ -143,7 +147,7 @@ export function calculateItemGridDimensions(
   const dims = getRotatedDimensions(item)
   const heightUnits = dims.height > 0 ? Math.ceil(dims.height / config.heightUnit) : 0
 
-  if (item.gridMode === 'manual') {
+  if (item.gridMode === GridMode.Manual) {
     return {
       gridWidth: Math.max(1, item.manualGridCols ?? 1),
       gridDepth: Math.max(1, item.manualGridRows ?? 1),
@@ -169,7 +173,7 @@ export function calculateItemGridDimensions(
  * Only relevant in manual mode with known dimensions.
  */
 export function isItemFootprintOverflow(item: Item, config: GridfinityConfig): boolean {
-  if (item.gridMode === 'auto') {
+  if (item.gridMode === GridMode.Auto) {
     return false
   }
   const rotated = getRotatedDimensions(item)
