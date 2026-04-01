@@ -43,15 +43,15 @@ Shortcuts are suppressed while any form or dialog is open. Undo/redo always work
 ## Getting Started
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
-Requires Node.js 18+.
+Requires [Bun](https://bun.sh) (or Node.js 18+ with `npm`).
 
 ```bash
-npm run build   # production build
-npm run preview # preview production build
+bun run build   # production build
+bun run preview # preview production build
 ```
 
 ## How It Works
