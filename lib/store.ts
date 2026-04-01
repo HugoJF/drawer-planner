@@ -17,6 +17,7 @@ import {
   generateId,
   findAvailablePosition,
 } from '@/lib/gridfinity'
+import { indexById, toggleInSet } from '@/lib/utils'
 
 export type Snapshot = { drawers: Drawer[]; items: Item[]; categories: Category[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string> }
 
@@ -100,15 +101,9 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
 
           setSearchQuery: (query) => set({ searchQuery: query }),
           selectItem: (id) => set({ selectedItemIds: id ? new Set([id]) : new Set() }),
-          toggleItemSelection: (id) => set((state) => {
-            const next = new Set(state.selectedItemIds)
-            if (next.has(id)) {
-              next.delete(id)
-            } else {
-              next.add(id)
-            }
-            return { selectedItemIds: next }
-          }),
+          toggleItemSelection: (id) => set((state) => ({
+            selectedItemIds: toggleInSet(state.selectedItemIds, id),
+          })),
           selectItems: (ids) => set({ selectedItemIds: new Set(ids) }),
 
           // Actions
@@ -278,7 +273,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
 
           repositionItems: (updates) => {
             push()
-            const map = new Map(updates.map(u => [u.id, u]))
+            const map = indexById(updates)
             set((state) => ({
               items: state.items.map(item => {
                 const u = map.get(item.id)
@@ -328,14 +323,14 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           },
 
           undo: () => {
-            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future } = get()
             if (past.length === 0) {
               return
             }
             const prev = past[past.length - 1]
             set({
               past: past.slice(0, -1),
-              future: [{ drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }, ...future.slice(0, 49)],
+              future: [snap(), ...future.slice(0, 49)],
               drawers: prev.drawers,
               items: prev.items,
               categories: prev.categories,
@@ -346,14 +341,14 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           },
 
           redo: () => {
-            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future } = get()
             if (future.length === 0) {
               return
             }
             const next = future[0]
             set({
               future: future.slice(1),
-              past: [...past.slice(-49), { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }],
+              past: [...past.slice(-49), snap()],
               drawers: next.drawers,
               items: next.items,
               categories: next.categories,
@@ -364,12 +359,12 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           },
 
           jumpToHistory: (index) => {
-            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future } = get()
             const target = past[index]
             if (!target) {
               return
             }
-            const current = { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+            const current = snap()
             set({
               past: past.slice(0, index),
               future: [...past.slice(index + 1), current, ...future].slice(0, 50),
@@ -383,12 +378,12 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           },
 
           jumpToFuture: (index) => {
-            const { past, future, drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
+            const { past, future } = get()
             const target = future[index]
             if (!target) {
               return
             }
-            const current = { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+            const current = snap()
             set({
               past: [...past, current, ...future.slice(0, index)].slice(-50),
               future: future.slice(index + 1),

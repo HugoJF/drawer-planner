@@ -1,4 +1,5 @@
 import type { Snapshot } from '@/lib/store'
+import { indexById } from '@/lib/utils'
 
 /**
  * Produce a human-readable label describing the action that transformed
@@ -11,8 +12,8 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
   }
 
   // Category changes
-  const beforeCats = new Map(before.categories.map(c => [c.id, c]))
-  const afterCats  = new Map(after.categories.map(c => [c.id, c]))
+  const beforeCats = indexById(before.categories)
+  const afterCats  = indexById(after.categories)
   const addedCats   = after.categories.filter(c => !beforeCats.has(c.id))
   const removedCats = before.categories.filter(c => !afterCats.has(c.id))
   if (addedCats.length === 1 && removedCats.length === 0) {
@@ -41,8 +42,8 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
   }
 
   // Drawer changes
-  const beforeDrawers = new Map(before.drawers.map(d => [d.id, d]))
-  const afterDrawers  = new Map(after.drawers.map(d => [d.id, d]))
+  const beforeDrawers = indexById(before.drawers)
+  const afterDrawers  = indexById(after.drawers)
   const addedDrawers   = after.drawers.filter(d => !beforeDrawers.has(d.id))
   const removedDrawers = before.drawers.filter(d => !afterDrawers.has(d.id))
   if (addedDrawers.length === 1 && removedDrawers.length === 0) {
@@ -64,8 +65,8 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
   }
 
   // Item changes
-  const beforeItems = new Map(before.items.map(i => [i.id, i]))
-  const afterItems  = new Map(after.items.map(i => [i.id, i]))
+  const beforeItems = indexById(before.items)
+  const afterItems  = indexById(after.items)
   const added   = after.items.filter(i => !beforeItems.has(i.id))
   const removed = before.items.filter(i => !afterItems.has(i.id))
   const changed = after.items.filter(i => {

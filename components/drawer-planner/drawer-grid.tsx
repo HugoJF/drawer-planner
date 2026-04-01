@@ -118,6 +118,8 @@ interface DragState {
 }
 
 const CELL_SIZE = 40 // px per grid cell for visualization
+const gridPos  = (n: number) => n * (CELL_SIZE + 1) + 1
+const gridSize = (n: number) => n * (CELL_SIZE + 1) - 1
 
 export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }: DrawerGridProps) {
   const config = useDrawerStore(s => s.config)
@@ -502,15 +504,15 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               return null
             }
             const diDims = calculateItemGridDimensions(di, config)
-            const w = diDims.gridWidth * CELL_SIZE + (diDims.gridWidth - 1)
-            const h = diDims.gridDepth * CELL_SIZE + (diDims.gridDepth - 1)
+            const w = gridSize(diDims.gridWidth)
+            const h = gridSize(diDims.gridDepth)
             return (
               <div
                 key={`ghost-${id}`}
                 className="absolute rounded-sm pointer-events-none z-20"
                 style={{
-                  left: (dropTarget.x + dx) * (CELL_SIZE + 1) + 1,
-                  top: (dropTarget.y + dy) * (CELL_SIZE + 1) + 1,
+                  left: gridPos(dropTarget.x + dx),
+                  top: gridPos(dropTarget.y + dy),
                   width: w,
                   height: h,
                   backgroundColor: getItemColor(di, drawer, config, categories),
@@ -527,14 +529,14 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const y1 = Math.min(boxSelectState.startY, boxSelectState.endY)
             const x2 = Math.max(boxSelectState.startX, boxSelectState.endX)
             const y2 = Math.max(boxSelectState.startY, boxSelectState.endY)
-            const w = (x2 - x1 + 1) * CELL_SIZE + (x2 - x1)
-            const h = (y2 - y1 + 1) * CELL_SIZE + (y2 - y1)
+            const w = gridSize(x2 - x1 + 1)
+            const h = gridSize(y2 - y1 + 1)
             return (
               <div
                 className="absolute pointer-events-none z-20"
                 style={{
-                  left: x1 * (CELL_SIZE + 1) + 1,
-                  top: y1 * (CELL_SIZE + 1) + 1,
+                  left: gridPos(x1),
+                  top: gridPos(y1),
                   width: w,
                   height: h,
                   border: '2px dashed var(--primary)',
@@ -550,14 +552,14 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             if (!item) {
               return null
             }
-            const w = resizeState.previewWidth * CELL_SIZE + (resizeState.previewWidth - 1)
-            const h = resizeState.previewDepth * CELL_SIZE + (resizeState.previewDepth - 1)
+            const w = gridSize(resizeState.previewWidth)
+            const h = gridSize(resizeState.previewDepth)
             return (
               <div
                 className="absolute rounded-sm pointer-events-none z-30"
                 style={{
-                  left: item.gridX * (CELL_SIZE + 1) + 1,
-                  top: item.gridY * (CELL_SIZE + 1) + 1,
+                  left: gridPos(item.gridX),
+                  top: gridPos(item.gridY),
                   width: w,
                   height: h,
                   border: '2px dashed var(--primary)',
@@ -595,8 +597,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const physD = rotatedDims.depth
             const hasRealDims = physW > 0 && physD > 0
             const isManual = item.gridMode === 'manual'
-            const itemCardW = visW * CELL_SIZE + (visW - 1)
-            const itemCardH = visD * CELL_SIZE + (visD - 1)
+            const itemCardW = gridSize(visW)
+            const itemCardH = gridSize(visD)
             const insetPxW = hasRealDims
               ? Math.min(physW / (visW * config.cellSize), 1) * itemCardW
               : null
@@ -629,10 +631,10 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   isResizing && "opacity-40"
                 )}
                 style={{
-                  left: item.gridX * (CELL_SIZE + 1) + 1,
-                  top: item.gridY * (CELL_SIZE + 1) + 1,
-                  width: visW * CELL_SIZE + (visW - 1),
-                  height: visD * CELL_SIZE + (visD - 1),
+                  left: gridPos(item.gridX),
+                  top: gridPos(item.gridY),
+                  width: gridSize(visW),
+                  height: gridSize(visD),
                   backgroundColor: getItemColor(item, drawer, config, categories),
                   zIndex: isSelected ? 10 : 1,
                   pointerEvents: drawState || (dragState && dragState.itemId !== item.id) || (resizeState && resizeState.itemId !== item.id) ? 'none' : undefined,

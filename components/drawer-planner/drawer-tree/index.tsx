@@ -4,7 +4,7 @@ import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { Search, X } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
-import { cn } from '@/lib/utils'
+import { cn, toggleInSet } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { CategoryForm } from '@/components/drawer-planner/category-form'
@@ -139,13 +139,9 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     }
   }
 
-  const toggleDrawer = (id: string) => setExpandedDrawers(prev => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
-  })
+  const toggleDrawer = (id: string) => setExpandedDrawers(prev => toggleInSet(prev, id))
 
-  const toggleCategoryGroup = (key: string) => setExpandedCategoryGroups(prev => {
-    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next
-  })
+  const toggleCategoryGroup = (key: string) => setExpandedCategoryGroups(prev => toggleInSet(prev, key))
 
   const categoryExpansion = config.categoryExpansion ?? 'none'
   const categoryExpansionMode = config.categoryExpansionMode ?? 'always-open'
