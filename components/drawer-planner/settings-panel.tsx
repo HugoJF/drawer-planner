@@ -295,16 +295,17 @@ export function SettingsPanel() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <Label className="text-xs">Item color</Label>
-                  <p className="text-[10px] text-muted-foreground">Category color or height heatmap</p>
+                  <p className="text-[10px] text-muted-foreground">Category color, height heatmap, or density heatmap</p>
                 </div>
                 <Select
                   value={config.gridColorMode ?? 'category'}
-                  onValueChange={v => updateConfig({ gridColorMode: v as 'category' | 'height' })}
+                  onValueChange={v => updateConfig({ gridColorMode: v as 'category' | 'height' | 'density' })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="category">Category</SelectItem>
                     <SelectItem value="height">Height</SelectItem>
+                    <SelectItem value="density">Density</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -315,6 +316,22 @@ export function SettingsPanel() {
             <p className="text-xs text-muted-foreground">Sidebar</p>
 
             <div className="grid gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <Label className="text-xs">Sidebar layout</Label>
+                  <p className="text-[10px] text-muted-foreground">Classic tree or drawer-scoped view</p>
+                </div>
+                <Select
+                  value={config.sidebarVersion ?? 'v1'}
+                  onValueChange={v => updateConfig({ sidebarVersion: v as 'v1' | 'v2' })}
+                >
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="v1">Classic</SelectItem>
+                    <SelectItem value="v2">Drawer-scoped</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <Label className="text-xs">Drawer item count</Label>

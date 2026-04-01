@@ -13,8 +13,9 @@ export interface GridfinityConfig {
   itemSizeDisplay: 'area' | 'dimensions' // Default: 'area' — "20U" vs "5×4"
   categoryExpansion: 'none' | 'all' | 'categorized' // Default: 'none'
   categoryExpansionMode: 'just-open' | 'always-open' // Default: 'always-open'
-  gridColorMode: 'category' | 'height' // Default: 'category'
+  gridColorMode: 'category' | 'height' | 'density' // Default: 'category'
   showSidebarStats: boolean              // Default: true
+  sidebarVersion: 'v1' | 'v2'           // Default: 'v1'
 }
 
 export interface Drawer {
@@ -93,6 +94,7 @@ export const DEFAULT_CONFIG: GridfinityConfig = {
   categoryExpansionMode: 'always-open',
   gridColorMode: 'category',
   showSidebarStats: true,
+  sidebarVersion: 'v1',
 }
 
 // Unit conversion utilities
