@@ -14,6 +14,7 @@ import type { Drawer, Item, ItemRotation, Category } from '@/lib/types'
 import { ITEM_COLORS } from '@/lib/types'
 import { DrawersTab } from './drawers-tab'
 import { CategoriesTab } from './categories-tab'
+import { DrawerScopedTab } from './drawer-scoped-tab'
 import { nextAvailableColor } from './types'
 import type { SidebarTab } from './types'
 
@@ -184,6 +185,20 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const allExpanded = filteredDrawers.length > 0 && filteredDrawers.every(d => effectiveExpanded.has(d.id))
   const toggleAll = () => setExpandedDrawers(allExpanded ? new Set() : new Set(drawers.map(d => d.id)))
 
+  const handleBatchToggleCategoryGroups = useCallback((keys: string[], open: boolean) => {
+    setExpandedCategoryGroups(prev => {
+      const next = new Set(prev)
+      for (const k of keys) {
+        if (open) {
+          next.add(k)
+        } else {
+          next.delete(k)
+        }
+      }
+      return next
+    })
+  }, [])
+
   const handleDragStart = (e: React.DragEvent, itemId: string) => {
     e.dataTransfer.setData('text/plain', itemId)
     e.dataTransfer.effectAllowed = 'move'
@@ -238,51 +253,90 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     else addCategory(name, color)
   }
 
+  const sidebarVersion = config.sidebarVersion ?? 'v1'
+
+  const selectedDrawer = drawers.find(d => d.id === selectedDrawerId) ?? null
+  const v2DrawerItems = filteredItemsByDrawer.get(selectedDrawerId ?? '') ?? []
+
   return (
     <ScrollArea className="h-full">
-      {/* Tabs */}
-      <div className="flex border-b border-border shrink-0">
-        <button
-          className={cn(
-            'flex-1 py-2 text-xs font-medium transition-colors',
-            activeTab === 'drawers' ? 'text-foreground border-b-2 border-primary -mb-px' : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('drawers')}
-        >
-          Drawers
-        </button>
-        <button
-          className={cn(
-            'flex-1 py-2 text-xs font-medium transition-colors',
-            activeTab === 'categories' ? 'text-foreground border-b-2 border-primary -mb-px' : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('categories')}
-        >
-          Categories
-        </button>
-      </div>
+      {sidebarVersion === 'v1' && (
+        /* Tabs */
+        <div className="flex border-b border-border shrink-0">
+          <button
+            className={cn(
+              'flex-1 py-2 text-xs font-medium transition-colors',
+              activeTab === 'drawers' ? 'text-foreground border-b-2 border-primary -mb-px' : 'text-muted-foreground hover:text-foreground'
+            )}
+            onClick={() => setActiveTab('drawers')}
+          >
+            Drawers
+          </button>
+          <button
+            className={cn(
+              'flex-1 py-2 text-xs font-medium transition-colors',
+              activeTab === 'categories' ? 'text-foreground border-b-2 border-primary -mb-px' : 'text-muted-foreground hover:text-foreground'
+            )}
+            onClick={() => setActiveTab('categories')}
+          >
+            Categories
+          </button>
+        </div>
+      )}
 
       <div className="p-2 select-none">
-        {/* Search box — shared between tabs */}
-        <div className="relative mb-2">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Escape' && (setSearchQuery(''), e.currentTarget.blur())}
-            className="w-full rounded-md border border-input bg-transparent pl-7 pr-7 py-1 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
+        {/* Search box — v1 only; v2 renders it inside DrawerScopedTab below the drawer selector */}
+        {sidebarVersion === 'v1' && (
+          <div className="relative mb-2">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Escape' && (setSearchQuery(''), e.currentTarget.blur())}
+              className="w-full rounded-md border border-input bg-transparent pl-7 pr-7 py-1 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
 
-        {activeTab === 'drawers' ? (
+        {sidebarVersion === 'v2' ? (
+          <DrawerScopedTab
+            selectedDrawer={selectedDrawer}
+            drawers={drawers}
+            categories={categories}
+            drawerItems={v2DrawerItems}
+            isCategoryGroupOpen={isCategoryGroupOpen}
+            toggleCategoryGroup={toggleCategoryGroup}
+            onBatchToggleCategoryGroups={handleBatchToggleCategoryGroups}
+            sortMode={sortMode}
+            setSortMode={setSortMode}
+            searchTerm={searchTerm}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchInputRef={searchInputRef}
+            draggedItem={draggedItem}
+            selectedDrawerId={selectedDrawerId}
+            selectDrawer={selectDrawer}
+            onAddDrawer={onAddDrawer}
+            onEditDrawer={onEditDrawer}
+            duplicateDrawer={duplicateDrawer}
+            onOpenAddCategory={openAddCategory}
+            onEditCategory={openEditCategory}
+            onDeleteCategory={(cat) => setPendingDelete({ type: 'category', id: cat.id, name: cat.name })}
+            setPendingDelete={setPendingDelete}
+            handleDragOver={handleDragOver}
+            handleDropOnDrawer={handleDropOnDrawer}
+            itemProps={itemProps}
+            config={config}
+          />
+        ) : activeTab === 'drawers' ? (
           <DrawersTab
             filteredDrawers={filteredDrawers}
             filteredItemsByDrawer={filteredItemsByDrawer}

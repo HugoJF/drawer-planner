@@ -91,6 +91,36 @@ export interface DrawersTabProps {
   config: GridfinityConfig
 }
 
+export interface DrawerScopedTabProps {
+  selectedDrawer: Drawer | null
+  drawers: Drawer[]
+  categories: Category[]
+  drawerItems: Item[]
+  isCategoryGroupOpen: (key: string, catId: string | null) => boolean
+  toggleCategoryGroup: (key: string) => void
+  onBatchToggleCategoryGroups: (keys: string[], open: boolean) => void
+  sortMode: SortMode
+  setSortMode: (m: SortMode) => void
+  searchTerm: string
+  searchQuery: string
+  setSearchQuery: (q: string) => void
+  searchInputRef: React.RefObject<HTMLInputElement | null>
+  draggedItem: string | null
+  selectedDrawerId: string | null
+  selectDrawer: (id: string) => void
+  onAddDrawer: () => void
+  onEditDrawer: (d: Drawer) => void
+  duplicateDrawer: (id: string) => void
+  onOpenAddCategory: () => void
+  onEditCategory: (cat: Category) => void
+  onDeleteCategory: (cat: Category) => void
+  setPendingDelete: (v: { type: 'drawer' | 'item' | 'category'; id: string; name: string } | null) => void
+  handleDragOver: (e: React.DragEvent) => void
+  handleDropOnDrawer: (e: React.DragEvent, id: string | null) => void
+  itemProps: (item: Item, drawer: Drawer | null) => TreeItemProps
+  config: GridfinityConfig
+}
+
 export interface CategoriesTabProps {
   categories: Category[]
   itemsByCategory: Map<string | null, Item[]>
