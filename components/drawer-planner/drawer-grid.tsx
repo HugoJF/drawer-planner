@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Drawer, Item, GridfinityConfig, Category } from '@/lib/types'
-import { formatDimension, getCategoryColor } from '@/lib/types'
+import { formatDimension, getCategoryColor, UNCATEGORIZED_COLOR } from '@/lib/types'
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
@@ -56,11 +56,22 @@ function heightToColor(ratio: number): string {
 }
 
 function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
-  if ((config.gridColorMode ?? 'category') === 'height') {
+  const mode = config.gridColorMode ?? 'category'
+  if (mode === 'height') {
     const { heightUnits } = calculateItemGridDimensions(item, config)
     const maxUnits = Math.ceil(drawer.height / config.heightUnit)
     const ratio = maxUnits > 0 ? Math.min(1, heightUnits / maxUnits) : 0
     return heightToColor(ratio)
+  } else if (mode === 'density') {
+    const dims = getRotatedDimensions(item)
+    const { gridWidth, gridDepth, heightUnits } = calculateItemGridDimensions(item, config)
+    const realVol = dims.width * dims.depth * dims.height
+    const footprintVol = gridWidth * config.cellSize * gridDepth * config.cellSize * heightUnits * config.heightUnit
+    if (realVol === 0 || footprintVol === 0) {
+      return UNCATEGORIZED_COLOR
+    }
+    const density = Math.min(1, realVol / footprintVol)
+    return heightToColor(1 - density)
   }
   return getCategoryColor(item.categoryId, categories)
 }
@@ -125,6 +136,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
   const updateItem = useDrawerStore(s => s.updateItem)
   const selectItem = useDrawerStore(s => s.selectItem)
+  const selectItems = useDrawerStore(s => s.selectItems)
   const toggleItemSelection = useDrawerStore(s => s.toggleItemSelection)
   const searchTerm = useDrawerStore(s => s.searchQuery).toLowerCase().trim()
 
@@ -132,6 +144,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [dropTarget, setDropTarget] = useState<{ x: number; y: number } | null>(null)
   const [drawState, setDrawState] = useState<DrawState | null>(null)
+  const [boxSelectState, setBoxSelectState] = useState<DrawState | null>(null)
   const [resizeState, setResizeState] = useState<ResizeState | null>(null)
   const [contextItem, setContextItem] = useState<Item | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; ids?: string[]; name: string } | null>(null)
@@ -294,6 +307,26 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   }, [items, selectedItemIds, selectItem])
 
   const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
+    if (boxSelectState && gridRef.current) {
+      const gridRect = gridRef.current.getBoundingClientRect()
+      const gx = Math.max(0, Math.min(drawer.gridCols - 1, Math.floor((e.clientX - gridRect.left) / cellStep)))
+      const gy = Math.max(0, Math.min(drawer.gridRows - 1, Math.floor((e.clientY - gridRect.top) / cellStep)))
+      setBoxSelectState(s => s ? { ...s, endX: gx, endY: gy } : null)
+      const selX1 = Math.min(boxSelectState.startX, gx)
+      const selY1 = Math.min(boxSelectState.startY, gy)
+      const selX2 = Math.max(boxSelectState.startX, gx)
+      const selY2 = Math.max(boxSelectState.startY, gy)
+      const itemsInBox = items.filter(i => {
+        const dims = calculateItemGridDimensions(i, config)
+        return i.gridX <= selX2 && i.gridX + dims.gridWidth - 1 >= selX1
+            && i.gridY <= selY2 && i.gridY + dims.gridDepth - 1 >= selY1
+      })
+      if (itemsInBox.length > 0) {
+        selectItems(itemsInBox.map(i => i.id))
+      } else {
+        selectItem(null)
+      }
+    }
     if (!resizeState) {
       return
     }
@@ -302,7 +335,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const newW = Math.max(1, resizeState.startGridWidth + (resizeState.handle !== 's' ? dx : 0))
     const newD = Math.max(1, resizeState.startGridDepth + (resizeState.handle !== 'e' ? dy : 0))
     setResizeState(s => s ? { ...s, previewWidth: newW, previewDepth: newD } : null)
-  }, [resizeState, cellStep])
+  }, [boxSelectState, resizeState, cellStep, drawer.gridCols, drawer.gridRows, items, config, selectItems, selectItem])
 
   const handleGridMouseUp = useCallback(() => {
     if (resizeState) {
@@ -318,6 +351,15 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       setResizeState(null)
       return
     }
+    if (boxSelectState) {
+      // Selection is already up to date from mousemove; just finalize.
+      // If the user clicked without dragging (startX===endX, startY===endY), deselect all.
+      if (boxSelectState.startX === boxSelectState.endX && boxSelectState.startY === boxSelectState.endY) {
+        selectItem(null)
+      }
+      setBoxSelectState(null)
+      return
+    }
     if (!drawState) {
       return
     }
@@ -327,10 +369,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const rows = Math.abs(drawState.endY - drawState.startY) + 1
     setDrawState(null)
     onAddItemAtCell(gx, gy, cols, rows)
-  }, [resizeState, drawState, items, updateItem, onAddItemAtCell])
+  }, [resizeState, boxSelectState, drawState, items, updateItem, selectItem, onAddItemAtCell])
 
   const handleGridMouseLeave = useCallback(() => {
     setDrawState(null)
+    setBoxSelectState(null)
     setResizeState(null)
   }, [])
 
@@ -341,15 +384,19 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     }
     const gx = parseInt(target.dataset.gx!)
     const gy = parseInt(target.dataset.gy!)
-    if (occupancyMap.has(`${gx},${gy}`)) {
-      return
-    }
     e.preventDefault()
-    setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
+    if (e.ctrlKey || e.metaKey) {
+      if (occupancyMap.has(`${gx},${gy}`)) {
+        return
+      }
+      setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
+    } else {
+      setBoxSelectState({ startX: gx, startY: gy, endX: gx, endY: gy })
+    }
   }, [dragState, resizeState, occupancyMap])
 
   const handleGridMouseOver = useCallback((e: React.MouseEvent) => {
-    if (!drawState) {
+    if (!drawState && !boxSelectState) {
       return
     }
     const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
@@ -358,8 +405,13 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     }
     const gx = parseInt(target.dataset.gx!)
     const gy = parseInt(target.dataset.gy!)
-    setDrawState(s => s ? { ...s, endX: gx, endY: gy } : null)
-  }, [drawState])
+    if (drawState) {
+      setDrawState(s => s ? { ...s, endX: gx, endY: gy } : null)
+    }
+    if (boxSelectState) {
+      setBoxSelectState(s => s ? { ...s, endX: gx, endY: gy } : null)
+    }
+  }, [drawState, boxSelectState])
 
   const handleResizeStart = useCallback((e: React.MouseEvent, item: Item, handle: ResizeState['handle']) => {
     e.stopPropagation()
@@ -436,7 +488,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   style={{
                     width: CELL_SIZE,
                     height: CELL_SIZE,
-                    cursor: isOccupied ? 'default' : drawState ? 'crosshair' : 'cell',
+                    cursor: isOccupied ? 'default' : (drawState || boxSelectState) ? 'crosshair' : 'cell',
                   }}
                 />
               )
@@ -468,6 +520,29 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               />
             )
           })}
+
+          {/* Box-select overlay */}
+          {boxSelectState && (() => {
+            const x1 = Math.min(boxSelectState.startX, boxSelectState.endX)
+            const y1 = Math.min(boxSelectState.startY, boxSelectState.endY)
+            const x2 = Math.max(boxSelectState.startX, boxSelectState.endX)
+            const y2 = Math.max(boxSelectState.startY, boxSelectState.endY)
+            const w = (x2 - x1 + 1) * CELL_SIZE + (x2 - x1)
+            const h = (y2 - y1 + 1) * CELL_SIZE + (y2 - y1)
+            return (
+              <div
+                className="absolute pointer-events-none z-20"
+                style={{
+                  left: x1 * (CELL_SIZE + 1) + 1,
+                  top: y1 * (CELL_SIZE + 1) + 1,
+                  width: w,
+                  height: h,
+                  border: '2px dashed var(--primary)',
+                  background: 'color-mix(in oklch, var(--primary) 10%, transparent)',
+                }}
+              />
+            )
+          })()}
 
           {/* Resize ghost overlay */}
           {resizeState && (() => {

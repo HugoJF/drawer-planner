@@ -7,8 +7,9 @@ A visual planner for organizing [Gridfinity](https://www.youtube.com/watch?v=ra_
 ## Features
 
 - **Multiple projects** — keep separate layouts in memory; switch instantly from the header picker; first-run wizard on a fresh install
-- **Visual grid editor** — drag items to reposition, resize with handles, draw-to-create new items directly on the grid
-- **Multi-selection** — Ctrl+click to toggle selection; drag all selected unlocked items together as a group with ghost overlays
+- **Visual grid editor** — drag items to reposition, resize with handles; Ctrl+drag on empty cells to draw-to-create new items
+- **Box selection** — drag on empty grid space to rubber-band select items in real time; click empty space to deselect all
+- **Multi-selection** — Ctrl+click to toggle individual items; drag all selected unlocked items together as a group with ghost overlays
 - **Bulk operations** — delete, lock/unlock, or move multiple items at once via context menu or keyboard
 - **Categories** — assign items to named, colored categories via form or context menu; color is derived from the category, not the item
 - **Sidebar tabs** — Drawers tab (Drawer → Category → Item) and Categories tab (cross-drawer Category → Item view with edit/delete); categories have their own context menu in both tabs
