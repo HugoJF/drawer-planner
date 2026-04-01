@@ -8,7 +8,7 @@ export function migrate(raw: RawInput): MigratedState {
 
   // If version is not a number, treat as unknown (pre-versioning)
   if (typeof state.version !== 'number') {
-    state = nullTo1(state as StateV0)
+    state = { ...nullTo1(state as StateV0) }
   }
 
   // Each future step checks state.version so the chain works regardless of starting point.

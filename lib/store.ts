@@ -7,6 +7,7 @@ import type {
   Item,
   Category,
   ExportData,
+  ProjectData,
 } from '@/lib/types'
 import { DEFAULT_CONFIG, CURRENT_VERSION } from '@/lib/types'
 import { migrate } from '@/lib/migrations'
@@ -57,6 +58,8 @@ export interface DrawerStore {
   redo: () => void
   jumpToHistory: (index: number) => void
   jumpToFuture: (index: number) => void
+
+  loadProject: (data: ProjectData) => void
 
   // Computed getters
   getDrawerById: (id: string) => Drawer | undefined
@@ -369,6 +372,20 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             })
           },
 
+          loadProject: (data) => {
+            const migrated = migrate(data as unknown as Parameters<typeof migrate>[0])
+            set({
+              config: { ...DEFAULT_CONFIG, ...(migrated.config as Partial<GridfinityConfig>) },
+              drawers: (migrated.drawers ?? []) as Drawer[],
+              items: (migrated.items ?? []) as Item[],
+              categories: (migrated.categories ?? []) as Category[],
+              selectedDrawerId: null,
+              selectedItemIds: new Set(),
+              past: [],
+              future: [],
+            })
+          },
+
           // Computed getters
           getDrawerById: (id) => {
             return get().drawers.find((d) => d.id === id)
@@ -401,7 +418,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           importData: (data) => {
             if (data.version && data.drawers && data.items) {
               push()
-              const migrated = migrate(data as Parameters<typeof migrate>[0])
+              const migrated = migrate(data as unknown as Parameters<typeof migrate>[0])
               set({
                 config: { ...DEFAULT_CONFIG, ...(migrated.config as Partial<GridfinityConfig>) },
                 drawers: migrated.drawers as Drawer[],
@@ -437,7 +454,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
 }
 
 // Singleton for the app
-const drawerStore = createDrawerStore()
+export const drawerStore = createDrawerStore()
 
 export function useDrawerStore<T>(selector: (s: DrawerStore) => T): T {
   return useStore(drawerStore, selector)

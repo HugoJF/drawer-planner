@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useDrawerStore } from '@/lib/store'
+import { useProjectsStore } from '@/lib/projects-store'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import { SHORTCUTS } from '@/lib/shortcuts'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
@@ -10,6 +11,8 @@ import { ItemForm } from '@/components/drawer-planner/item-form'
 import { SettingsPanel } from '@/components/drawer-planner/settings-panel'
 import { ShortcutsDialog } from '@/components/drawer-planner/shortcuts-dialog'
 import { HistoryPanel } from '@/components/drawer-planner/history-panel'
+import { ProjectWizard } from '@/components/drawer-planner/project-wizard'
+import { ProjectSelect } from '@/components/drawer-planner/project-select'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -32,6 +35,8 @@ import { calculateItemGridDimensions, applyNextRotation } from '@/lib/gridfinity
 import { labelAction } from '@/lib/history'
 
 function DashboardContent() {
+  const projects = useProjectsStore(s => s.projects)
+
   // Store — data
   const selectedDrawerId = useDrawerStore(s => s.selectedDrawerId)
   const drawers          = useDrawerStore(s => s.drawers)
@@ -218,6 +223,8 @@ function DashboardContent() {
     setItemFormOpen(true)
   }
 
+  if (projects.length === 0) return <ProjectWizard />
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
@@ -276,17 +283,19 @@ function DashboardContent() {
             )}
             <div className="flex items-center gap-2">
               <Grid3X3 className="h-5 w-5 text-primary" />
-              {selectedDrawer ? (
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-semibold">{selectedDrawer.name}</h1>
-                  <span className="text-sm text-muted-foreground">
-                    {formatDimension(selectedDrawer.width, config.displayUnit)} ×{' '}
-                    {formatDimension(selectedDrawer.depth, config.displayUnit)} ×{' '}
-                    {formatDimension(selectedDrawer.height, config.displayUnit)}
-                  </span>
-                </div>
-              ) : (
-                <h1 className="text-lg font-semibold">Gridfinity Drawer Planner</h1>
+              <ProjectSelect />
+              {selectedDrawer && (
+                <>
+                  <span className="text-muted-foreground">/</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{selectedDrawer.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {formatDimension(selectedDrawer.width, config.displayUnit)} ×{' '}
+                      {formatDimension(selectedDrawer.depth, config.displayUnit)} ×{' '}
+                      {formatDimension(selectedDrawer.height, config.displayUnit)}
+                    </span>
+                  </div>
+                </>
               )}
             </div>
           </div>

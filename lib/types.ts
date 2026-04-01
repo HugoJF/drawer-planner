@@ -103,12 +103,33 @@ export function formatDimension(valueMm: number, unit: DimensionUnit): string {
   return `${value}${unit}`
 }
 
-export const CURRENT_VERSION = 1
+export const CURRENT_VERSION = 2
+
+// Project management
+export interface ProjectMeta {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+  drawerCount: number
+  itemCount: number
+}
+
+export interface ProjectData {
+  config: GridfinityConfig
+  drawers: Drawer[]
+  items: Item[]
+  categories: Category[]
+}
 
 // Export/Import data structure
 export interface ExportData {
   version: number
+  projectId?: string    // absent in v1 exports
+  name?: string         // absent in v1 exports
   exportDate: string
+  drawerCount?: number
+  itemCount?: number
   config: GridfinityConfig
   drawers: Drawer[]
   items: Item[]
