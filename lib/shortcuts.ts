@@ -38,5 +38,5 @@ export const SHORTCUTS = {
   moveDown:  { key: 'ArrowDown',                  description: 'Move selected item(s) one grid cell' },
   moveLeft:  { key: 'ArrowLeft',                  description: 'Move selected item(s) one grid cell' },
   moveRight: { key: 'ArrowRight',                 description: 'Move selected item(s) one grid cell' },
-  shortcuts: { key: '?',                          description: 'Show this cheatsheet' },
+  shortcuts: { key: '?',            shift: true,  description: 'Show this cheatsheet' },
 } satisfies Record<string, ShortcutDef>
