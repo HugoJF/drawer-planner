@@ -463,6 +463,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           drawers: state.drawers,
           items: state.items,
           categories: state.categories,
+          selectedDrawerId: state.selectedDrawerId,
         }),
         onRehydrateStorage: () => (state) => {
           if (state) {
