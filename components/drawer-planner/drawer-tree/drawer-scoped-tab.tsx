@@ -252,7 +252,7 @@ export function DrawerScopedTab({
                       <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: group.color }} />
                       <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="flex-1 truncate text-sm">{group.label}</span>
-                      {(config.showCategoryCount ?? true) && <span className="text-xs text-muted-foreground">{group.items.length}</span>}
+                      {config.showCategoryCount && <span className="text-xs text-muted-foreground">{group.items.length}</span>}
                       {cat && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>

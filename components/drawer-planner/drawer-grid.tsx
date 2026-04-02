@@ -56,7 +56,7 @@ function heightToColor(ratio: number): string {
 }
 
 function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
-  const mode = config.gridColorMode ?? GridColorMode.Category
+  const mode = config.gridColorMode
   if (mode === GridColorMode.Height) {
     const { heightUnits } = calculateItemGridDimensions(item, config)
     const maxUnits = Math.ceil(drawer.height / config.heightUnit)

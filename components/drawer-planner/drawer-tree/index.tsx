@@ -141,8 +141,8 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
   const toggleDrawer = (id: string) => setExpandedDrawers(prev => toggleInSet(prev, id))
 
-  const categoryExpansion = config.categoryExpansion ?? CategoryExpansion.None
-  const categoryExpansionMode = config.categoryExpansionMode ?? CategoryExpansionMode.AlwaysOpen
+  const categoryExpansion = config.categoryExpansion
+  const categoryExpansionMode = config.categoryExpansionMode
 
   // Reset manual overrides whenever the expansion config changes (no effect needed).
   const lastConfigKeyRef = useRef(`${categoryExpansion}:${categoryExpansionMode}`)
@@ -265,7 +265,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     else addCategory(name, color)
   }
 
-  const sidebarVersion = config.sidebarVersion ?? 'v1'
+  const sidebarVersion = config.sidebarVersion
 
   const selectedDrawer = drawers.find(d => d.id === selectedDrawerId) ?? null
   const v2DrawerItems = filteredItemsByDrawer.get(selectedDrawerId ?? '') ?? []

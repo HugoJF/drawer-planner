@@ -298,7 +298,7 @@ export function SettingsPanel() {
                   <p className="text-[10px] text-muted-foreground">Category color, height heatmap, or density heatmap</p>
                 </div>
                 <Select
-                  value={config.gridColorMode ?? GridColorMode.Category}
+                  value={config.gridColorMode}
                   onValueChange={v => updateConfig({ gridColorMode: v as GridColorMode })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
@@ -322,7 +322,7 @@ export function SettingsPanel() {
                   <p className="text-[10px] text-muted-foreground">Classic tree or drawer-scoped view</p>
                 </div>
                 <Select
-                  value={config.sidebarVersion ?? 'v1'}
+                  value={config.sidebarVersion}
                   onValueChange={v => updateConfig({ sidebarVersion: v as 'v1' | 'v2' })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
@@ -337,14 +337,14 @@ export function SettingsPanel() {
                   <Label className="text-xs">Drawer item count</Label>
                   <p className="text-[10px] text-muted-foreground">Show count next to drawer name</p>
                 </div>
-                <Switch checked={config.showDrawerCount ?? true} onCheckedChange={v => updateConfig({ showDrawerCount: v })} />
+                <Switch checked={config.showDrawerCount} onCheckedChange={v => updateConfig({ showDrawerCount: v })} />
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <Label className="text-xs">Category item count</Label>
                   <p className="text-[10px] text-muted-foreground">Show count next to category name</p>
                 </div>
-                <Switch checked={config.showCategoryCount ?? true} onCheckedChange={v => updateConfig({ showCategoryCount: v })} />
+                <Switch checked={config.showCategoryCount} onCheckedChange={v => updateConfig({ showCategoryCount: v })} />
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
@@ -352,7 +352,7 @@ export function SettingsPanel() {
                   <p className="text-[10px] text-muted-foreground">Area (20U) or dimensions (5×4)</p>
                 </div>
                 <Select
-                  value={config.itemSizeDisplay ?? ItemSizeDisplay.Area}
+                  value={config.itemSizeDisplay}
                   onValueChange={v => updateConfig({ itemSizeDisplay: v as ItemSizeDisplay })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
@@ -368,7 +368,7 @@ export function SettingsPanel() {
                   <p className="text-[10px] text-muted-foreground">Which categories open by default</p>
                 </div>
                 <Select
-                  value={config.categoryExpansion ?? CategoryExpansion.None}
+                  value={config.categoryExpansion}
                   onValueChange={v => updateConfig({ categoryExpansion: v as CategoryExpansion })}
                 >
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
@@ -379,14 +379,14 @@ export function SettingsPanel() {
                   </SelectContent>
                 </Select>
               </div>
-              {(config.categoryExpansion ?? CategoryExpansion.None) !== CategoryExpansion.None && (
+              {config.categoryExpansion !== CategoryExpansion.None && (
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <Label className="text-xs">Expansion behavior</Label>
                     <p className="text-[10px] text-muted-foreground">Just open: user can collapse; Always open: locked</p>
                   </div>
                   <Select
-                    value={config.categoryExpansionMode ?? CategoryExpansionMode.AlwaysOpen}
+                    value={config.categoryExpansionMode}
                     onValueChange={v => updateConfig({ categoryExpansionMode: v as CategoryExpansionMode })}
                   >
                     <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
@@ -402,7 +402,7 @@ export function SettingsPanel() {
                   <Label className="text-xs">Stats panel</Label>
                   <p className="text-[10px] text-muted-foreground">Show drawer stats at bottom of sidebar</p>
                 </div>
-                <Switch checked={config.showSidebarStats ?? true} onCheckedChange={v => updateConfig({ showSidebarStats: v })} />
+                <Switch checked={config.showSidebarStats} onCheckedChange={v => updateConfig({ showSidebarStats: v })} />
               </div>
             </div>
 

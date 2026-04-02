@@ -29,7 +29,7 @@ export function TreeItem({
 }: TreeItemProps) {
   const isOversized = drawer ? isItemOversized(item, drawer) : false
   const dims = calculateItemGridDimensions(item, config)
-  const heightLabel = (config.itemSizeDisplay ?? ItemSizeDisplay.Area) === ItemSizeDisplay.Dimensions
+  const heightLabel = config.itemSizeDisplay === ItemSizeDisplay.Dimensions
     ? `${dims.gridWidth}×${dims.gridDepth}`
     : `${dims.gridWidth * dims.gridDepth}U`
 

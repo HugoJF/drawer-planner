@@ -78,7 +78,7 @@ export function CategoriesTab({
               <div className="h-3 w-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
               <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span className="flex-1 truncate text-sm">{label}</span>
-              {(config.showCategoryCount ?? true) && <span className="text-xs text-muted-foreground">{items.length}</span>}
+              {config.showCategoryCount && <span className="text-xs text-muted-foreground">{items.length}</span>}
               {category && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>

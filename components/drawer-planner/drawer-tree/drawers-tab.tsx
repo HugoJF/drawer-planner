@@ -149,7 +149,7 @@ export function DrawersTab({
                           <TooltipContent side="right">Contains items that exceed drawer height</TooltipContent>
                         </Tooltip>
                       )}
-                      {(config.showDrawerCount ?? true) && <span className="text-xs text-muted-foreground">{drawerItems.length}</span>}
+                      {config.showDrawerCount && <span className="text-xs text-muted-foreground">{drawerItems.length}</span>}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <button className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity">
@@ -189,7 +189,7 @@ export function DrawersTab({
                                   </CollapsibleTrigger>
                                   <div className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: group.color }} />
                                   <span className="flex-1 truncate text-xs text-muted-foreground">{group.label}</span>
-                                  {(config.showCategoryCount ?? true) && <span className="text-xs text-muted-foreground">{group.items.length}</span>}
+                                  {config.showCategoryCount && <span className="text-xs text-muted-foreground">{group.items.length}</span>}
                                   {group.categoryId !== null && (() => {
                                     const cat = categories.find(c => c.id === group.categoryId)!
                                     return (
