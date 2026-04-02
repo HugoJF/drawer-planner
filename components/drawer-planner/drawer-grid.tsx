@@ -760,17 +760,17 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   <>
                     {/* East handle */}
                     <div
-                      className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 w-2 h-6 rounded-sm bg-primary/70 hover:bg-primary cursor-e-resize z-20"
+                      className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 w-2.5 h-2.5 bg-white border border-primary cursor-e-resize z-20"
                       onMouseDown={(e) => handleResizeStart(e, item, 'e')}
                     />
                     {/* South handle */}
                     <div
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 h-2 w-6 rounded-sm bg-primary/70 hover:bg-primary cursor-s-resize z-20"
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-white border border-primary cursor-s-resize z-20"
                       onMouseDown={(e) => handleResizeStart(e, item, 's')}
                     />
                     {/* Southeast handle */}
                     <div
-                      className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-3 h-3 rounded-sm bg-primary/70 hover:bg-primary cursor-se-resize z-20"
+                      className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-white border border-primary cursor-se-resize z-20"
                       onMouseDown={(e) => handleResizeStart(e, item, 'se')}
                     />
                   </>
