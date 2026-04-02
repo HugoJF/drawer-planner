@@ -42,3 +42,22 @@ if (lastKeyRef.current !== key) {
 Legitimate effects: external subscriptions (event listeners, WebSockets), DOM mutations, network I/O.
 
 An `// eslint-disable-line react-hooks/exhaustive-deps` is almost always a sign of a broken model — fix the model instead of suppressing the lint rule.
+
+## Testing
+
+Use the Arrange / Act / Assert pattern. Mark each phase with a comment:
+
+```ts
+test('description', () => {
+  // Arrange
+  const item = makeItem({ width: 84, depth: 42 })
+
+  // Act
+  const result = calculateItemGridDimensions(item, DEFAULT_CONFIG)
+
+  // Assert
+  expect(result.gridWidth).toBe(2)
+})
+```
+
+When `beforeEach` provides the shared store/fixture, only add `// Arrange` in the test body for test-specific setup. If the test body starts directly with the action, begin with `// Act`.
