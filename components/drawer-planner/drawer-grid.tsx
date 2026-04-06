@@ -144,6 +144,13 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   const { toast } = useToast()
   const [dragState, setDragState] = useState<DragState | null>(null)
+  const [pendingDrag, setPendingDrag] = useState<{
+    item: Item
+    startClientX: number
+    startClientY: number
+    grabPxX: number
+    grabPxY: number
+  } | null>(null)
   const [dropTarget, setDropTarget] = useState<{ x: number; y: number } | null>(null)
   const [drawState, setDrawState] = useState<DrawState | null>(null)
   const [boxSelectState, setBoxSelectState] = useState<DrawState | null>(null)
@@ -151,6 +158,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const [contextItem, setContextItem] = useState<Item | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; ids?: string[]; name: string } | null>(null)
   const gridRef = React.useRef<HTMLDivElement>(null)
+  const suppressNextClick = React.useRef(false)
 
   // Create grid occupancy map
   const occupancyMap = useMemo(() => {
@@ -185,59 +193,13 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     }
   }, [dragState, drawer.gridCols, drawer.gridRows, cellStep])
 
-  const handleGridDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    const pos = computeDropPosition(e.clientX, e.clientY)
-    if (pos) {
-      setDropTarget(pos)
-    }
-  }, [computeDropPosition])
-
-  const handleGridDragLeave = useCallback((e: React.DragEvent) => {
-    if (!gridRef.current?.contains(e.relatedTarget as Node)) {
-      setDropTarget(null)
-    }
-  }, [])
-
-  const handleGridDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    const pos = computeDropPosition(e.clientX, e.clientY)
-    if (pos && dragState) {
-      if (dragState.itemOffsets.length > 1) {
-        repositionItems(dragState.itemOffsets.map(({ id, dx, dy }) => ({
-          id,
-          drawerId: drawer.id,
-          gridX: pos.x + dx,
-          gridY: pos.y + dy,
-        })))
-      } else {
-        moveItem(dragState.itemId, drawer.id, pos.x, pos.y)
-      }
-    }
-    setDropTarget(null)
-    setDragState(null)
-  }, [computeDropPosition, drawer.id, moveItem, repositionItems, dragState])
-
-  const handleItemDragStart = useCallback((e: React.DragEvent, item: Item) => {
-    if (item.locked) { e.preventDefault(); return }
-    e.dataTransfer.setData('text/plain', item.id)
-    e.dataTransfer.effectAllowed = 'move'
-    // Suppress browser native ghost — we render our own overlays
-    const transparent = new Image()
-    transparent.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-    e.dataTransfer.setDragImage(transparent, 0, 0)
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const promotePendingDrag = useCallback((pd: NonNullable<typeof pendingDrag>, clientX: number, clientY: number) => {
+    const item = pd.item
     const dims = calculateItemGridDimensions(item, config)
-
-    // Gather co-dragged items: all selected, unlocked items in this drawer (including anchor)
     const coDragged = selectedItemIds.has(item.id)
       ? items.filter(i => selectedItemIds.has(i.id) && !i.locked)
       : [item]
-
     const itemOffsets = coDragged.map(i => ({ id: i.id, dx: i.gridX - item.gridX, dy: i.gridY - item.gridY }))
-
-    // Pre-compute all drag cells relative to anchor and clamping bounds
     const dragCells = new Set<string>()
     let minDx = 0, minDy = 0, maxRight = dims.gridWidth, maxBottom = dims.gridDepth
     for (const di of coDragged) {
@@ -254,12 +216,12 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       maxRight = Math.max(maxRight, odx + diDims.gridWidth)
       maxBottom = Math.max(maxBottom, ody + diDims.gridDepth)
     }
-
-    setDropTarget({ x: item.gridX, y: item.gridY })
+    const pos = { x: item.gridX, y: item.gridY }
+    setDropTarget(pos)
     setDragState({
       itemId: item.id,
-      grabPxX: e.clientX - rect.left,
-      grabPxY: e.clientY - rect.top,
+      grabPxX: pd.grabPxX,
+      grabPxY: pd.grabPxY,
       gridWidth: dims.gridWidth,
       gridDepth: dims.gridDepth,
       itemOffsets,
@@ -269,12 +231,35 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       maxRight,
       maxBottom,
     })
-  }, [config, items, selectedItemIds])
+    setPendingDrag(null)
+    suppressNextClick.current = true
+    // Immediately update drop target from current mouse position
+    if (gridRef.current) {
+      const gridRect = gridRef.current.getBoundingClientRect()
+      const cellX = Math.round((clientX - gridRect.left - pd.grabPxX) / cellStep)
+      const cellY = Math.round((clientY - gridRect.top  - pd.grabPxY) / cellStep)
+      setDropTarget({
+        x: Math.max(-minDx, Math.min(cellX, drawer.gridCols - maxRight)),
+        y: Math.max(-minDy, Math.min(cellY, drawer.gridRows - maxBottom)),
+      })
+    }
+  }, [config, items, selectedItemIds, cellStep, drawer.gridCols, drawer.gridRows])
 
-  const handleDragEnd = useCallback(() => {
-    setDragState(null)
-    setDropTarget(null)
-  }, [])
+  const handleItemMouseDown = useCallback((e: React.MouseEvent, item: Item) => {
+    if (e.button !== 0 || item.locked || resizeState || drawState || boxSelectState) {
+      return
+    }
+    e.preventDefault()
+    e.stopPropagation() // prevent grid's handleGridMouseDown from also firing
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setPendingDrag({
+      item,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      grabPxX: e.clientX - rect.left,
+      grabPxY: e.clientY - rect.top,
+    })
+  }, [resizeState, drawState, boxSelectState])
 
   const handleRotate = useCallback((item: Item) => {
     updateItem({ ...item, ...applyNextRotation(item) })
@@ -309,6 +294,21 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   }, [items, selectedItemIds, selectItem])
 
   const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
+    if (pendingDrag) {
+      const dx = Math.abs(e.clientX - pendingDrag.startClientX)
+      const dy = Math.abs(e.clientY - pendingDrag.startClientY)
+      if (dx > 3 || dy > 3) {
+        promotePendingDrag(pendingDrag, e.clientX, e.clientY)
+      }
+      return
+    }
+    if (dragState) {
+      const pos = computeDropPosition(e.clientX, e.clientY)
+      if (pos) {
+        setDropTarget(pos)
+      }
+      return
+    }
     if (boxSelectState && gridRef.current) {
       const gridRect = gridRef.current.getBoundingClientRect()
       const gx = Math.max(0, Math.min(drawer.gridCols - 1, Math.floor((e.clientX - gridRect.left) / cellStep)))
@@ -337,9 +337,38 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const newW = Math.max(1, resizeState.startGridWidth + (resizeState.handle !== 's' ? dx : 0))
     const newD = Math.max(1, resizeState.startGridDepth + (resizeState.handle !== 'e' ? dy : 0))
     setResizeState(s => s ? { ...s, previewWidth: newW, previewDepth: newD } : null)
-  }, [boxSelectState, resizeState, cellStep, drawer.gridCols, drawer.gridRows, items, config, selectItems, selectItem])
+  }, [pendingDrag, dragState, boxSelectState, resizeState, cellStep, drawer.gridCols, drawer.gridRows, items, config, selectItems, selectItem, promotePendingDrag, computeDropPosition])
 
-  const handleGridMouseUp = useCallback(() => {
+  const handleGridMouseUp = useCallback((e: React.MouseEvent) => {
+    if (pendingDrag) {
+      // Mouse released without crossing drag threshold — treat as click
+      setPendingDrag(null)
+      const item = pendingDrag.item
+      if (e.ctrlKey || e.metaKey || selectedItemIds.has(item.id)) {
+        toggleItemSelection(item.id)
+      } else {
+        selectItem(item.id)
+      }
+      return
+    }
+    if (dragState) {
+      const pos = computeDropPosition(e.clientX, e.clientY)
+      if (pos) {
+        if (dragState.itemOffsets.length > 1) {
+          repositionItems(dragState.itemOffsets.map(({ id, dx, dy }) => ({
+            id,
+            drawerId: drawer.id,
+            gridX: pos.x + dx,
+            gridY: pos.y + dy,
+          })))
+        } else {
+          moveItem(dragState.itemId, drawer.id, pos.x, pos.y)
+        }
+      }
+      setDragState(null)
+      setDropTarget(null)
+      return
+    }
     if (resizeState) {
       const item = items.find(i => i.id === resizeState.itemId)
       if (item) {
@@ -354,8 +383,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       return
     }
     if (boxSelectState) {
-      // Selection is already up to date from mousemove; just finalize.
-      // If the user clicked without dragging (startX===endX, startY===endY), deselect all.
       if (boxSelectState.startX === boxSelectState.endX && boxSelectState.startY === boxSelectState.endY) {
         selectItem(null)
       }
@@ -371,9 +398,12 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const rows = Math.abs(drawState.endY - drawState.startY) + 1
     setDrawState(null)
     onAddItemAtCell(gx, gy, cols, rows)
-  }, [resizeState, boxSelectState, drawState, items, updateItem, selectItem, onAddItemAtCell])
+  }, [pendingDrag, dragState, resizeState, boxSelectState, drawState, items, updateItem, selectItem, toggleItemSelection, selectedItemIds, computeDropPosition, drawer.id, moveItem, repositionItems, onAddItemAtCell])
 
   const handleGridMouseLeave = useCallback(() => {
+    setPendingDrag(null)
+    setDragState(null)
+    setDropTarget(null)
     setDrawState(null)
     setBoxSelectState(null)
     setResizeState(null)
@@ -446,9 +476,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         <div
           ref={gridRef}
           className="relative"
-          onDragOver={handleGridDragOver}
-          onDrop={handleGridDrop}
-          onDragLeave={handleGridDragLeave}
           onMouseMove={handleGridMouseMove}
           onMouseUp={handleGridMouseUp}
           onMouseLeave={handleGridMouseLeave}
@@ -609,10 +636,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             return (
               <div
                 key={item.id}
-                draggable={!resizeState && !isLocked}
-                onDragStart={(e) => handleItemDragStart(e, item)}
-                onDragEnd={handleDragEnd}
-                onClick={(e) => e.ctrlKey || e.metaKey || isSelected ? toggleItemSelection(item.id) : selectItem(item.id)}
+                onMouseDown={(e) => handleItemMouseDown(e, item)}
+                onClick={(e) => {
+                  if (suppressNextClick.current) { suppressNextClick.current = false; return }
+                  e.ctrlKey || e.metaKey || isSelected ? toggleItemSelection(item.id) : selectItem(item.id)
+                }}
                 onDoubleClick={() => onEditItem(item)}
                 data-item-id={item.id}
                 className={cn(
@@ -637,7 +665,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   height: gridSize(visD),
                   backgroundColor: getItemColor(item, drawer, config, categories),
                   zIndex: isSelected ? 10 : 1,
-                  pointerEvents: drawState || (dragState && dragState.itemId !== item.id) || (resizeState && resizeState.itemId !== item.id) ? 'none' : undefined,
+                  pointerEvents: drawState || pendingDrag || (dragState && dragState.itemId !== item.id) || (resizeState && resizeState.itemId !== item.id) ? 'none' : undefined,
                   transition: isResizing ? 'none' : 'opacity 0.1s',
                 }}
               >
