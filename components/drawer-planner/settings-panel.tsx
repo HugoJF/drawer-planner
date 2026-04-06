@@ -313,6 +313,32 @@ export function SettingsPanel() {
 
             <Separator />
 
+            <p className="text-xs text-muted-foreground">Cabinet View</p>
+
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <Label htmlFor="cabinetSnapThreshold" className="text-xs">Snap threshold</Label>
+                  <p className="text-[10px] text-muted-foreground">Distance at which drawers snap together</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    id="cabinetSnapThreshold"
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="64"
+                    value={config.cabinetSnapThresholdPx}
+                    onChange={(e) => updateConfig({ cabinetSnapThresholdPx: parseInt(e.target.value) || 0 })}
+                    className="w-20 text-right"
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
             <p className="text-xs text-muted-foreground">Sidebar</p>
 
             <div className="grid gap-3">

@@ -231,6 +231,8 @@ describe('importData', () => {
     depth: 150,
     gridCols: 4,
     gridRows: 3,
+    cabinetX: 0,
+    cabinetY: 0,
   }
 
   const sampleItem: Item = {

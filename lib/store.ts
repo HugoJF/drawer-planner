@@ -19,7 +19,7 @@ import {
 } from '@/lib/gridfinity'
 import { indexById, toggleInSet } from '@/lib/utils'
 
-export type Snapshot = { drawers: Drawer[]; items: Item[]; categories: Category[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string> }
+export type Snapshot = { drawers: Drawer[]; items: Item[]; categories: Category[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string>; selectedCabinetDrawerIds: Set<string> }
 
 export interface DrawerStore {
   // State
@@ -29,6 +29,7 @@ export interface DrawerStore {
   categories: Category[]
   selectedDrawerId: string | null
   selectedItemIds: Set<string>
+  selectedCabinetDrawerIds: Set<string>
   searchQuery: string
   past: Snapshot[]
   future: Snapshot[]
@@ -38,7 +39,7 @@ export interface DrawerStore {
   selectItem: (id: string | null) => void
   toggleItemSelection: (id: string) => void
   selectItems: (ids: string[]) => void
-  addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows'>) => void
+  addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows' | 'cabinetX' | 'cabinetY'>) => void
   updateDrawer: (drawer: Drawer) => void
   deleteDrawer: (id: string, deleteContents?: boolean) => void
   duplicateDrawer: (id: string) => void
@@ -51,6 +52,10 @@ export interface DrawerStore {
   duplicateItem: (id: string) => boolean
   moveItem: (itemId: string, drawerId: string | null, gridX: number, gridY: number) => void
   repositionItems: (updates: { id: string; drawerId: string | null; gridX: number; gridY: number }[]) => void
+  setCabinetPosition: (drawerId: string, x: number, y: number) => void
+  repositionCabinetDrawers: (updates: { id: string; x: number; y: number }[]) => void
+  selectCabinetDrawers: (ids: string[]) => void
+  toggleCabinetDrawerSelection: (id: string) => void
   updateConfig: (config: Partial<GridfinityConfig>) => void
   addCategory: (name: string, color: string) => string
   updateCategory: (category: Category) => void
@@ -78,8 +83,8 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
     persist(
       (set, get) => {
         const snap = (): Snapshot => {
-          const { drawers, items, categories, config, selectedDrawerId, selectedItemIds } = get()
-          return { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds) }
+          const { drawers, items, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds } = get()
+          return { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds), selectedCabinetDrawerIds: new Set(selectedCabinetDrawerIds) }
         }
 
         const push = () => {
@@ -95,6 +100,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           categories: [],
           selectedDrawerId: null,
           selectedItemIds: new Set(),
+          selectedCabinetDrawerIds: new Set(),
           searchQuery: '',
           past: [],
           future: [],
@@ -115,6 +121,8 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               get().config
             )
             const newDrawer: Drawer = {
+              cabinetX: 0,
+              cabinetY: 0,
               ...drawer,
               id: generateId(),
               gridCols,
@@ -282,6 +290,30 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             }))
           },
 
+          setCabinetPosition: (drawerId, x, y) => {
+            push()
+            set((state) => ({
+              drawers: state.drawers.map(d => d.id === drawerId ? { ...d, cabinetX: x, cabinetY: y } : d),
+            }))
+          },
+
+          repositionCabinetDrawers: (updates) => {
+            push()
+            const map = indexById(updates)
+            set((state) => ({
+              drawers: state.drawers.map(d => {
+                const u = map.get(d.id)
+                return u ? { ...d, cabinetX: u.x, cabinetY: u.y } : d
+              }),
+            }))
+          },
+
+          selectCabinetDrawers: (ids) => set({ selectedCabinetDrawerIds: new Set(ids) }),
+
+          toggleCabinetDrawerSelection: (id) => set((state) => ({
+            selectedCabinetDrawerIds: toggleInSet(state.selectedCabinetDrawerIds, id),
+          })),
+
           updateConfig: (config) => {
             push()
             set((state) => {
@@ -337,6 +369,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               config: prev.config,
               selectedDrawerId: prev.selectedDrawerId,
               selectedItemIds: prev.selectedItemIds,
+              selectedCabinetDrawerIds: prev.selectedCabinetDrawerIds,
             })
           },
 
@@ -355,6 +388,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               config: next.config,
               selectedDrawerId: next.selectedDrawerId,
               selectedItemIds: next.selectedItemIds,
+              selectedCabinetDrawerIds: next.selectedCabinetDrawerIds,
             })
           },
 
@@ -374,6 +408,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               config: target.config,
               selectedDrawerId: target.selectedDrawerId,
               selectedItemIds: target.selectedItemIds,
+              selectedCabinetDrawerIds: target.selectedCabinetDrawerIds,
             })
           },
 
@@ -393,6 +428,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               config: target.config,
               selectedDrawerId: target.selectedDrawerId,
               selectedItemIds: target.selectedItemIds,
+              selectedCabinetDrawerIds: target.selectedCabinetDrawerIds,
             })
           },
 
@@ -405,6 +441,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               categories: (migrated.categories ?? []) as Category[],
               selectedDrawerId: null,
               selectedItemIds: new Set(),
+              selectedCabinetDrawerIds: new Set(),
               past: [],
               future: [],
             })
@@ -450,6 +487,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
                 categories: migrated.categories as Category[],
                 selectedDrawerId: null,
                 selectedItemIds: new Set(),
+                selectedCabinetDrawerIds: new Set(),
               })
             }
           },
@@ -468,6 +506,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
         onRehydrateStorage: () => (state) => {
           if (state) {
             const migrated = migrate(state as unknown as Parameters<typeof migrate>[0])
+            state.drawers = migrated.drawers as Drawer[]
             state.items = migrated.items as Item[]
             state.categories = migrated.categories as Category[]
           }

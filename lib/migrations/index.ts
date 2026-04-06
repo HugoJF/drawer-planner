@@ -1,5 +1,6 @@
 import { nullTo1, type StateV0 } from './null-to-1'
 import { oneTo2, type StateV1 } from './1-to-2'
+import { twoTo3, type StateV2 } from './2-to-3'
 
 type RawInput = { version?: unknown; [key: string]: unknown }
 type MigratedState = { version: number; [key: string]: unknown }
@@ -14,6 +15,10 @@ export function migrate(raw: RawInput): MigratedState {
 
   if ((state.version as number) < 2) {
     state = { ...oneTo2(state as StateV1) }
+  }
+
+  if ((state.version as number) < 3) {
+    state = { ...twoTo3(state as StateV2) }
   }
 
   return state as MigratedState

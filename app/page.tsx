@@ -5,6 +5,8 @@ import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import { SHORTCUTS } from '@/lib/shortcuts'
 import { DrawerTree } from '@/components/drawer-planner/drawer-tree'
 import { DrawerGrid } from '@/components/drawer-planner/drawer-grid'
+import { CabinetView } from '@/components/drawer-planner/cabinet-view'
+import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { SidebarStats } from '@/components/drawer-planner/sidebar-stats'
 import { DrawerForm } from '@/components/drawer-planner/drawer-form'
 import { ItemForm } from '@/components/drawer-planner/item-form'
@@ -25,10 +27,11 @@ import {
   PanelLeftClose,
   PanelLeft,
   Grid3X3,
+  LayoutDashboard,
   Undo2,
   Redo2,
 } from 'lucide-react'
-import type { Drawer, Item } from '@/lib/types'
+import type { Drawer, Item, CabinetItem } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { calculateItemGridDimensions, applyNextRotation } from '@/lib/gridfinity'
@@ -59,7 +62,16 @@ function DashboardContent() {
   const repositionItems  = useDrawerStore(s => s.repositionItems)
   const addItems         = useDrawerStore(s => s.addItems)
 
+  // Cabinet view store
+  const selectedCabinetDrawerIds     = useDrawerStore(s => s.selectedCabinetDrawerIds)
+  const selectCabinetDrawers         = useDrawerStore(s => s.selectCabinetDrawers)
+  const toggleCabinetDrawerSelection = useDrawerStore(s => s.toggleCabinetDrawerSelection)
+  const repositionCabinetDrawers     = useDrawerStore(s => s.repositionCabinetDrawers)
+  const deleteDrawer                 = useDrawerStore(s => s.deleteDrawer)
+  const duplicateDrawer              = useDrawerStore(s => s.duplicateDrawer)
+
   // UI state
+  const [mainView, setMainView] = useState<'grid' | 'cabinet'>('grid')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === 'undefined') {
@@ -74,6 +86,7 @@ function DashboardContent() {
   const [newItemPosition, setNewItemPosition] = useState<{ gridX: number; gridY: number } | null>(null)
   const [newItemGridDimensions, setNewItemGridDimensions] = useState<{ cols: number; rows: number } | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [pendingDeleteDrawer, setPendingDeleteDrawer] = useState<{ id: string; name: string } | null>(null)
 
   // Derived
   const canUndo = past.length > 0
@@ -83,13 +96,25 @@ function DashboardContent() {
     () => drawers.find(d => d.id === selectedDrawerId) ?? null,
     [drawers, selectedDrawerId]
   )
+
+  const cabinetItems = useMemo<CabinetItem[]>(
+    () => drawers.map(d => ({
+      id:       d.id,
+      label:    d.name,
+      widthMm:  d.width,
+      heightMm: d.height,
+      x:        d.cabinetX,
+      y:        d.cabinetY,
+    })),
+    [drawers]
+  )
   const undoLabel = useMemo(
-    () => canUndo ? labelAction(past[past.length - 1], { drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds }) : null,
-    [canUndo, past, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds]
+    () => canUndo ? labelAction(past[past.length - 1], { drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds }) : null,
+    [canUndo, past, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds]
   )
   const redoLabel = useMemo(
-    () => canRedo ? labelAction({ drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds }, future[0]) : null,
-    [canRedo, future, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds]
+    () => canRedo ? labelAction({ drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds }, future[0]) : null,
+    [canRedo, future, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds]
   )
 
   const { toast } = useToast()
@@ -391,6 +416,29 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-md border border-border">
+              <Button
+                variant={mainView === 'grid' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 rounded-r-none border-r border-border gap-1.5"
+                onClick={() => setMainView('grid')}
+                title="Grid view"
+              >
+                <Grid3X3 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-xs">Grid</span>
+              </Button>
+              <Button
+                variant={mainView === 'cabinet' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 rounded-l-none gap-1.5"
+                onClick={() => setMainView('cabinet')}
+                title="Cabinet view"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-xs">Cabinet</span>
+              </Button>
+            </div>
+            <Separator orientation="vertical" className="h-6" />
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={undo} disabled={!canUndo}
               title={undoLabel ? `Undo: ${undoLabel}` : 'Undo'}>
               <Undo2 className="h-4 w-4" />
@@ -407,7 +455,7 @@ function DashboardContent() {
               <FolderPlus className="h-4 w-4" />
               <span className="hidden sm:inline">Add Drawer</span>
             </Button>
-            <Button size="sm" className="gap-2" onClick={handleAddItem} disabled={!selectedDrawerId}>
+            <Button size="sm" className="gap-2" onClick={handleAddItem} disabled={!selectedDrawerId || mainView === 'cabinet'}>
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Add Item</span>
             </Button>
@@ -416,34 +464,56 @@ function DashboardContent() {
 
         {/* Content Area */}
         <div className="flex-1 min-h-0 overflow-hidden p-4">
-            {selectedDrawer ? (
-              <DrawerGrid
-                drawer={selectedDrawer}
-                onEditDrawer={handleEditDrawer}
-                onEditItem={handleEditItem}
-                onAddItemAtCell={handleAddItemAtCell}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <Card className="max-w-md w-full">
-                  <CardContent className="pt-6 text-center">
-                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Drawer Selected</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {drawers.length === 0
-                        ? "Get started by adding your first drawer."
-                        : "Select a drawer from the sidebar to view its contents."}
-                    </p>
-                    {drawers.length === 0 && (
-                      <Button onClick={handleAddDrawer} className="gap-2">
-                        <FolderPlus className="h-4 w-4" />
-                        Add Your First Drawer
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+          {mainView === 'cabinet' ? (
+            <CabinetView
+              items={cabinetItems}
+              selectedIds={selectedCabinetDrawerIds}
+              snapThresholdPx={config.cabinetSnapThresholdPx}
+              onMove={(updates) => repositionCabinetDrawers(updates)}
+              onSelectIds={(ids) => selectCabinetDrawers(ids)}
+              onToggleId={(id) => toggleCabinetDrawerSelection(id)}
+              onEdit={(id) => {
+                const d = drawers.find(dr => dr.id === id)
+                if (d) {
+                  handleEditDrawer(d)
+                }
+              }}
+              onDuplicate={(id) => duplicateDrawer(id)}
+              onDelete={(id) => {
+                const d = drawers.find(dr => dr.id === id)
+                if (d) {
+                  setPendingDeleteDrawer({ id: d.id, name: d.name })
+                }
+              }}
+            />
+          ) : selectedDrawer ? (
+            <DrawerGrid
+              drawer={selectedDrawer}
+              onEditDrawer={handleEditDrawer}
+              onEditItem={handleEditItem}
+              onAddItemAtCell={handleAddItemAtCell}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <Card className="max-w-md w-full">
+                <CardContent className="pt-6 text-center">
+                  <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Drawer Selected</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {drawers.length === 0
+                      ? "Get started by adding your first drawer."
+                      : "Select a drawer from the sidebar to view its contents."}
+                  </p>
+                  {drawers.length === 0 && (
+                    <Button onClick={handleAddDrawer} className="gap-2">
+                      <FolderPlus className="h-4 w-4" />
+                      Add Your First Drawer
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
 
@@ -463,6 +533,19 @@ function DashboardContent() {
         initialGridDimensions={newItemGridDimensions}
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <DeleteConfirmDialog
+        key={pendingDeleteDrawer?.id ?? 'none'}
+        open={pendingDeleteDrawer !== null}
+        type="drawer"
+        name={pendingDeleteDrawer?.name ?? ''}
+        onConfirm={(deleteContents) => {
+          if (pendingDeleteDrawer) {
+            deleteDrawer(pendingDeleteDrawer.id, deleteContents)
+          }
+          setPendingDeleteDrawer(null)
+        }}
+        onCancel={() => setPendingDeleteDrawer(null)}
+      />
       <Toaster />
     </div>
   )

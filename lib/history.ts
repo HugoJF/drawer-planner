@@ -55,6 +55,17 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
   if (addedDrawers.length > 0 || removedDrawers.length > 0) {
     return 'Changed drawers'
   }
+  // Drawer cabinet position changed
+  const movedInCabinet = after.drawers.filter(d => {
+    const b = beforeDrawers.get(d.id)
+    return b && (b.cabinetX !== d.cabinetX || b.cabinetY !== d.cabinetY)
+  })
+  if (movedInCabinet.length > 0 && addedDrawers.length === 0 && removedDrawers.length === 0) {
+    return movedInCabinet.length === 1
+      ? `Moved "${movedInCabinet[0].name}" in cabinet`
+      : `Moved ${movedInCabinet.length} drawers in cabinet`
+  }
+
   // Drawer edited (same id, different fields)
   const editedDrawer = after.drawers.find(d => {
     const b = beforeDrawers.get(d.id)

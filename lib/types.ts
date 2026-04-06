@@ -42,6 +42,7 @@ export interface GridfinityConfig {
   gridColorMode: GridColorMode           // Default: 'category'
   showSidebarStats: boolean              // Default: true
   sidebarVersion: 'v1' | 'v2'           // Default: 'v1'
+  cabinetSnapThresholdPx: number        // Default: 8
 }
 
 export interface Drawer {
@@ -52,6 +53,17 @@ export interface Drawer {
   depth: number          // mm
   gridCols: number       // calculated
   gridRows: number       // calculated
+  cabinetX: number       // mm, position on cabinet canvas
+  cabinetY: number       // mm, position on cabinet canvas
+}
+
+export interface CabinetItem {
+  id: string
+  label: string
+  widthMm: number
+  heightMm: number
+  x: number              // mm
+  y: number              // mm
 }
 
 export interface Category {
@@ -135,6 +147,7 @@ export const DEFAULT_CONFIG: GridfinityConfig = {
   gridColorMode: GridColorMode.Category,
   showSidebarStats: true,
   sidebarVersion: 'v1',
+  cabinetSnapThresholdPx: 8,
 }
 
 // Unit conversion utilities
@@ -151,7 +164,7 @@ export function formatDimension(valueMm: number, unit: DimensionUnit): string {
   return `${value}${unit}`
 }
 
-export const CURRENT_VERSION = 2
+export const CURRENT_VERSION = 3
 
 // Project management
 export interface ProjectMeta {

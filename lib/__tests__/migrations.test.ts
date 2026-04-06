@@ -139,7 +139,7 @@ describe('nullTo1', () => {
 // ---------------------------------------------------------------------------
 
 describe('migrate', () => {
-  test('no version → runs null→1 then 1→2, sets version: 2', () => {
+  test('no version → runs full chain, sets version: 3', () => {
     // Arrange
     const input = { items: [{ ...baseItem, rotation: 'normal' }], drawers: [], categories: [] }
 
@@ -147,12 +147,12 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(2)
+    expect(result.version).toBe(3)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
     expect((result.items as Item[])[0].gridMode).toBe('auto')
   })
 
-  test('string version (e.g. "1.0") → treated as unknown, runs null→1 then 1→2', () => {
+  test('string version (e.g. "1.0") → treated as unknown, runs full chain', () => {
     // Arrange
     const input = { version: '1.0', items: [{ ...baseItem, rotation: 'normal' }], drawers: [], categories: [] }
 
@@ -160,12 +160,12 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(2)
+    expect(result.version).toBe(3)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
     expect((result.items as Item[])[0].gridMode).toBe('auto')
   })
 
-  test('version: 1 → bumped to 2, backfills gridMode: auto', () => {
+  test('version: 1 → bumped to 3, backfills gridMode: auto', () => {
     // Arrange
     const items = [{ ...baseItem, rotation: 'h-up', locked: false, categoryId: null }]
     const input = { version: 1, items, drawers: [], categories: [] }
@@ -174,7 +174,7 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(2)
+    expect(result.version).toBe(3)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
     expect((result.items as Item[])[0].gridMode).toBe('auto')
   })
@@ -189,5 +189,61 @@ describe('migrate', () => {
 
     // Assert
     expect((result.items as Item[])[0].rotation).toBe('h-up-r')
+  })
+
+  test('version: 2 → bumped to 3, adds cabinetX/cabinetY: 0 to drawers', () => {
+    // Arrange
+    const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200, gridCols: 7, gridRows: 4 }
+    const input = { version: 2, items: [], drawers: [drawer], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    expect(result.version).toBe(3)
+    const d = (result.drawers as Record<string, unknown>[])[0]
+    expect(d.cabinetX).toBe(0)
+    expect(d.cabinetY).toBe(0)
+  })
+
+  test('version: 2 → preserves existing cabinetX/cabinetY if already set', () => {
+    // Arrange
+    const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200, gridCols: 7, gridRows: 4, cabinetX: 50, cabinetY: 100 }
+    const input = { version: 2, drawers: [drawer], items: [], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    const d = (result.drawers as typeof drawer[])[0]
+    expect(d.cabinetX).toBe(50)
+    expect(d.cabinetY).toBe(100)
+  })
+
+  test('version: 2 → empty drawers array stays empty', () => {
+    // Arrange
+    const input = { version: 2, drawers: [], items: [], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    expect(result.version).toBe(3)
+    expect(result.drawers).toEqual([])
+  })
+
+  test('version: 3 → no changes applied', () => {
+    // Arrange
+    const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200, gridCols: 7, gridRows: 4, cabinetX: 20, cabinetY: 30 }
+    const input = { version: 3, drawers: [drawer], items: [], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    expect(result.version).toBe(3)
+    const d = (result.drawers as typeof drawer[])[0]
+    expect(d.cabinetX).toBe(20)
+    expect(d.cabinetY).toBe(30)
   })
 })
