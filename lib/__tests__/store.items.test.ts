@@ -36,9 +36,9 @@ function addDrawerAndItem(store: Store, itemOverrides: Record<string, unknown> =
     categoryId: null,
     rotation: 'h-up',
     drawerId,
-    gridX: 0,
-    gridY: 0,
-    gridMode: 'auto' as const,
+    posX: 0,
+    posY: 0,
+    footprintMode: 'auto' as const,
     ...itemOverrides,
   })
   const itemId = store.getState().selectedItemIds.values().next().value!
@@ -106,7 +106,7 @@ describe('updateItem', () => {
       name: 'Wrench',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId, gridX: 1, gridY: 0, gridMode: 'auto' as const,
+      drawerId, posX: 42, posY: 0, footprintMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
 
@@ -161,7 +161,7 @@ describe('deleteItem', () => {
       name: 'Wrench',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId, gridX: 1, gridY: 0, gridMode: 'auto' as const,
+      drawerId, posX: 42, posY: 0, footprintMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
     store.getState().selectItem(id2)
@@ -184,18 +184,18 @@ describe('moveItem', () => {
     store = freshStore()
   })
 
-  test('updates drawerId, gridX, gridY on the item', () => {
+  test('updates drawerId, posX, posY on the item', () => {
     // Arrange
     const { drawerId, itemId } = addDrawerAndItem(store)
 
     // Act
-    store.getState().moveItem(itemId, drawerId, 3, 4)
+    store.getState().moveItem(itemId, drawerId, 126, 168)
 
     // Assert
     const moved = store.getState().items.find((i) => i.id === itemId)!
     expect(moved.drawerId).toBe(drawerId)
-    expect(moved.gridX).toBe(3)
-    expect(moved.gridY).toBe(4)
+    expect(moved.posX).toBe(126)
+    expect(moved.posY).toBe(168)
   })
 
   test('does not affect other items', () => {
@@ -205,17 +205,17 @@ describe('moveItem', () => {
       name: 'Wrench',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId, gridX: 1, gridY: 0, gridMode: 'auto' as const,
+      drawerId, posX: 42, posY: 0, footprintMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
 
     // Act
-    store.getState().moveItem(id1, drawerId, 5, 5)
+    store.getState().moveItem(id1, drawerId, 210, 210)
 
     // Assert
     const item2After = store.getState().items.find((i) => i.id === id2)!
-    expect(item2After.gridX).toBe(1)
-    expect(item2After.gridY).toBe(0)
+    expect(item2After.posX).toBe(42)
+    expect(item2After.posY).toBe(0)
   })
 })
 
@@ -229,9 +229,9 @@ describe('duplicateItem', () => {
     store = freshStore()
   })
 
-  test('places copy in first available position, not same cell as original', () => {
+  test('places copy in first available position, not same position as original', () => {
     // Arrange
-    const { itemId } = addDrawerAndItem(store, { gridX: 0, gridY: 0 })
+    const { itemId } = addDrawerAndItem(store, { posX: 0, posY: 0 })
 
     // Act
     store.getState().duplicateItem(itemId)
@@ -239,7 +239,7 @@ describe('duplicateItem', () => {
     // Assert
     const copyId = store.getState().selectedItemIds.values().next().value!
     const copy = store.getState().items.find((i) => i.id === copyId)!
-    expect(copy.gridX === 0 && copy.gridY === 0).toBe(false)
+    expect(copy.posX === 0 && copy.posY === 0).toBe(false)
   })
 
   test('falls back to source position when drawer is completely full', () => {
@@ -255,13 +255,13 @@ describe('duplicateItem', () => {
           name: `Item-${col}-${row}`,
           width: 42, height: 50, depth: 42,
           categoryId: null, rotation: 'h-up',
-          drawerId, gridX: col, gridY: row, gridMode: 'auto' as const,
+          drawerId, posX: col * 42, posY: row * 42, footprintMode: 'auto' as const,
         })
       }
     }
     expect(store.getState().items).toHaveLength(36)
     const src = store.getState().items.find(
-      (i) => i.drawerId === drawerId && i.gridX === 0 && i.gridY === 0
+      (i) => i.drawerId === drawerId && i.posX === 0 && i.posY === 0
     )!
 
     // Act
@@ -270,17 +270,17 @@ describe('duplicateItem', () => {
     // Assert
     const copyId = store.getState().selectedItemIds.values().next().value!
     const copy = store.getState().items.find((i) => i.id === copyId)!
-    expect(copy.gridX).toBe(src.gridX)
-    expect(copy.gridY).toBe(src.gridY)
+    expect(copy.posX).toBe(src.posX)
+    expect(copy.posY).toBe(src.posY)
   })
 
-  test('unassigned item: copy lands at same gridX/gridY as source', () => {
+  test('unassigned item: copy lands at same posX/posY as source', () => {
     // Arrange
     store.getState().addItem({
       name: 'Floating',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId: null, gridX: 2, gridY: 3, gridMode: 'auto' as const,
+      drawerId: null, posX: 84, posY: 126, footprintMode: 'auto' as const,
     })
     const srcId = store.getState().selectedItemIds.values().next().value!
 
@@ -290,8 +290,8 @@ describe('duplicateItem', () => {
     // Assert
     const copyId = store.getState().selectedItemIds.values().next().value!
     const copy = store.getState().items.find((i) => i.id === copyId)!
-    expect(copy.gridX).toBe(2)
-    expect(copy.gridY).toBe(3)
+    expect(copy.posX).toBe(84)
+    expect(copy.posY).toBe(126)
   })
 
   test('duplicate has name "<original> (copy)"', () => {
@@ -332,7 +332,7 @@ describe('duplicateItem — return value', () => {
 
   test('returns true when a free position is found', () => {
     // Arrange
-    const { itemId } = addDrawerAndItem(store, { gridX: 0, gridY: 0 })
+    const { itemId } = addDrawerAndItem(store, { posX: 0, posY: 0 })
 
     // Act
     const result = store.getState().duplicateItem(itemId)
@@ -353,7 +353,7 @@ describe('duplicateItem — return value', () => {
       name: 'Occupier',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId, gridX: 0, gridY: 0, gridMode: 'auto' as const,
+      drawerId, posX: 0, posY: 0, footprintMode: 'auto' as const,
     })
     const itemId = store.getState().selectedItemIds.values().next().value!
 
@@ -370,7 +370,7 @@ describe('duplicateItem — return value', () => {
       name: 'Floating',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId: null, gridX: 0, gridY: 0, gridMode: 'auto' as const,
+      drawerId: null, posX: 0, posY: 0, footprintMode: 'auto' as const,
     })
     const itemId = store.getState().selectedItemIds.values().next().value!
 

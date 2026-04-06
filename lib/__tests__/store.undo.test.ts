@@ -35,9 +35,9 @@ function addDrawerAndItem(store: Store) {
     categoryId: null,
     rotation: 'h-up',
     drawerId,
-    gridX: 0,
-    gridY: 0,
-    gridMode: 'auto' as const,
+    posX: 0,
+    posY: 0,
+    footprintMode: 'auto' as const,
   })
   const itemId = store.getState().selectedItemIds.values().next().value!
   return { drawerId, itemId }
@@ -166,7 +166,7 @@ describe('undo — selection', () => {
       name: 'Wrench',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId, gridX: 0, gridY: 0, gridMode: 'auto' as const,
+      drawerId, posX: 0, posY: 0, footprintMode: 'auto' as const,
     })
     const itemId = store.getState().selectedItemIds.values().next().value!
     expect(store.getState().selectedItemIds.has(itemId)).toBe(true)

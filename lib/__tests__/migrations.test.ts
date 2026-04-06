@@ -3,6 +3,7 @@ import { migrate } from '@/lib/migrations'
 import { nullTo1 } from '@/lib/migrations/null-to-1'
 import type { Item } from '@/lib/types'
 
+// baseItem uses legacy grid fields — migration converts them to mm-based fields
 const baseItem = {
   id: 'item-1',
   name: 'Widget',
@@ -12,6 +13,7 @@ const baseItem = {
   drawerId: null,
   gridX: 0,
   gridY: 0,
+  rotation: 'h-up',
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +141,7 @@ describe('nullTo1', () => {
 // ---------------------------------------------------------------------------
 
 describe('migrate', () => {
-  test('no version → runs full chain, sets version: 3', () => {
+  test('no version → runs full chain, sets version: 4', () => {
     // Arrange
     const input = { items: [{ ...baseItem, rotation: 'normal' }], drawers: [], categories: [] }
 
@@ -147,9 +149,9 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(3)
+    expect(result.version).toBe(4)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
-    expect((result.items as Item[])[0].gridMode).toBe('auto')
+    expect((result.items as Item[])[0].footprintMode).toBe('auto')
   })
 
   test('string version (e.g. "1.0") → treated as unknown, runs full chain', () => {
@@ -160,12 +162,12 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(3)
+    expect(result.version).toBe(4)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
-    expect((result.items as Item[])[0].gridMode).toBe('auto')
+    expect((result.items as Item[])[0].footprintMode).toBe('auto')
   })
 
-  test('version: 1 → bumped to 3, backfills gridMode: auto', () => {
+  test('version: 1 → bumped to 4, backfills footprintMode: auto', () => {
     // Arrange
     const items = [{ ...baseItem, rotation: 'h-up', locked: false, categoryId: null }]
     const input = { version: 1, items, drawers: [], categories: [] }
@@ -174,9 +176,9 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(3)
+    expect(result.version).toBe(4)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
-    expect((result.items as Item[])[0].gridMode).toBe('auto')
+    expect((result.items as Item[])[0].footprintMode).toBe('auto')
   })
 
   test('version: 1 with already-current rotations are not double-mapped', () => {
@@ -191,7 +193,7 @@ describe('migrate', () => {
     expect((result.items as Item[])[0].rotation).toBe('h-up-r')
   })
 
-  test('version: 2 → bumped to 3, adds cabinetX/cabinetY: 0 to drawers', () => {
+  test('version: 2 → bumped to 4, adds cabinetX/cabinetY: 0 to drawers', () => {
     // Arrange
     const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200, gridCols: 7, gridRows: 4 }
     const input = { version: 2, items: [], drawers: [drawer], categories: [] }
@@ -200,7 +202,7 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(3)
+    expect(result.version).toBe(4)
     const d = (result.drawers as Record<string, unknown>[])[0]
     expect(d.cabinetX).toBe(0)
     expect(d.cabinetY).toBe(0)
@@ -228,22 +230,75 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(3)
+    expect(result.version).toBe(4)
     expect(result.drawers).toEqual([])
   })
 
-  test('version: 3 → no changes applied', () => {
+  test('version: 3 → bumped to 4, converts gridX/Y to posX/Y in mm', () => {
     // Arrange
-    const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200, gridCols: 7, gridRows: 4, cabinetX: 20, cabinetY: 30 }
-    const input = { version: 3, drawers: [drawer], items: [], categories: [] }
+    // gridX=2 with cellSize=42 → posX=84, gridY=3 → posY=126
+    const item = { id: 'i-1', name: 'Widget', width: 42, height: 42, depth: 42,
+      drawerId: 'd-1', rotation: 'h-up', locked: false, categoryId: null,
+      gridX: 2, gridY: 3, gridMode: 'auto' }
+    const input = { version: 3, config: { cellSize: 42 }, drawers: [], items: [item], categories: [] }
 
     // Act
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(3)
-    const d = (result.drawers as typeof drawer[])[0]
-    expect(d.cabinetX).toBe(20)
-    expect(d.cabinetY).toBe(30)
+    expect(result.version).toBe(4)
+    const migrated = (result.items as Item[])[0]
+    expect(migrated.posX).toBe(84)
+    expect(migrated.posY).toBe(126)
+    expect(migrated.footprintMode).toBe('auto')
+    expect((migrated as unknown as Record<string, unknown>).gridX).toBeUndefined()
+    expect((migrated as unknown as Record<string, unknown>).gridMode).toBeUndefined()
+  })
+
+  test('version: 3 → converts manualGridCols/Rows to footprintW/H', () => {
+    // Arrange
+    const item = { id: 'i-1', name: 'Widget', width: 84, height: 42, depth: 42,
+      drawerId: 'd-1', rotation: 'h-up', locked: false, categoryId: null,
+      gridX: 0, gridY: 0, gridMode: 'manual', manualGridCols: 2, manualGridRows: 1 }
+    const input = { version: 3, config: { cellSize: 42 }, drawers: [], items: [item], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    const migrated = (result.items as Item[])[0]
+    expect(migrated.footprintMode).toBe('manual')
+    expect(migrated.footprintW).toBe(84)
+    expect(migrated.footprintH).toBe(42)
+  })
+
+  test('version: 3 → falls back to cellSize=42 if config missing', () => {
+    // Arrange
+    const item = { id: 'i-1', name: 'Widget', width: 42, height: 42, depth: 42,
+      drawerId: null, rotation: 'h-up', locked: false, categoryId: null,
+      gridX: 1, gridY: 0, gridMode: 'auto' }
+    const input = { version: 3, drawers: [], items: [item], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    expect((result.items as Item[])[0].posX).toBe(42)
+  })
+
+  test('version: 4 → no changes applied', () => {
+    // Arrange
+    const item = { id: 'i-1', name: 'W', width: 42, height: 42, depth: 42,
+      drawerId: null, rotation: 'h-up', locked: false, categoryId: null,
+      posX: 84, posY: 126, footprintMode: 'auto' }
+    const input = { version: 4, drawers: [], items: [item], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    expect(result.version).toBe(4)
+    expect((result.items as Item[])[0].posX).toBe(84)
+    expect((result.items as Item[])[0].posY).toBe(126)
   })
 })

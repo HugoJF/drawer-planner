@@ -32,9 +32,9 @@ function itemPayload(overrides?: Partial<Omit<Item, 'id'>>): Omit<Item, 'id'> {
     categoryId: null,
     rotation: 'h-up',
     drawerId: null,
-    gridX: 0,
-    gridY: 0,
-    gridMode: 'auto' as const,
+    posX: 0,
+    posY: 0,
+    footprintMode: 'auto' as const,
     locked: false,
     ...overrides,
   }
@@ -149,12 +149,12 @@ describe('deleteDrawer', () => {
     expect(store.getState().drawers).toHaveLength(0)
   })
 
-  test('items that were in the deleted drawer get drawerId null, gridX 0, gridY 0', () => {
+  test('items that were in the deleted drawer get drawerId null, posX 0, posY 0', () => {
     // Arrange
     const store = freshStore()
     store.getState().addDrawer(drawerPayload)
     const drawerId = store.getState().drawers[0].id
-    store.getState().addItem(itemPayload({ drawerId, gridX: 2, gridY: 3 }))
+    store.getState().addItem(itemPayload({ drawerId, posX: 84, posY: 126 }))
     const itemId = store.getState().items[0].id
 
     // Act
@@ -163,8 +163,8 @@ describe('deleteDrawer', () => {
     // Assert
     const item = store.getState().items.find((i) => i.id === itemId)!
     expect(item.drawerId).toBeNull()
-    expect(item.gridX).toBe(0)
-    expect(item.gridY).toBe(0)
+    expect(item.posX).toBe(0)
+    expect(item.posY).toBe(0)
   })
 
   test('items in other drawers are unaffected', () => {
@@ -173,7 +173,7 @@ describe('deleteDrawer', () => {
     store.getState().addDrawer(drawerPayload)
     store.getState().addDrawer({ ...drawerPayload, name: 'Other' })
     const [deletedDrawer, otherDrawer] = store.getState().drawers
-    store.getState().addItem(itemPayload({ drawerId: otherDrawer.id, gridX: 1, gridY: 1 }))
+    store.getState().addItem(itemPayload({ drawerId: otherDrawer.id, posX: 42, posY: 42 }))
     const itemId = store.getState().items[0].id
 
     // Act
@@ -182,8 +182,8 @@ describe('deleteDrawer', () => {
     // Assert
     const item = store.getState().items.find((i) => i.id === itemId)!
     expect(item.drawerId).toBe(otherDrawer.id)
-    expect(item.gridX).toBe(1)
-    expect(item.gridY).toBe(1)
+    expect(item.posX).toBe(42)
+    expect(item.posY).toBe(42)
   })
 
   test('clears selectedDrawerId when the deleted drawer was selected', () => {
@@ -252,8 +252,8 @@ describe('duplicateDrawer', () => {
     const store = freshStore()
     store.getState().addDrawer(drawerPayload)
     const drawerId = store.getState().drawers[0].id
-    store.getState().addItem(itemPayload({ name: 'Alpha', drawerId, gridX: 0, gridY: 0 }))
-    store.getState().addItem(itemPayload({ name: 'Beta', drawerId, gridX: 1, gridY: 1 }))
+    store.getState().addItem(itemPayload({ name: 'Alpha', drawerId, posX: 0,  posY: 0  }))
+    store.getState().addItem(itemPayload({ name: 'Beta',  drawerId, posX: 42, posY: 42 }))
     const originalItemIds = store.getState().items.map((i) => i.id)
 
     // Act

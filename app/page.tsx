@@ -83,7 +83,7 @@ function DashboardContent() {
   const [itemFormOpen, setItemFormOpen] = useState(false)
   const [editingDrawer, setEditingDrawer] = useState<Drawer | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
-  const [newItemPosition, setNewItemPosition] = useState<{ gridX: number; gridY: number } | null>(null)
+  const [newItemPosition, setNewItemPosition] = useState<{ posX: number; posY: number } | null>(null)
   const [newItemGridDimensions, setNewItemGridDimensions] = useState<{ cols: number; rows: number } | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [pendingDeleteDrawer, setPendingDeleteDrawer] = useState<{ id: string; name: string } | null>(null)
@@ -154,18 +154,18 @@ function DashboardContent() {
       return
     }
 
-    // Normalize positions relative to the group's top-left corner
-    const minX = Math.min(...items.map(i => i.gridX))
-    const minY = Math.min(...items.map(i => i.gridY))
+    // Normalize positions relative to the group's top-left corner (in cells)
+    const minCellX = Math.min(...items.map(i => Math.round(i.posX / config.cellSize)))
+    const minCellY = Math.min(...items.map(i => Math.round(i.posY / config.cellSize)))
 
     // Compute bounding box of the group (in grid cells)
     const groupW = Math.max(...items.map(i => {
       const d = calculateItemGridDimensions(i, config)
-      return (i.gridX - minX) + d.gridWidth
+      return (Math.round(i.posX / config.cellSize) - minCellX) + d.gridWidth
     }))
     const groupH = Math.max(...items.map(i => {
       const d = calculateItemGridDimensions(i, config)
-      return (i.gridY - minY) + d.gridDepth
+      return (Math.round(i.posY / config.cellSize) - minCellY) + d.gridDepth
     }))
 
     // Build occupied-cell set from items already in this drawer
@@ -175,8 +175,10 @@ function DashboardContent() {
         continue
       }
       const d = calculateItemGridDimensions(item, config)
-      for (let x = item.gridX; x < item.gridX + d.gridWidth; x++)
-        for (let y = item.gridY; y < item.gridY + d.gridDepth; y++)
+      const cellX = Math.round(item.posX / config.cellSize)
+      const cellY = Math.round(item.posY / config.cellSize)
+      for (let x = cellX; x < cellX + d.gridWidth; x++)
+        for (let y = cellY; y < cellY + d.gridDepth; y++)
           occupied.add(`${x},${y}`)
     }
 
@@ -186,7 +188,8 @@ function DashboardContent() {
       for (let ox = 0; ox <= selectedDrawer.gridCols - groupW; ox++) {
         const clear = items.every(item => {
           const d = calculateItemGridDimensions(item, config)
-          const rx = item.gridX - minX, ry = item.gridY - minY
+          const rx = Math.round(item.posX / config.cellSize) - minCellX
+          const ry = Math.round(item.posY / config.cellSize) - minCellY
           for (let x = ox + rx; x < ox + rx + d.gridWidth; x++)
             for (let y = oy + ry; y < oy + ry + d.gridDepth; y++)
               if (occupied.has(`${x},${y}`)) {
@@ -204,8 +207,8 @@ function DashboardContent() {
     addItems(items.map(item => ({
       ...item,
       drawerId: selectedDrawerId,
-      gridX: ox + (item.gridX - minX),
-      gridY: oy + (item.gridY - minY),
+      posX: (ox + (Math.round(item.posX / config.cellSize) - minCellX)) * config.cellSize,
+      posY: (oy + (Math.round(item.posY / config.cellSize) - minCellY)) * config.cellSize,
     })))
 
     if (!origin) {
@@ -260,16 +263,18 @@ function DashboardContent() {
     }
     const clampedPos = (item: Item, dx: number, dy: number) => {
       const dims = calculateItemGridDimensions(item, config)
+      const cellX = Math.round(item.posX / config.cellSize)
+      const cellY = Math.round(item.posY / config.cellSize)
       return {
         id: item.id,
         drawerId: item.drawerId,
-        gridX: Math.max(0, Math.min(selectedDrawer.gridCols - dims.gridWidth,  item.gridX + dx)),
-        gridY: Math.max(0, Math.min(selectedDrawer.gridRows - dims.gridDepth, item.gridY + dy)),
+        posX: Math.max(0, Math.min(selectedDrawer.gridCols - dims.gridWidth,  cellX + dx)) * config.cellSize,
+        posY: Math.max(0, Math.min(selectedDrawer.gridRows - dims.gridDepth, cellY + dy)) * config.cellSize,
       }
     }
     if (drawerItems.length === 1) {
-      const { id, drawerId, gridX, gridY } = clampedPos(drawerItems[0], dx, dy)
-      moveItem(id, drawerId, gridX, gridY)
+      const { id, drawerId, posX, posY } = clampedPos(drawerItems[0], dx, dy)
+      moveItem(id, drawerId, posX, posY)
     } else {
       repositionItems(drawerItems.map(item => clampedPos(item, dx, dy)))
     }
@@ -323,9 +328,9 @@ function DashboardContent() {
     setItemFormOpen(true)
   }
 
-  const handleAddItemAtCell = (gridX: number, gridY: number, initialCols: number, initialRows: number) => {
+  const handleAddItemAtCell = (posX: number, posY: number, initialCols: number, initialRows: number) => {
     setEditingItem(null)
-    setNewItemPosition({ gridX, gridY })
+    setNewItemPosition({ posX, posY })
     setNewItemGridDimensions({ cols: initialCols, rows: initialRows })
     setItemFormOpen(true)
   }

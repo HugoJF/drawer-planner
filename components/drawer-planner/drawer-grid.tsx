@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Drawer, Item, GridfinityConfig, Category } from '@/lib/types'
-import { formatDimension, getCategoryColor, UNCATEGORIZED_COLOR, GridColorMode, GridMode } from '@/lib/types'
+import { formatDimension, getCategoryColor, UNCATEGORIZED_COLOR, GridColorMode, FootprintMode } from '@/lib/types'
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
@@ -82,7 +82,7 @@ interface DrawerGridProps {
   drawer: Drawer
   onEditDrawer: (drawer: Drawer) => void
   onEditItem: (item: Item) => void
-  onAddItemAtCell: (gridX: number, gridY: number, initialCols: number, initialRows: number) => void
+  onAddItemAtCell: (posX: number, posY: number, initialCols: number, initialRows: number) => void
 }
 
 interface DrawState {
@@ -169,8 +169,10 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         return // skip all co-dragged items
       }
       const dims = calculateItemGridDimensions(item, config)
-      for (let x = item.gridX; x < item.gridX + dims.gridWidth; x++) {
-        for (let y = item.gridY; y < item.gridY + dims.gridDepth; y++) {
+      const cellX = Math.round(item.posX / config.cellSize)
+      const cellY = Math.round(item.posY / config.cellSize)
+      for (let x = cellX; x < cellX + dims.gridWidth; x++) {
+        for (let y = cellY; y < cellY + dims.gridDepth; y++) {
           map.set(`${x},${y}`, item.id)
         }
       }
@@ -196,16 +198,22 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const promotePendingDrag = useCallback((pd: NonNullable<typeof pendingDrag>, clientX: number, clientY: number) => {
     const item = pd.item
     const dims = calculateItemGridDimensions(item, config)
+    const anchorCellX = Math.round(item.posX / config.cellSize)
+    const anchorCellY = Math.round(item.posY / config.cellSize)
     const coDragged = selectedItemIds.has(item.id)
       ? items.filter(i => selectedItemIds.has(i.id) && !i.locked)
       : [item]
-    const itemOffsets = coDragged.map(i => ({ id: i.id, dx: i.gridX - item.gridX, dy: i.gridY - item.gridY }))
+    const itemOffsets = coDragged.map(i => ({
+      id: i.id,
+      dx: Math.round(i.posX / config.cellSize) - anchorCellX,
+      dy: Math.round(i.posY / config.cellSize) - anchorCellY,
+    }))
     const dragCells = new Set<string>()
     let minDx = 0, minDy = 0, maxRight = dims.gridWidth, maxBottom = dims.gridDepth
     for (const di of coDragged) {
       const diDims = calculateItemGridDimensions(di, config)
-      const odx = di.gridX - item.gridX
-      const ody = di.gridY - item.gridY
+      const odx = Math.round(di.posX / config.cellSize) - anchorCellX
+      const ody = Math.round(di.posY / config.cellSize) - anchorCellY
       for (let cx = odx; cx < odx + diDims.gridWidth; cx++) {
         for (let cy = ody; cy < ody + diDims.gridDepth; cy++) {
           dragCells.add(`${cx},${cy}`)
@@ -216,7 +224,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       maxRight = Math.max(maxRight, odx + diDims.gridWidth)
       maxBottom = Math.max(maxBottom, ody + diDims.gridDepth)
     }
-    const pos = { x: item.gridX, y: item.gridY }
+    const pos = { x: anchorCellX, y: anchorCellY }
     setDropTarget(pos)
     setDragState({
       itemId: item.id,
@@ -320,8 +328,10 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       const selY2 = Math.max(boxSelectState.startY, gy)
       const itemsInBox = items.filter(i => {
         const dims = calculateItemGridDimensions(i, config)
-        return i.gridX <= selX2 && i.gridX + dims.gridWidth - 1 >= selX1
-            && i.gridY <= selY2 && i.gridY + dims.gridDepth - 1 >= selY1
+        const cellX = Math.round(i.posX / config.cellSize)
+        const cellY = Math.round(i.posY / config.cellSize)
+        return cellX <= selX2 && cellX + dims.gridWidth - 1 >= selX1
+            && cellY <= selY2 && cellY + dims.gridDepth - 1 >= selY1
       })
       if (itemsInBox.length > 0) {
         selectItems(itemsInBox.map(i => i.id))
@@ -358,11 +368,11 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           repositionItems(dragState.itemOffsets.map(({ id, dx, dy }) => ({
             id,
             drawerId: drawer.id,
-            gridX: pos.x + dx,
-            gridY: pos.y + dy,
+            posX: (pos.x + dx) * config.cellSize,
+            posY: (pos.y + dy) * config.cellSize,
           })))
         } else {
-          moveItem(dragState.itemId, drawer.id, pos.x, pos.y)
+          moveItem(dragState.itemId, drawer.id, pos.x * config.cellSize, pos.y * config.cellSize)
         }
       }
       setDragState(null)
@@ -374,9 +384,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       if (item) {
         updateItem({
           ...item,
-          gridMode: GridMode.Manual,
-          manualGridCols: resizeState.previewWidth,
-          manualGridRows: resizeState.previewDepth,
+          footprintMode: FootprintMode.Manual,
+          footprintW: resizeState.previewWidth * config.cellSize,
+          footprintH: resizeState.previewDepth * config.cellSize,
         })
       }
       setResizeState(null)
@@ -397,7 +407,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const cols = Math.abs(drawState.endX - drawState.startX) + 1
     const rows = Math.abs(drawState.endY - drawState.startY) + 1
     setDrawState(null)
-    onAddItemAtCell(gx, gy, cols, rows)
+    onAddItemAtCell(gx * config.cellSize, gy * config.cellSize, cols, rows)
   }, [pendingDrag, dragState, resizeState, boxSelectState, drawState, items, updateItem, selectItem, toggleItemSelection, selectedItemIds, computeDropPosition, drawer.id, moveItem, repositionItems, onAddItemAtCell])
 
   const handleGridMouseLeave = useCallback(() => {
@@ -585,8 +595,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               <div
                 className="absolute rounded-sm pointer-events-none z-30"
                 style={{
-                  left: gridPos(item.gridX),
-                  top: gridPos(item.gridY),
+                  left: gridPos(Math.round(item.posX / config.cellSize)),
+                  top: gridPos(Math.round(item.posY / config.cellSize)),
                   width: w,
                   height: h,
                   border: '2px dashed var(--primary)',
@@ -623,7 +633,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
             const physW = rotatedDims.width
             const physD = rotatedDims.depth
             const hasRealDims = physW > 0 && physD > 0
-            const isManual = item.gridMode === GridMode.Manual
+            const isManual = item.footprintMode === FootprintMode.Manual
             const itemCardW = gridSize(visW)
             const itemCardH = gridSize(visD)
             const insetPxW = hasRealDims
@@ -659,8 +669,8 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   isResizing && "opacity-40"
                 )}
                 style={{
-                  left: gridPos(item.gridX),
-                  top: gridPos(item.gridY),
+                  left: gridPos(Math.round(item.posX / config.cellSize)),
+                  top: gridPos(Math.round(item.posY / config.cellSize)),
                   width: gridSize(visW),
                   height: gridSize(visD),
                   backgroundColor: getItemColor(item, drawer, config, categories),
@@ -827,12 +837,12 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                   <ArrowRightLeft className="h-4 w-4" />Move to
                 </ContextMenuSubTrigger>
                 <ContextMenuSubContent className="max-h-60 overflow-auto">
-                  <ContextMenuItem onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: null, gridX: 0, gridY: 0 })))}>
+                  <ContextMenuItem onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: null, posX: 0, posY: 0 })))}>
                     <Package className="h-4 w-4" />Unassigned
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   {drawers.map(d => (
-                    <ContextMenuItem key={d.id} onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: d.id, gridX: 0, gridY: 0 })))} disabled={d.id === drawer.id}>
+                    <ContextMenuItem key={d.id} onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: d.id, posX: 0, posY: 0 })))} disabled={d.id === drawer.id}>
                       <FolderOpen className="h-4 w-4" />{d.name}
                     </ContextMenuItem>
                   ))}

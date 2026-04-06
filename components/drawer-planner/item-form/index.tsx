@@ -24,7 +24,7 @@ import { useDrawerStore } from '@/lib/store'
 import { calculateItemGridDimensions, getRotatedDimensions, getDistinctRotations, getRotationLabel } from '@/lib/gridfinity'
 import { cn } from '@/lib/utils'
 import type { Item } from '@/lib/types'
-import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit, ItemRotation, GridMode } from '@/lib/types'
+import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit, ItemRotation, FootprintMode } from '@/lib/types'
 import { RotateCw } from 'lucide-react'
 import { CategorySelector } from './category-selector'
 
@@ -32,7 +32,7 @@ interface ItemFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item: Item | null
-  initialPosition: { gridX: number; gridY: number } | null
+  initialPosition: { posX: number; posY: number } | null
   initialGridDimensions: { cols: number; rows: number } | null
 }
 
@@ -55,9 +55,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const [categoryId, setCategoryId] = useState<string | null>(item?.categoryId ?? null)
   const [rotation, setRotation]   = useState<ItemRotation>(item?.rotation ?? ItemRotation.HeightUp)
   const [drawerId, setDrawerId]   = useState<string | null>(item?.drawerId ?? selectedDrawerId)
-  const [gridMode, setGridMode]   = useState<GridMode>(item?.gridMode ?? (initialGridDimensions ? GridMode.Manual : GridMode.Auto))
-  const [manualCols, setManualCols] = useState(item?.manualGridCols ?? initialGridDimensions?.cols ?? 1)
-  const [manualRows, setManualRows] = useState(item?.manualGridRows ?? initialGridDimensions?.rows ?? 1)
+  const [footprintMode, setFootprintMode] = useState<FootprintMode>(item?.footprintMode ?? (initialGridDimensions ? FootprintMode.Manual : FootprintMode.Auto))
+  const [manualCols, setManualCols] = useState(item?.footprintW != null ? Math.round(item.footprintW / config.cellSize) : (initialGridDimensions?.cols ?? 1))
+  const [manualRows, setManualRows] = useState(item?.footprintH != null ? Math.round(item.footprintH / config.cellSize) : (initialGridDimensions?.rows ?? 1))
   const [notes, setNotes]         = useState(item?.notes ?? '')
   const [newCatName, setNewCatName] = useState('')
   const newCatInputRef = useRef<HTMLInputElement>(null)
@@ -87,17 +87,17 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
   const previewItem: Item = {
     id: 'preview', name, width: widthMm, height: heightMm, depth: depthMm,
-    categoryId, rotation: effectiveRotation, drawerId: null, gridX: 0, gridY: 0, gridMode,
-    manualGridCols: manualCols, manualGridRows: manualRows, locked: false,
+    categoryId, rotation: effectiveRotation, drawerId: null, posX: 0, posY: 0, footprintMode,
+    footprintW: manualCols * config.cellSize, footprintH: manualRows * config.cellSize, locked: false,
   }
 
-  const previewDims = (gridMode === GridMode.Auto ? hasPhysical : true)
+  const previewDims = (footprintMode === FootprintMode.Auto ? hasPhysical : true)
     ? calculateItemGridDimensions(previewItem, config)
     : null
 
   const rotatedDims = hasPhysical ? getRotatedDimensions(previewItem) : null
 
-  const autoInvalid = gridMode === GridMode.Auto && (!width || !height || !depth)
+  const autoInvalid = footprintMode === FootprintMode.Auto && (!width || !height || !depth)
 
   const nextColor = (): string => {
     const used = new Set(categories.map(c => c.color))
@@ -114,19 +114,19 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     setNewCatName('')
   }
 
-  const handleGridModeChange = (newMode: GridMode) => {
-    if (newMode === GridMode.Manual && gridMode === GridMode.Auto) {
+  const handleFootprintModeChange = (newMode: FootprintMode) => {
+    if (newMode === FootprintMode.Manual && footprintMode === FootprintMode.Auto) {
       const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
       const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
       const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
       if (widthMm > 0 && depthMm > 0) {
-        const fakeItem = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, categoryId, rotation, drawerId, gridX: 0, gridY: 0, gridMode: GridMode.Auto, locked: false }
+        const fakeItem: Item = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, categoryId, rotation, drawerId, posX: 0, posY: 0, footprintMode: FootprintMode.Auto, locked: false }
         const dims = calculateItemGridDimensions(fakeItem, config)
         setManualCols(dims.gridWidth)
         setManualRows(dims.gridDepth)
       }
     }
-    setGridMode(newMode)
+    setFootprintMode(newMode)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -142,7 +142,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     const heightMm = height ? fromDisplayUnit(heightDisplay, unit) : 0
     const depthMm  = depth  ? fromDisplayUnit(depthDisplay,  unit) : 0
 
-    if (gridMode === GridMode.Auto) {
+    if (footprintMode === FootprintMode.Auto) {
       if (isNaN(widthDisplay) || isNaN(heightDisplay) || isNaN(depthDisplay) ||
           widthMm <= 0 || heightMm <= 0 || depthMm <= 0) return
     }
@@ -155,16 +155,16 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
       categoryId,
       rotation: effectiveRotation,
       drawerId,
-      gridMode,
-      manualGridCols: manualCols,
-      manualGridRows: manualRows,
+      footprintMode,
+      footprintW: manualCols * config.cellSize,
+      footprintH: manualRows * config.cellSize,
       notes: notes.trim() || undefined,
     }
 
     if (isEditing && item) {
       updateItem({ ...item, ...itemData })
     } else {
-      addItem({ ...itemData, gridX: initialPosition?.gridX ?? 0, gridY: initialPosition?.gridY ?? 0 })
+      addItem({ ...itemData, posX: initialPosition?.posX ?? 0, posY: initialPosition?.posY ?? 0 })
     }
     onOpenChange(false)
   }
@@ -175,7 +175,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Item' : 'Add Item'}</DialogTitle>
           <DialogDescription>
-            {gridMode === GridMode.Manual
+            {footprintMode === FootprintMode.Manual
               ? 'Set grid footprint directly. Physical dimensions are optional.'
               : `Enter the item's physical dimensions in ${unit}.`}
           </DialogDescription>
@@ -204,7 +204,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Physical Dimensions ({unit})</Label>
-              {gridMode === GridMode.Manual && <span className="text-xs text-muted-foreground">optional</span>}
+              {footprintMode === FootprintMode.Manual && <span className="text-xs text-muted-foreground">optional</span>}
             </div>
             <div className="grid grid-cols-3 gap-3">
               {(['Width', 'Depth', 'Height'] as const).map((label, i) => {
@@ -215,7 +215,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
                   <div key={label} className="space-y-1">
                     <Label className="text-xs text-muted-foreground">{label}</Label>
                     <Input type="number" step="0.1" min="0.1" value={val} onChange={e => setter(e.target.value)}
-                      placeholder={placeholder} required={gridMode === GridMode.Auto} />
+                      placeholder={placeholder} required={footprintMode === FootprintMode.Auto} />
                   </div>
                 )
               })}
@@ -254,18 +254,18 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium">Grid Footprint</span>
               <div className="flex rounded-md border border-input overflow-hidden text-xs">
-                {([GridMode.Auto, GridMode.Manual] as const).map(mode => (
+                {([FootprintMode.Auto, FootprintMode.Manual] as const).map(mode => (
                   <button key={mode} type="button"
                     className={cn('px-3 py-1 font-medium transition-colors', mode === 'manual' && 'border-l border-input',
-                      gridMode === mode ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent')}
-                    onClick={() => handleGridModeChange(mode)}>
+                      footprintMode === mode ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent')}
+                    onClick={() => handleFootprintModeChange(mode)}>
                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
 
-            {gridMode === GridMode.Manual ? (
+            {footprintMode === FootprintMode.Manual ? (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
                   <Input type="number" min="1" step="1" value={manualCols}
@@ -292,7 +292,7 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
                 {rotatedDims && <span className="text-xs ml-1">({rotatedDims.height}mm)</span>}
               </p>
             )}
-            {gridMode === 'manual' && !hasPhysical && (
+            {footprintMode === 'manual' && !hasPhysical && (
               <p className="text-xs text-muted-foreground">Add physical dimensions to see height units and inset visualization.</p>
             )}
             {previewDims && (

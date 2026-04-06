@@ -50,8 +50,8 @@ export interface DrawerStore {
   deleteItems: (ids: string[]) => void
   setItemsLocked: (ids: string[], locked: boolean) => void
   duplicateItem: (id: string) => boolean
-  moveItem: (itemId: string, drawerId: string | null, gridX: number, gridY: number) => void
-  repositionItems: (updates: { id: string; drawerId: string | null; gridX: number; gridY: number }[]) => void
+  moveItem: (itemId: string, drawerId: string | null, posX: number, posY: number) => void
+  repositionItems: (updates: { id: string; drawerId: string | null; posX: number; posY: number }[]) => void
   setCabinetPosition: (drawerId: string, x: number, y: number) => void
   repositionCabinetDrawers: (updates: { id: string; x: number; y: number }[]) => void
   selectCabinetDrawers: (ids: string[]) => void
@@ -158,7 +158,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
                 ? state.items.filter((item) => item.drawerId !== id)
                 : state.items.map((item) =>
                     item.drawerId === id
-                      ? { ...item, drawerId: null, gridX: 0, gridY: 0 }
+                      ? { ...item, drawerId: null, posX: 0, posY: 0 }
                       : item
                   ),
               selectedDrawerId:
@@ -254,7 +254,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             const foundPos = drawer
               ? findAvailablePosition(srcDims, drawer, state.items, state.config)
               : null
-            const pos = foundPos ?? { gridX: src.gridX, gridY: src.gridY }
+            const pos = foundPos ?? { posX: src.posX, posY: src.posY }
             const newItem: Item = {
               ...src,
               id: generateId(),
@@ -268,12 +268,12 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             return foundPos !== null
           },
 
-          moveItem: (itemId, drawerId, gridX, gridY) => {
+          moveItem: (itemId, drawerId, posX, posY) => {
             push()
             set((state) => ({
               items: state.items.map((item) =>
                 item.id === itemId
-                  ? { ...item, drawerId, gridX, gridY }
+                  ? { ...item, drawerId, posX, posY }
                   : item
               ),
             }))
@@ -285,7 +285,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             set((state) => ({
               items: state.items.map(item => {
                 const u = map.get(item.id)
-                return u ? { ...item, drawerId: u.drawerId, gridX: u.gridX, gridY: u.gridY } : item
+                return u ? { ...item, drawerId: u.drawerId, posX: u.posX, posY: u.posY } : item
               }),
             }))
           },

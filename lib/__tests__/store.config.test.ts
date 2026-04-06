@@ -51,9 +51,9 @@ function addItemAndGetId(
     categoryId: null,
     rotation: 'h-up',
     drawerId,
-    gridX: 0,
-    gridY: 0,
-    gridMode: 'auto' as const,
+    posX: 0,
+    posY: 0,
+    footprintMode: 'auto' as const,
   })
   return store.getState().items[before].id
 }
@@ -244,9 +244,9 @@ describe('importData', () => {
     categoryId: null,
     rotation: 'h-up',
     drawerId: 'imported-drawer-1',
-    gridX: 0,
-    gridY: 0,
-    gridMode: 'auto' as const,
+    posX: 0,
+    posY: 0,
+    footprintMode: 'auto' as const,
     locked: false,
   }
 

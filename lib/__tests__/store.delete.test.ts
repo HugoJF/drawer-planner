@@ -36,9 +36,9 @@ function addDrawerWithItem(store: Store, itemOverrides: Record<string, unknown> 
     categoryId: null,
     rotation: 'h-up',
     drawerId,
-    gridX: 0,
-    gridY: 0,
-    gridMode: 'auto' as const,
+    posX: 0,
+    posY: 0,
+    footprintMode: 'auto' as const,
     ...itemOverrides,
   })
   const itemId = store.getState().selectedItemIds.values().next().value!
@@ -58,7 +58,7 @@ describe('deleteDrawer (deleteContents = false)', () => {
 
   test('items in the deleted drawer become unassigned (drawerId null)', () => {
     // Arrange
-    const { drawerId, itemId } = addDrawerWithItem(store, { gridX: 2, gridY: 3 })
+    const { drawerId, itemId } = addDrawerWithItem(store, { posX: 84, posY: 126 })
 
     // Act
     store.getState().deleteDrawer(drawerId)
@@ -69,17 +69,17 @@ describe('deleteDrawer (deleteContents = false)', () => {
     expect(item.drawerId).toBeNull()
   })
 
-  test('items in the deleted drawer have gridX and gridY reset to 0', () => {
+  test('items in the deleted drawer have posX and posY reset to 0', () => {
     // Arrange
-    const { drawerId, itemId } = addDrawerWithItem(store, { gridX: 2, gridY: 3 })
+    const { drawerId, itemId } = addDrawerWithItem(store, { posX: 84, posY: 126 })
 
     // Act
     store.getState().deleteDrawer(drawerId)
 
     // Assert
     const item = store.getState().items.find((i) => i.id === itemId)!
-    expect(item.gridX).toBe(0)
-    expect(item.gridY).toBe(0)
+    expect(item.posX).toBe(0)
+    expect(item.posY).toBe(0)
   })
 
   test('items are NOT removed from the items array', () => {
@@ -154,13 +154,13 @@ describe('deleteDrawer (deleteContents = true)', () => {
       name: 'In First',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId: firstId, gridX: 0, gridY: 0, gridMode: 'auto' as const,
+      drawerId: firstId, posX: 0, posY: 0, footprintMode: 'auto' as const,
     })
     store.getState().addItem({
       name: 'In Second',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId: secondId, gridX: 0, gridY: 0, gridMode: 'auto' as const,
+      drawerId: secondId, posX: 0, posY: 0, footprintMode: 'auto' as const,
     })
     const secondItemId = store.getState().selectedItemIds.values().next().value!
 
@@ -228,7 +228,7 @@ describe('deleteItem', () => {
       name: 'Second',
       width: 42, height: 50, depth: 42,
       categoryId: null, rotation: 'h-up',
-      drawerId, gridX: 1, gridY: 0, gridMode: 'auto' as const,
+      drawerId, posX: 42, posY: 0, footprintMode: 'auto' as const,
     })
     const id2 = store.getState().selectedItemIds.values().next().value!
     store.getState().selectItem(id2)

@@ -15,7 +15,7 @@ import {
   findOverlappingItems,
   calculateDrawerStats,
 } from '@/lib/gridfinity'
-import { DEFAULT_CONFIG, ItemRotation, GridMode } from '@/lib/types'
+import { DEFAULT_CONFIG, ItemRotation, FootprintMode } from '@/lib/types'
 import type { Item, Drawer } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -32,9 +32,9 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     categoryId: null,
     rotation: ItemRotation.HeightUp,
     drawerId: 'drawer-1',
-    gridX: 0,
-    gridY: 0,
-    gridMode: GridMode.Auto,
+    posX: 0,
+    posY: 0,
+    footprintMode: FootprintMode.Auto,
     locked: false,
     ...overrides,
   }
@@ -259,9 +259,9 @@ describe('applyNextRotation', () => {
     const item = makeItem({
       width: 84, height: 56, depth: 42,
       rotation: ItemRotation.HeightUp,
-      gridMode: GridMode.Manual,
-      manualGridCols: 2,
-      manualGridRows: 1,
+      footprintMode: FootprintMode.Manual,
+      footprintW: 84,
+      footprintH: 42,
     })
 
     // Act
@@ -269,20 +269,20 @@ describe('applyNextRotation', () => {
 
     // Assert
     expect(patch.rotation).toBe(ItemRotation.HeightUpR)
-    expect(patch.manualGridCols).toBe(1)
-    expect(patch.manualGridRows).toBe(2)
+    expect(patch.footprintW).toBe(42)   // was footprintH (42), swapped
+    expect(patch.footprintH).toBe(84)   // was footprintW (84), swapped
   })
 
-  test('auto mode: does not include manualGridCols/Rows in patch', () => {
+  test('auto mode: does not include footprintW/H in patch', () => {
     // Arrange
-    const item = makeItem({ width: 84, height: 56, depth: 42, rotation: ItemRotation.HeightUp, gridMode: GridMode.Auto })
+    const item = makeItem({ width: 84, height: 56, depth: 42, rotation: ItemRotation.HeightUp, footprintMode: FootprintMode.Auto })
 
     // Act
     const patch = applyNextRotation(item)
 
     // Assert
-    expect(patch.manualGridCols).toBeUndefined()
-    expect(patch.manualGridRows).toBeUndefined()
+    expect(patch.footprintW).toBeUndefined()
+    expect(patch.footprintH).toBeUndefined()
   })
 })
 
@@ -316,13 +316,14 @@ describe('calculateItemGridDimensions', () => {
     expect(result.heightUnits).toBe(6)
   })
 
-  test('manual mode: uses explicit manualGridCols and manualGridRows', () => {
+  test('manual mode: uses explicit footprintW/H (in mm) for grid dimensions', () => {
     // Arrange
+    // footprintW=126mm → 3 cells (126/42=3), footprintH=84mm → 2 cells (84/42=2)
     const item = makeItem({
       width: 42, depth: 42,
-      gridMode: GridMode.Manual,
-      manualGridCols: 3,
-      manualGridRows: 2,
+      footprintMode: FootprintMode.Manual,
+      footprintW: 126,
+      footprintH: 84,
     })
 
     // Act
@@ -353,7 +354,7 @@ describe('calculateItemGridDimensions', () => {
 describe('isItemFootprintOverflow', () => {
   test('auto mode: always returns false', () => {
     // Arrange
-    const item = makeItem({ width: 200, depth: 200, gridMode: GridMode.Auto })
+    const item = makeItem({ width: 200, depth: 200, footprintMode: FootprintMode.Auto })
 
     // Act
     const result = isItemFootprintOverflow(item, DEFAULT_CONFIG)
@@ -367,9 +368,9 @@ describe('isItemFootprintOverflow', () => {
     // width=84 fits in 2 cols (2×42=84), depth=42 fits in 1 row (1×42=42)
     const item = makeItem({
       width: 84, depth: 42,
-      gridMode: GridMode.Manual,
-      manualGridCols: 2,
-      manualGridRows: 1,
+      footprintMode: FootprintMode.Manual,
+      footprintW: 84,
+      footprintH: 42,
     })
 
     // Act
@@ -379,14 +380,14 @@ describe('isItemFootprintOverflow', () => {
     expect(result).toBe(false)
   })
 
-  test('manual mode: returns true when physical width exceeds allocated cols', () => {
+  test('manual mode: returns true when physical width exceeds allocated footprint', () => {
     // Arrange
-    // width=84 does NOT fit in 1 col (1×42=42)
+    // width=84 does NOT fit in footprintW=42mm
     const item = makeItem({
       width: 84, depth: 42,
-      gridMode: GridMode.Manual,
-      manualGridCols: 1,
-      manualGridRows: 1,
+      footprintMode: FootprintMode.Manual,
+      footprintW: 42,
+      footprintH: 42,
     })
 
     // Act
@@ -440,26 +441,26 @@ describe('findAvailablePosition', () => {
     const result = findAvailablePosition({ gridWidth: 1, gridDepth: 1 }, drawer, [], DEFAULT_CONFIG)
 
     // Assert
-    expect(result).toEqual({ gridX: 0, gridY: 0 })
+    expect(result).toEqual({ posX: 0, posY: 0 })
   })
 
   test('skips occupied cells and returns next available position', () => {
     // Arrange
     const drawer = makeDrawer()
-    const occupant = makeItem({ drawerId: drawer.id, gridX: 0, gridY: 0, width: 42, depth: 42 })
+    const occupant = makeItem({ drawerId: drawer.id, posX: 0, posY: 0, width: 42, depth: 42 })
 
     // Act
     const result = findAvailablePosition({ gridWidth: 1, gridDepth: 1 }, drawer, [occupant], DEFAULT_CONFIG)
 
     // Assert
-    expect(result).toEqual({ gridX: 1, gridY: 0 })
+    expect(result).toEqual({ posX: 42, posY: 0 })
   })
 
   test('returns null when no position fits', () => {
     // Arrange
     // 1×1 drawer, fully occupied by a 1×1 item
     const drawer = makeDrawer({ gridCols: 1, gridRows: 1 })
-    const occupant = makeItem({ drawerId: drawer.id, gridX: 0, gridY: 0, width: 42, depth: 42 })
+    const occupant = makeItem({ drawerId: drawer.id, posX: 0, posY: 0, width: 42, depth: 42 })
 
     // Act
     const result = findAvailablePosition({ gridWidth: 1, gridDepth: 1 }, drawer, [occupant], DEFAULT_CONFIG)
@@ -471,14 +472,14 @@ describe('findAvailablePosition', () => {
   test('ignores items belonging to a different drawer', () => {
     // Arrange
     const drawer = makeDrawer({ id: 'drawer-1' })
-    const foreignItem = makeItem({ drawerId: 'drawer-2', gridX: 0, gridY: 0 })
+    const foreignItem = makeItem({ drawerId: 'drawer-2', posX: 0, posY: 0 })
 
     // Act
     const result = findAvailablePosition({ gridWidth: 1, gridDepth: 1 }, drawer, [foreignItem], DEFAULT_CONFIG)
 
     // Assert
-    // Foreign item is ignored, so (0,0) is free
-    expect(result).toEqual({ gridX: 0, gridY: 0 })
+    // Foreign item is ignored, so position 0,0 is free
+    expect(result).toEqual({ posX: 0, posY: 0 })
   })
 })
 
@@ -505,20 +506,20 @@ describe('isValidPlacement', () => {
     const item = makeItem({ width: 84, depth: 42 }) // 2×1 footprint
 
     // Act
-    // gridX=6: 6 + 2 = 8 > 7 cols
-    const result = isValidPlacement(item, drawer, 6, 0, DEFAULT_CONFIG)
+    // posX=252mm (cell 6): 6 + 2 = 8 > 7 cols
+    const result = isValidPlacement(item, drawer, 252, 0, DEFAULT_CONFIG)
 
     // Assert
     expect(result).toBe(false)
   })
 
-  test('returns false for negative grid coordinates', () => {
+  test('returns false for negative mm coordinates', () => {
     // Arrange
     const drawer = makeDrawer()
     const item = makeItem()
 
     // Act
-    const result = isValidPlacement(item, drawer, -1, 0, DEFAULT_CONFIG)
+    const result = isValidPlacement(item, drawer, -42, 0, DEFAULT_CONFIG)
 
     // Assert
     expect(result).toBe(false)
@@ -532,8 +533,8 @@ describe('isValidPlacement', () => {
 describe('checkOverlap', () => {
   test('returns true when two items occupy the same cell', () => {
     // Arrange
-    const item1 = makeItem({ id: 'item-1', drawerId: 'drawer-1', gridX: 0, gridY: 0, width: 42, depth: 42 })
-    const item2 = makeItem({ id: 'item-2', drawerId: 'drawer-1', gridX: 0, gridY: 0, width: 42, depth: 42 })
+    const item1 = makeItem({ id: 'item-1', drawerId: 'drawer-1', posX: 0, posY: 0, width: 42, depth: 42 })
+    const item2 = makeItem({ id: 'item-2', drawerId: 'drawer-1', posX: 0, posY: 0, width: 42, depth: 42 })
 
     // Act
     const result = checkOverlap(item1, item2, DEFAULT_CONFIG)
@@ -544,8 +545,8 @@ describe('checkOverlap', () => {
 
   test('returns false for adjacent (non-overlapping) items', () => {
     // Arrange
-    const item1 = makeItem({ id: 'item-1', drawerId: 'drawer-1', gridX: 0, gridY: 0, width: 42, depth: 42 })
-    const item2 = makeItem({ id: 'item-2', drawerId: 'drawer-1', gridX: 1, gridY: 0, width: 42, depth: 42 })
+    const item1 = makeItem({ id: 'item-1', drawerId: 'drawer-1', posX: 0,  posY: 0, width: 42, depth: 42 })
+    const item2 = makeItem({ id: 'item-2', drawerId: 'drawer-1', posX: 42, posY: 0, width: 42, depth: 42 })
 
     // Act
     const result = checkOverlap(item1, item2, DEFAULT_CONFIG)
@@ -556,8 +557,8 @@ describe('checkOverlap', () => {
 
   test('returns false when items are in different drawers', () => {
     // Arrange
-    const item1 = makeItem({ id: 'item-1', drawerId: 'drawer-1', gridX: 0, gridY: 0 })
-    const item2 = makeItem({ id: 'item-2', drawerId: 'drawer-2', gridX: 0, gridY: 0 })
+    const item1 = makeItem({ id: 'item-1', drawerId: 'drawer-1', posX: 0, posY: 0 })
+    const item2 = makeItem({ id: 'item-2', drawerId: 'drawer-2', posX: 0, posY: 0 })
 
     // Act
     const result = checkOverlap(item1, item2, DEFAULT_CONFIG)
@@ -568,8 +569,8 @@ describe('checkOverlap', () => {
 
   test('returns false when either item has no drawer assigned', () => {
     // Arrange
-    const item1 = makeItem({ id: 'item-1', drawerId: null, gridX: 0, gridY: 0 })
-    const item2 = makeItem({ id: 'item-2', drawerId: null, gridX: 0, gridY: 0 })
+    const item1 = makeItem({ id: 'item-1', drawerId: null, posX: 0, posY: 0 })
+    const item2 = makeItem({ id: 'item-2', drawerId: null, posX: 0, posY: 0 })
 
     // Act
     const result = checkOverlap(item1, item2, DEFAULT_CONFIG)
@@ -586,9 +587,9 @@ describe('checkOverlap', () => {
 describe('findOverlappingItems', () => {
   test('returns items that overlap with the target', () => {
     // Arrange
-    const target = makeItem({ id: 'target', drawerId: 'drawer-1', gridX: 0, gridY: 0, width: 42, depth: 42 })
-    const overlapping = makeItem({ id: 'overlapping', drawerId: 'drawer-1', gridX: 0, gridY: 0, width: 42, depth: 42 })
-    const separate = makeItem({ id: 'separate', drawerId: 'drawer-1', gridX: 2, gridY: 0, width: 42, depth: 42 })
+    const target     = makeItem({ id: 'target',     drawerId: 'drawer-1', posX: 0,  posY: 0, width: 42, depth: 42 })
+    const overlapping = makeItem({ id: 'overlapping', drawerId: 'drawer-1', posX: 0,  posY: 0, width: 42, depth: 42 })
+    const separate   = makeItem({ id: 'separate',   drawerId: 'drawer-1', posX: 84, posY: 0, width: 42, depth: 42 })
 
     // Act
     const result = findOverlappingItems(target, [target, overlapping, separate], DEFAULT_CONFIG)
@@ -600,7 +601,7 @@ describe('findOverlappingItems', () => {
 
   test('excludes the target item itself from results', () => {
     // Arrange
-    const target = makeItem({ id: 'target', drawerId: 'drawer-1', gridX: 0, gridY: 0 })
+    const target = makeItem({ id: 'target', drawerId: 'drawer-1', posX: 0, posY: 0 })
 
     // Act
     const result = findOverlappingItems(target, [target], DEFAULT_CONFIG)
@@ -611,8 +612,8 @@ describe('findOverlappingItems', () => {
 
   test('returns empty array when nothing overlaps', () => {
     // Arrange
-    const target = makeItem({ id: 'target', drawerId: 'drawer-1', gridX: 0, gridY: 0, width: 42, depth: 42 })
-    const separate = makeItem({ id: 'separate', drawerId: 'drawer-1', gridX: 3, gridY: 3, width: 42, depth: 42 })
+    const target   = makeItem({ id: 'target',   drawerId: 'drawer-1', posX: 0,   posY: 0,   width: 42, depth: 42 })
+    const separate = makeItem({ id: 'separate', drawerId: 'drawer-1', posX: 126, posY: 126, width: 42, depth: 42 })
 
     // Act
     const result = findOverlappingItems(target, [target, separate], DEFAULT_CONFIG)
@@ -663,7 +664,7 @@ describe('calculateDrawerStats', () => {
     // Arrange
     const drawer = makeDrawer({ height: 75 })
     const oversized = makeItem({ drawerId: drawer.id, height: 100 })
-    const fits = makeItem({ id: 'item-2', drawerId: drawer.id, gridX: 1, height: 50 })
+    const fits = makeItem({ id: 'item-2', drawerId: drawer.id, posX: 42, height: 50 })
 
     // Act
     const stats = calculateDrawerStats(drawer, [oversized, fits], DEFAULT_CONFIG)

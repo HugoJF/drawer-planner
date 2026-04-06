@@ -7,7 +7,7 @@ import type {
   ItemGridDimensions,
   DrawerStats,
 } from './types'
-import { ItemRotation, GridMode } from './types'
+import { ItemRotation, FootprintMode } from './types'
 
 /**
  * Calculate how many Gridfinity cells fit in a drawer dimension
@@ -122,7 +122,7 @@ export function applyNextRotation(item: Item): Partial<Item> {
   }
   const next = distinct[(idx + 1) % distinct.length]
 
-  const isManual = item.gridMode === GridMode.Manual
+  const isManual = item.footprintMode === FootprintMode.Manual
   const newDims = getRotatedDimensions(item, next)
   const shouldSwap = isManual
     && currentDims.width === newDims.depth
@@ -131,7 +131,7 @@ export function applyNextRotation(item: Item): Partial<Item> {
 
   return {
     rotation: next,
-    ...(shouldSwap && { manualGridCols: item.manualGridRows ?? 1, manualGridRows: item.manualGridCols ?? 1 }),
+    ...(shouldSwap && { footprintW: item.footprintH, footprintH: item.footprintW }),
   }
 }
 
@@ -147,10 +147,10 @@ export function calculateItemGridDimensions(
   const dims = getRotatedDimensions(item)
   const heightUnits = dims.height > 0 ? Math.ceil(dims.height / config.heightUnit) : 0
 
-  if (item.gridMode === GridMode.Manual) {
+  if (item.footprintMode === FootprintMode.Manual) {
     return {
-      gridWidth: Math.max(1, item.manualGridCols ?? 1),
-      gridDepth: Math.max(1, item.manualGridRows ?? 1),
+      gridWidth:  Math.max(1, Math.round((item.footprintW ?? config.cellSize) / config.cellSize)),
+      gridDepth:  Math.max(1, Math.round((item.footprintH ?? config.cellSize) / config.cellSize)),
       heightUnits,
       effectiveHeight: dims.height,
     }
@@ -173,7 +173,7 @@ export function calculateItemGridDimensions(
  * Only relevant in manual mode with known dimensions.
  */
 export function isItemFootprintOverflow(item: Item, config: GridfinityConfig): boolean {
-  if (item.gridMode === GridMode.Auto) {
+  if (item.footprintMode === FootprintMode.Auto) {
     return false
   }
   const rotated = getRotatedDimensions(item)
@@ -181,8 +181,8 @@ export function isItemFootprintOverflow(item: Item, config: GridfinityConfig): b
     return false
   }
   return (
-    rotated.width > (item.manualGridCols ?? 1) * config.cellSize ||
-    rotated.depth > (item.manualGridRows ?? 1) * config.cellSize
+    rotated.width > (item.footprintW ?? config.cellSize) ||
+    rotated.depth > (item.footprintH ?? config.cellSize)
   )
 }
 
@@ -203,15 +203,17 @@ export function findAvailablePosition(
   drawer: Drawer,
   existingItems: Item[],
   config: GridfinityConfig
-): { gridX: number; gridY: number } | null {
+): { posX: number; posY: number } | null {
   const occupied = new Set<string>()
   for (const other of existingItems) {
     if (other.drawerId !== drawer.id) {
       continue
     }
     const d = calculateItemGridDimensions(other, config)
-    for (let x = other.gridX; x < other.gridX + d.gridWidth; x++) {
-      for (let y = other.gridY; y < other.gridY + d.gridDepth; y++) {
+    const cellX = Math.round(other.posX / config.cellSize)
+    const cellY = Math.round(other.posY / config.cellSize)
+    for (let x = cellX; x < cellX + d.gridWidth; x++) {
+      for (let y = cellY; y < cellY + d.gridDepth; y++) {
         occupied.add(`${x},${y}`)
       }
     }
@@ -225,7 +227,7 @@ export function findAvailablePosition(
         }
       }
       if (fits) {
-        return { gridX: x, gridY: y }
+        return { posX: x * config.cellSize, posY: y * config.cellSize }
       }
     }
   }
@@ -238,17 +240,19 @@ export function findAvailablePosition(
 export function isValidPlacement(
   item: Item,
   drawer: Drawer,
-  gridX: number,
-  gridY: number,
+  posX: number,
+  posY: number,
   config: GridfinityConfig
 ): boolean {
   const dims = calculateItemGridDimensions(item, config)
-  
+  const cellX = Math.round(posX / config.cellSize)
+  const cellY = Math.round(posY / config.cellSize)
+
   return (
-    gridX >= 0 &&
-    gridY >= 0 &&
-    gridX + dims.gridWidth <= drawer.gridCols &&
-    gridY + dims.gridDepth <= drawer.gridRows
+    cellX >= 0 &&
+    cellY >= 0 &&
+    cellX + dims.gridWidth <= drawer.gridCols &&
+    cellY + dims.gridDepth <= drawer.gridRows
   )
 }
 
@@ -263,29 +267,20 @@ export function checkOverlap(
   if (item1.drawerId !== item2.drawerId || !item1.drawerId) {
     return false
   }
-  
+
   const dims1 = calculateItemGridDimensions(item1, config)
   const dims2 = calculateItemGridDimensions(item2, config)
-  
-  const rect1 = {
-    left: item1.gridX,
-    right: item1.gridX + dims1.gridWidth,
-    top: item1.gridY,
-    bottom: item1.gridY + dims1.gridDepth,
-  }
-  
-  const rect2 = {
-    left: item2.gridX,
-    right: item2.gridX + dims2.gridWidth,
-    top: item2.gridY,
-    bottom: item2.gridY + dims2.gridDepth,
-  }
-  
+  // Convert footprint from cells to mm for AABB test
+  const w1 = dims1.gridWidth * config.cellSize
+  const h1 = dims1.gridDepth * config.cellSize
+  const w2 = dims2.gridWidth * config.cellSize
+  const h2 = dims2.gridDepth * config.cellSize
+
   return !(
-    rect1.right <= rect2.left ||
-    rect1.left >= rect2.right ||
-    rect1.bottom <= rect2.top ||
-    rect1.top >= rect2.bottom
+    item1.posX + w1 <= item2.posX ||
+    item2.posX + w2 <= item1.posX ||
+    item1.posY + h1 <= item2.posY ||
+    item2.posY + h2 <= item1.posY
   )
 }
 
@@ -324,8 +319,10 @@ export function calculateDrawerStats(
     const rotatedDims = getRotatedDimensions(item)
     
     // Mark cells as occupied
-    for (let x = item.gridX; x < item.gridX + dims.gridWidth; x++) {
-      for (let y = item.gridY; y < item.gridY + dims.gridDepth; y++) {
+    const cellX = Math.round(item.posX / config.cellSize)
+    const cellY = Math.round(item.posY / config.cellSize)
+    for (let x = cellX; x < cellX + dims.gridWidth; x++) {
+      for (let y = cellY; y < cellY + dims.gridDepth; y++) {
         cellOccupancy.add(`${x},${y}`)
       }
     }

@@ -26,8 +26,8 @@ export function sortItems(items: Item[], mode: SortMode, config: GridfinityConfi
         const db = calculateItemGridDimensions(b, config)
         return (db.gridWidth * db.gridDepth) - (da.gridWidth * da.gridDepth)
       }
-      case 'y': return a.gridY !== b.gridY ? a.gridY - b.gridY : a.gridX - b.gridX
-      case 'x': return a.gridX !== b.gridX ? a.gridX - b.gridX : a.gridY - b.gridY
+      case 'y': return a.posY !== b.posY ? a.posY - b.posY : a.posX - b.posX
+      case 'x': return a.posX !== b.posX ? a.posX - b.posX : a.posY - b.posY
     }
   })
 }

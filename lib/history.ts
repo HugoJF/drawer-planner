@@ -101,7 +101,7 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
     if (b.name !== a.name) {
       return `Renamed "${b.name}" → "${a.name}"`
     }
-    if (b.gridX !== a.gridX || b.gridY !== a.gridY || b.drawerId !== a.drawerId) {
+    if (b.posX !== a.posX || b.posY !== a.posY || b.drawerId !== a.drawerId) {
       if (b.drawerId !== a.drawerId) {
         const dest = a.drawerId ? after.drawers.find(d => d.id === a.drawerId)?.name : null
         if (!b.drawerId && dest) {
@@ -128,7 +128,7 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
   if (changed.length > 1 && added.length === 0 && removed.length === 0) {
     const allMoved = changed.every(a => {
       const b = beforeItems.get(a.id)!
-      return b.gridX !== a.gridX || b.gridY !== a.gridY || b.drawerId !== a.drawerId
+      return b.posX !== a.posX || b.posY !== a.posY || b.drawerId !== a.drawerId
     })
     const allLockChanged = changed.every(a => beforeItems.get(a.id)!.locked !== a.locked)
     if (allMoved) {

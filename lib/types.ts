@@ -91,11 +91,11 @@ export const ItemRotation = {
 } as const
 export type ItemRotation = typeof ItemRotation[keyof typeof ItemRotation]
 
-export const GridMode = {
+export const FootprintMode = {
   Auto:   'auto',
   Manual: 'manual',
 } as const
-export type GridMode = typeof GridMode[keyof typeof GridMode]
+export type FootprintMode = typeof FootprintMode[keyof typeof FootprintMode]
 
 export interface Item {
   id: string
@@ -106,11 +106,11 @@ export interface Item {
   categoryId: string | null
   rotation: ItemRotation
   drawerId: string | null
-  gridX: number          // grid position
-  gridY: number
-  gridMode: GridMode
-  manualGridCols?: number         // explicit footprint cols (post-rotation), manual mode only
-  manualGridRows?: number         // explicit footprint rows (post-rotation), manual mode only
+  posX: number           // mm, position in canvas (grid: always multiple of cellSize)
+  posY: number           // mm
+  footprintMode: FootprintMode
+  footprintW?: number    // mm, explicit footprint width (post-rotation), manual mode only
+  footprintH?: number    // mm, explicit footprint height (post-rotation), manual mode only
   locked: boolean
   notes?: string
 }
@@ -164,7 +164,7 @@ export function formatDimension(valueMm: number, unit: DimensionUnit): string {
   return `${value}${unit}`
 }
 
-export const CURRENT_VERSION = 3
+export const CURRENT_VERSION = 4
 
 // Project management
 export interface ProjectMeta {
