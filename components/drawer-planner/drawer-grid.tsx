@@ -226,11 +226,14 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const isManual = item.footprintMode === FootprintMode.Manual
     const color = getItemColor(item, drawer, config, categories)
 
-    const insetPxW = !drawer.gridless && rotatedDims.width > 0 && rotatedDims.depth > 0
-      ? Math.min(rotatedDims.width / (baseDims.gridWidth * config.cellSize), 1) * cardRect.width
+    const fp = drawer.gridless ? getItemFootprintMm(item) : null
+    const allocatedW = fp ? fp.w : baseDims.gridWidth * config.cellSize
+    const allocatedH = fp ? fp.h : baseDims.gridDepth * config.cellSize
+    const insetPxW = rotatedDims.width > 0 && rotatedDims.depth > 0 && allocatedW > 0
+      ? Math.min(rotatedDims.width / allocatedW, 1) * cardRect.width
       : null
-    const insetPxH = !drawer.gridless && rotatedDims.width > 0 && rotatedDims.depth > 0
-      ? Math.min(rotatedDims.depth / (baseDims.gridDepth * config.cellSize), 1) * cardRect.height
+    const insetPxH = rotatedDims.width > 0 && rotatedDims.depth > 0 && allocatedH > 0
+      ? Math.min(rotatedDims.depth / allocatedH, 1) * cardRect.height
       : null
 
     return (
@@ -349,7 +352,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
               </button>
             </TooltipTrigger>
             <TooltipContent side="top">
-              Rotate ({getRotationLabel(item.rotation, item, config)})
+              Rotate ({getRotationLabel(item.rotation, item, config, drawer.gridless)})
             </TooltipContent>
           </Tooltip>
         )}
