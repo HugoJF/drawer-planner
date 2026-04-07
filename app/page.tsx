@@ -34,7 +34,7 @@ import {
 import type { Drawer, Item, CabinetItem } from '@/lib/types'
 import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { calculateItemGridDimensions, applyNextRotation } from '@/lib/gridfinity'
+import { calculateItemGridDimensions, applyNextRotation, getItemFootprintMm } from '@/lib/gridfinity'
 import { labelAction } from '@/lib/history'
 
 function DashboardContent() {
@@ -153,6 +153,21 @@ function DashboardContent() {
     if (!items.length || !selectedDrawerId || !selectedDrawer) {
       return
     }
+
+    if (selectedDrawer.gridless) {
+      // Gridless: positions and sizes are in mm. Shift group so its top-left is at (0,0).
+      const minX = Math.min(...items.map(i => i.posX))
+      const minY = Math.min(...items.map(i => i.posY))
+      addItems(items.map(item => ({
+        ...item,
+        drawerId: selectedDrawerId,
+        posX: item.posX - minX,
+        posY: item.posY - minY,
+      })))
+      return
+    }
+
+    // Grid mode: find the first free cell-aligned origin that fits the whole group.
 
     // Normalize positions relative to the group's top-left corner (in cells)
     const minCellX = Math.min(...items.map(i => Math.round(i.posX / config.cellSize)))
