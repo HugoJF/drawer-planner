@@ -1,6 +1,7 @@
 import React from 'react'
 import { computeSnap, type SnapGuide } from '@/lib/cabinet-snap'
 import { getItemFootprintMm } from '@/lib/gridfinity'
+import { FootprintMode } from '@/lib/types'
 import type { Item, Drawer, GridfinityConfig } from '@/lib/types'
 import type {
   CoordAdapter,
@@ -183,12 +184,10 @@ export class DrawerFreeAdapter implements CoordAdapter {
   }
 
   applyResize(_item: Item, previewDims: ASize): Partial<Item> {
-    const snap = (v: number) =>
-      Math.max(this.config.cellSize, Math.round(v / this.config.cellSize) * this.config.cellSize)
     return {
-      footprintW: snap(previewDims.w),
-      footprintH: snap(previewDims.h),
-      // footprintMode intentionally not changed — auto stays auto, manual stays manual
+      footprintW: Math.max(1, Math.round(previewDims.w)),
+      footprintH: Math.max(1, Math.round(previewDims.h)),
+      footprintMode: FootprintMode.Manual,
     }
   }
 
@@ -240,13 +239,11 @@ export class DrawerFreeAdapter implements CoordAdapter {
   }
 
   drawRangeToArgs(start: ACoord, end: ACoord) {
-    const widthMm  = Math.abs(end.x - start.x)
-    const heightMm = Math.abs(end.y - start.y)
     return {
       posX: Math.min(start.x, end.x),
       posY: Math.min(start.y, end.y),
-      cols: Math.max(1, Math.round(widthMm  / this.config.cellSize)),
-      rows: Math.max(1, Math.round(heightMm / this.config.cellSize)),
+      cols: Math.max(1, Math.round(Math.abs(end.x - start.x))),  // mm
+      rows: Math.max(1, Math.round(Math.abs(end.y - start.y))),  // mm
     }
   }
 
