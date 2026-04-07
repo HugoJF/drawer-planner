@@ -10,6 +10,7 @@ import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-
 import { SidebarStats } from '@/components/drawer-planner/sidebar-stats'
 import { DrawerForm } from '@/components/drawer-planner/drawer-form'
 import { ItemForm } from '@/components/drawer-planner/item-form'
+import type { ItemInitialPosition, ItemInitialGridDimensions } from '@/components/drawer-planner/item-form'
 import { SettingsPanel } from '@/components/drawer-planner/settings-panel'
 import { ShortcutsDialog } from '@/components/drawer-planner/shortcuts-dialog'
 import { HistoryPanel } from '@/components/drawer-planner/history-panel'
@@ -36,6 +37,11 @@ import { formatDimension } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { calculateItemGridDimensions, applyNextRotation, getItemFootprintMm } from '@/lib/gridfinity'
 import { labelAction } from '@/lib/history'
+
+interface PendingDeleteDrawer {
+  id: string
+  name: string
+}
 
 function DashboardContent() {
   const projects = useProjectsStore(s => s.projects)
@@ -83,10 +89,10 @@ function DashboardContent() {
   const [itemFormOpen, setItemFormOpen] = useState(false)
   const [editingDrawer, setEditingDrawer] = useState<Drawer | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
-  const [newItemPosition, setNewItemPosition] = useState<{ posX: number; posY: number } | null>(null)
-  const [newItemGridDimensions, setNewItemGridDimensions] = useState<{ cols: number; rows: number } | null>(null)
+  const [newItemPosition, setNewItemPosition] = useState<ItemInitialPosition | null>(null)
+  const [newItemGridDimensions, setNewItemGridDimensions] = useState<ItemInitialGridDimensions | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const [pendingDeleteDrawer, setPendingDeleteDrawer] = useState<{ id: string; name: string } | null>(null)
+  const [pendingDeleteDrawer, setPendingDeleteDrawer] = useState<PendingDeleteDrawer | null>(null)
 
   // Derived
   const canUndo = past.length > 0

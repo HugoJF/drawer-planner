@@ -46,6 +46,17 @@ import { DrawerFreeAdapter } from '@/components/canvas/drawer-free-adapter'
 import type { ItemRenderCtx } from '@/components/canvas/coord-adapter'
 
 // ---------------------------------------------------------------------------
+// Local types
+// ---------------------------------------------------------------------------
+
+interface PendingDelete {
+  type: 'drawer' | 'item'
+  id: string
+  ids?: string[]
+  name: string
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
@@ -83,12 +94,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const searchTerm       = useDrawerStore(s => s.searchQuery).toLowerCase().trim()
 
   const { toast } = useToast()
-  const [pendingDelete, setPendingDelete] = useState<{
-    type: 'drawer' | 'item'
-    id: string
-    ids?: string[]
-    name: string
-  } | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
 
   const adapter = useMemo(
     () => drawer.gridless

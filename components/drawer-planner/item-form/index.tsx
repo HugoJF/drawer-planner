@@ -28,12 +28,22 @@ import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit, ItemRotation, FootprintMod
 import { RotateCw } from 'lucide-react'
 import { CategorySelector } from './category-selector'
 
+export interface ItemInitialPosition {
+  posX: number
+  posY: number
+}
+
+export interface ItemInitialGridDimensions {
+  cols: number
+  rows: number
+}
+
 interface ItemFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item: Item | null
-  initialPosition: { posX: number; posY: number } | null
-  initialGridDimensions: { cols: number; rows: number } | null
+  initialPosition: ItemInitialPosition | null
+  initialGridDimensions: ItemInitialGridDimensions | null
 }
 
 export function ItemForm({ open, onOpenChange, item, initialPosition, initialGridDimensions }: ItemFormProps) {

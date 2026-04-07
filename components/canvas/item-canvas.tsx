@@ -11,6 +11,7 @@ import type {
   CoordAdapter,
   ACoord,
   CanvasDragState,
+  PendingDrag,
   ResizeState,
   DrawState,
   ItemRenderCtx,
@@ -55,13 +56,7 @@ export function ItemCanvas({
   renderItem,
   renderContextMenu,
 }: ItemCanvasProps) {
-  const [pendingDrag, setPendingDrag] = useState<{
-    item: Item
-    startClientX: number
-    startClientY: number
-    grabPxX: number
-    grabPxY: number
-  } | null>(null)
+  const [pendingDrag, setPendingDrag] = useState<PendingDrag | null>(null)
   const [dragState, setDragState]         = useState<CanvasDragState | null>(null)
   const [dropCoord, setDropCoord]         = useState<ACoord | null>(null)
   const [resizeState, setResizeState]     = useState<ResizeState | null>(null)

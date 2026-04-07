@@ -18,6 +18,12 @@ import { DrawerScopedTab } from './drawer-scoped-tab'
 import { nextAvailableColor } from './types'
 import type { SidebarTab } from './types'
 
+interface PendingDelete {
+  type: 'drawer' | 'item' | 'category'
+  id: string
+  name: string
+}
+
 interface DrawerTreeProps {
   onEditDrawer: (drawer: Drawer) => void
   onEditItem: (item: Item) => void
@@ -51,7 +57,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const [manualOverrides, setManualOverrides] = useState<Map<string, boolean>>(new Map())
   const [sortMode, setSortMode] = useState<'insertion' | 'name' | 'size' | 'y' | 'x'>('insertion')
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item' | 'category'; id: string; name: string } | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [categoryFormOpen, setCategoryFormOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)

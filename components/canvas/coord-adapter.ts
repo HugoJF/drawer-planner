@@ -30,6 +30,18 @@ export interface ASize {
   h: number
 }
 
+/**
+ * Transient state while the user has pressed mousedown but hasn't moved far
+ * enough to commit to a full drag. Cleared on mouseup or when drag is promoted.
+ */
+export interface PendingDrag {
+  item: Item
+  startClientX: number
+  startClientY: number
+  grabPxX: number
+  grabPxY: number
+}
+
 /** Drag state stored in ItemCanvas (adapter-opaque). */
 export interface CanvasDragState {
   /** Anchor (dragged) item id. */
