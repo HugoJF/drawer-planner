@@ -338,6 +338,7 @@ function DashboardContent() {
   const handleEditItem = (item: Item) => {
     setEditingItem(item)
     setNewItemPosition(null)
+    setNewItemGridDimensions(null)
     setItemFormOpen(true)
   }
 
