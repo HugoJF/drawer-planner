@@ -442,7 +442,7 @@ export function ItemCanvas({
                   transition: isResizing ? 'none' : 'opacity 0.1s',
                   pointerEvents: (
                     drawState ||
-                    pendingDrag ||
+                    (pendingDrag && pendingDrag.item.id !== item.id) ||
                     (dragState && dragState.itemId !== item.id) ||
                     (resizeState && resizeState.itemId !== item.id)
                   ) ? 'none' : undefined,
