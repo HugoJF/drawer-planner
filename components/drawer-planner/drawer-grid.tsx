@@ -207,7 +207,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const { isSelected, isResizing, isSearchMatch, cardRect } = ctx
     const baseDims = calculateItemGridDimensions(item, config)
     const oversized = isItemOversized(item, drawer)
-    const footprintOverflow = drawer.gridless ? false : isItemFootprintOverflow(item, config)
+    const footprintOverflow = isItemFootprintOverflow(item, config)
     const { w: itemFpW, h: itemFpH } = drawer.gridless ? getItemFootprintMm(item) : { w: 0, h: 0 }
     const hasOverlap = drawer.gridless
       ? items.some(other => {
