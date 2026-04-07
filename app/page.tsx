@@ -267,7 +267,8 @@ function DashboardContent() {
     updateItem({ ...item, ...applyNextRotation(item) })
   }, [allItems, selectedItemIds, updateItem]))
 
-  // Move selected item(s) by one grid cell, clamped to drawer bounds
+  // Move selected item(s) by one step, clamped to drawer bounds.
+  // Grid mode: step = 1 cell. Gridless mode: step = 1 mm.
   const moveSelected = useCallback((dx: number, dy: number) => {
     if (!selectedDrawer) {
       return
@@ -276,22 +277,40 @@ function DashboardContent() {
     if (drawerItems.length === 0) {
       return
     }
-    const clampedPos = (item: Item, dx: number, dy: number) => {
-      const dims = calculateItemGridDimensions(item, config)
-      const cellX = Math.round(item.posX / config.cellSize)
-      const cellY = Math.round(item.posY / config.cellSize)
-      return {
-        id: item.id,
-        drawerId: item.drawerId,
-        posX: Math.max(0, Math.min(selectedDrawer.gridCols - dims.gridWidth,  cellX + dx)) * config.cellSize,
-        posY: Math.max(0, Math.min(selectedDrawer.gridRows - dims.gridDepth, cellY + dy)) * config.cellSize,
+    if (selectedDrawer.gridless) {
+      const clampedPos = (item: Item) => {
+        const { w, h } = getItemFootprintMm(item)
+        return {
+          id: item.id,
+          drawerId: item.drawerId,
+          posX: Math.max(0, Math.min(selectedDrawer.width  - w, item.posX + dx)),
+          posY: Math.max(0, Math.min(selectedDrawer.depth - h, item.posY + dy)),
+        }
       }
-    }
-    if (drawerItems.length === 1) {
-      const { id, drawerId, posX, posY } = clampedPos(drawerItems[0], dx, dy)
-      moveItem(id, drawerId, posX, posY)
+      if (drawerItems.length === 1) {
+        const { id, drawerId, posX, posY } = clampedPos(drawerItems[0])
+        moveItem(id, drawerId, posX, posY)
+      } else {
+        repositionItems(drawerItems.map(clampedPos))
+      }
     } else {
-      repositionItems(drawerItems.map(item => clampedPos(item, dx, dy)))
+      const clampedPos = (item: Item) => {
+        const dims = calculateItemGridDimensions(item, config)
+        const cellX = Math.round(item.posX / config.cellSize)
+        const cellY = Math.round(item.posY / config.cellSize)
+        return {
+          id: item.id,
+          drawerId: item.drawerId,
+          posX: Math.max(0, Math.min(selectedDrawer.gridCols - dims.gridWidth,  cellX + dx)) * config.cellSize,
+          posY: Math.max(0, Math.min(selectedDrawer.gridRows - dims.gridDepth, cellY + dy)) * config.cellSize,
+        }
+      }
+      if (drawerItems.length === 1) {
+        const { id, drawerId, posX, posY } = clampedPos(drawerItems[0])
+        moveItem(id, drawerId, posX, posY)
+      } else {
+        repositionItems(drawerItems.map(clampedPos))
+      }
     }
   }, [selectedDrawer, allItems, selectedItemIds, selectedDrawerId, config, moveItem, repositionItems])
 
