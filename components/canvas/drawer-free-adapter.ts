@@ -111,19 +111,23 @@ export class DrawerFreeAdapter implements CoordAdapter {
         y: rawY + dy,
       }
     })
-    const statics = this.allItems
-      .filter(i => !draggedIds.has(i.id))
-      .map(i => {
-        const { w, h } = getItemFootprintMm(i)
-        return {
-          id:       i.id,
-          label:    i.name,
-          widthMm:  w,
-          heightMm: h,
-          x: i.posX,
-          y: i.posY,
-        }
-      })
+    const statics = [
+      // Drawer boundary — always present so items snap to walls even when alone
+      { id: '__drawer__', label: '', widthMm: this.drawer.width, heightMm: this.drawer.depth, x: 0, y: 0 },
+      ...this.allItems
+        .filter(i => !draggedIds.has(i.id))
+        .map(i => {
+          const { w, h } = getItemFootprintMm(i)
+          return {
+            id:       i.id,
+            label:    i.name,
+            widthMm:  w,
+            heightMm: h,
+            x: i.posX,
+            y: i.posY,
+          }
+        }),
+    ]
 
     const snap = computeSnap(preSnapDragged, statics, this.scale, this.config.cabinetSnapThresholdPx)
     this._snapGuides = snap.guides
