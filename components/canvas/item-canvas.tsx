@@ -395,7 +395,7 @@ export function ItemCanvas({
                 }}
               >
                 <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary text-primary-foreground whitespace-nowrap">
-                  {resizeState.previewDims.w} × {resizeState.previewDims.h}
+                  {Math.round(resizeState.previewDims.w)} × {Math.round(resizeState.previewDims.h)}
                 </span>
               </div>
             )
