@@ -55,6 +55,7 @@ export interface Drawer {
   gridRows: number       // calculated
   cabinetX: number       // mm, position on cabinet canvas
   cabinetY: number       // mm, position on cabinet canvas
+  gridless: boolean      // free mm-based item positioning (vs Gridfinity grid)
 }
 
 export interface CabinetItem {
@@ -164,7 +165,7 @@ export function formatDimension(valueMm: number, unit: DimensionUnit): string {
   return `${value}${unit}`
 }
 
-export const CURRENT_VERSION = 4
+export const CURRENT_VERSION = 5
 
 // Project management
 export interface ProjectMeta {

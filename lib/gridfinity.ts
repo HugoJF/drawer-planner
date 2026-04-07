@@ -55,6 +55,27 @@ export function getRotatedDimensions(
   }
 }
 
+/**
+ * Resolve the item's footprint in mm for use in a gridless drawer.
+ *
+ * - manual mode with footprintW/H set → use stored mm values directly
+ * - auto mode (or manual without stored values) → physical rotated dimensions
+ *
+ * Grid-mode adapters do NOT use this: they always work in cells via
+ * calculateItemGridDimensions.
+ */
+export function getItemFootprintMm(item: Item): { w: number; h: number } {
+  if (
+    item.footprintMode === FootprintMode.Manual &&
+    item.footprintW != null &&
+    item.footprintH != null
+  ) {
+    return { w: item.footprintW, h: item.footprintH }
+  }
+  const dims = getRotatedDimensions(item)
+  return { w: dims.width, h: dims.depth }
+}
+
 export const ALL_ROTATIONS: ItemRotation[] = [
   ItemRotation.HeightUp, ItemRotation.HeightUpR,
   ItemRotation.DepthUp,  ItemRotation.DepthUpR,

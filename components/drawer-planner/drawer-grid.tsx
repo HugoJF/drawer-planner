@@ -9,6 +9,7 @@ import {
   isItemOversized,
   findOverlappingItems,
   getRotatedDimensions,
+  getItemFootprintMm,
   getDistinctRotations,
   getRotationLabel,
   applyNextRotation,
@@ -41,6 +42,7 @@ import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-
 import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
 import { ItemCanvas } from '@/components/canvas/item-canvas'
 import { GridAdapter } from '@/components/canvas/grid-adapter'
+import { DrawerFreeAdapter } from '@/components/canvas/drawer-free-adapter'
 import type { ItemRenderCtx } from '@/components/canvas/coord-adapter'
 
 // ---------------------------------------------------------------------------
@@ -122,7 +124,12 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     name: string
   } | null>(null)
 
-  const adapter = useMemo(() => new GridAdapter(drawer, config), [drawer, config])
+  const adapter = useMemo(
+    () => drawer.gridless
+      ? new DrawerFreeAdapter(drawer, config, items)
+      : new GridAdapter(drawer, config),
+    [drawer, config, items],
+  )
 
   // ---------------------------------------------------------------------------
   // ItemCanvas callbacks
@@ -200,18 +207,29 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     const { isSelected, isResizing, isSearchMatch, cardRect } = ctx
     const baseDims = calculateItemGridDimensions(item, config)
     const oversized = isItemOversized(item, drawer)
-    const footprintOverflow = isItemFootprintOverflow(item, config)
-    const overlapping = findOverlappingItems(item, items, config)
-    const hasOverlap = overlapping.length > 0
+    const footprintOverflow = drawer.gridless ? false : isItemFootprintOverflow(item, config)
+    const { w: itemFpW, h: itemFpH } = drawer.gridless ? getItemFootprintMm(item) : { w: 0, h: 0 }
+    const hasOverlap = drawer.gridless
+      ? items.some(other => {
+          if (other.id === item.id || other.drawerId !== item.drawerId) {
+            return false
+          }
+          const { w: oW, h: oH } = getItemFootprintMm(other)
+          return item.posX < other.posX + oW &&
+                 item.posX + itemFpW > other.posX &&
+                 item.posY < other.posY + oH &&
+                 item.posY + itemFpH > other.posY
+        })
+      : findOverlappingItems(item, items, config).length > 0
     const suitableDrawers = oversized ? getSuitableDrawers(item) : []
     const rotatedDims = getRotatedDimensions(item)
     const isManual = item.footprintMode === FootprintMode.Manual
     const color = getItemColor(item, drawer, config, categories)
 
-    const insetPxW = rotatedDims.width > 0 && rotatedDims.depth > 0
+    const insetPxW = !drawer.gridless && rotatedDims.width > 0 && rotatedDims.depth > 0
       ? Math.min(rotatedDims.width / (baseDims.gridWidth * config.cellSize), 1) * cardRect.width
       : null
-    const insetPxH = rotatedDims.width > 0 && rotatedDims.depth > 0
+    const insetPxH = !drawer.gridless && rotatedDims.width > 0 && rotatedDims.depth > 0
       ? Math.min(rotatedDims.depth / (baseDims.gridDepth * config.cellSize), 1) * cardRect.height
       : null
 
@@ -251,7 +269,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           {item.name}
         </span>
         <span className="relative z-10 text-[10px] text-white/80 drop-shadow-md">
-          {baseDims.gridWidth}×{baseDims.gridDepth}
+          {drawer.gridless
+            ? `${formatDimension(itemFpW, config.displayUnit)}×${formatDimension(itemFpH, config.displayUnit)}`
+            : `${baseDims.gridWidth}×${baseDims.gridDepth}`}
         </span>
 
         {/* Overlap warning */}

@@ -52,6 +52,7 @@ function makeDrawer(overrides: Partial<Drawer> = {}): Drawer {
     gridRows: 7,
     cabinetX: 0,
     cabinetY: 0,
+    gridless: false,
     ...overrides,
   }
 }

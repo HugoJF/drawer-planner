@@ -233,6 +233,7 @@ describe('importData', () => {
     gridRows: 3,
     cabinetX: 0,
     cabinetY: 0,
+    gridless: false,
   }
 
   const sampleItem: Item = {

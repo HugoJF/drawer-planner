@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { useDrawerStore } from '@/lib/store'
 import { calculateDrawerGrid } from '@/lib/gridfinity'
 import type { Drawer } from '@/lib/types'
@@ -35,6 +36,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
   const [width, setWidth] = useState(drawer ? toDisplayUnit(drawer.width, unit).toString() : '')
   const [height, setHeight] = useState(drawer ? toDisplayUnit(drawer.height, unit).toString() : '')
   const [depth, setDepth] = useState(drawer ? toDisplayUnit(drawer.depth, unit).toString() : '')
+  const [gridless, setGridless] = useState(drawer?.gridless ?? false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,6 +64,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
         depth: depthMm,
         gridCols,
         gridRows,
+        gridless,
       })
     } else {
       addDrawer({
@@ -69,6 +72,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
         width: widthMm,
         height: heightMm,
         depth: depthMm,
+        gridless,
       })
     }
 
@@ -149,7 +153,7 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
           </div>
 
           {/* Preview */}
-          {previewGrid && (
+          {previewGrid && !gridless && (
             <div className="rounded-md bg-secondary/30 p-3">
               <p className="text-sm text-muted-foreground">
                 Grid Preview: <span className="font-medium text-foreground">{previewGrid.gridCols} x {previewGrid.gridRows}</span> cells
@@ -160,6 +164,16 @@ export function DrawerForm({ open, onOpenChange, drawer }: DrawerFormProps) {
               </p>
             </div>
           )}
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="gridless">Free positioning</Label>
+              <p className="text-xs text-muted-foreground">
+                Items snap to millimetres instead of Gridfinity grid cells
+              </p>
+            </div>
+            <Switch id="gridless" checked={gridless} onCheckedChange={setGridless} />
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

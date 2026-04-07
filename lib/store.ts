@@ -39,7 +39,7 @@ export interface DrawerStore {
   selectItem: (id: string | null) => void
   toggleItemSelection: (id: string) => void
   selectItems: (ids: string[]) => void
-  addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows' | 'cabinetX' | 'cabinetY'>) => void
+  addDrawer: (drawer: Omit<Drawer, 'id' | 'gridCols' | 'gridRows' | 'cabinetX' | 'cabinetY' | 'gridless'> & { gridless?: boolean }) => void
   updateDrawer: (drawer: Drawer) => void
   deleteDrawer: (id: string, deleteContents?: boolean) => void
   duplicateDrawer: (id: string) => void
@@ -123,6 +123,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             const newDrawer: Drawer = {
               cabinetX: 0,
               cabinetY: 0,
+              gridless: false,
               ...drawer,
               id: generateId(),
               gridCols,

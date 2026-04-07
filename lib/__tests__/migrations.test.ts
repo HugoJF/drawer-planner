@@ -141,7 +141,7 @@ describe('nullTo1', () => {
 // ---------------------------------------------------------------------------
 
 describe('migrate', () => {
-  test('no version → runs full chain, sets version: 4', () => {
+  test('no version → runs full chain, sets version: 5', () => {
     // Arrange
     const input = { items: [{ ...baseItem, rotation: 'normal' }], drawers: [], categories: [] }
 
@@ -149,7 +149,7 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
     expect((result.items as Item[])[0].footprintMode).toBe('auto')
   })
@@ -162,12 +162,12 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
     expect((result.items as Item[])[0].footprintMode).toBe('auto')
   })
 
-  test('version: 1 → bumped to 4, backfills footprintMode: auto', () => {
+  test('version: 1 → bumped to 5, backfills footprintMode: auto', () => {
     // Arrange
     const items = [{ ...baseItem, rotation: 'h-up', locked: false, categoryId: null }]
     const input = { version: 1, items, drawers: [], categories: [] }
@@ -176,7 +176,7 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     expect((result.items as Item[])[0].rotation).toBe('h-up')
     expect((result.items as Item[])[0].footprintMode).toBe('auto')
   })
@@ -193,7 +193,7 @@ describe('migrate', () => {
     expect((result.items as Item[])[0].rotation).toBe('h-up-r')
   })
 
-  test('version: 2 → bumped to 4, adds cabinetX/cabinetY: 0 to drawers', () => {
+  test('version: 2 → bumped to 5, adds cabinetX/cabinetY: 0 to drawers', () => {
     // Arrange
     const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200, gridCols: 7, gridRows: 4 }
     const input = { version: 2, items: [], drawers: [drawer], categories: [] }
@@ -202,7 +202,7 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     const d = (result.drawers as Record<string, unknown>[])[0]
     expect(d.cabinetX).toBe(0)
     expect(d.cabinetY).toBe(0)
@@ -230,11 +230,11 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     expect(result.drawers).toEqual([])
   })
 
-  test('version: 3 → bumped to 4, converts gridX/Y to posX/Y in mm', () => {
+  test('version: 3 → bumped to 5, converts gridX/Y to posX/Y in mm', () => {
     // Arrange
     // gridX=2 with cellSize=42 → posX=84, gridY=3 → posY=126
     const item = { id: 'i-1', name: 'Widget', width: 42, height: 42, depth: 42,
@@ -246,7 +246,7 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     const migrated = (result.items as Item[])[0]
     expect(migrated.posX).toBe(84)
     expect(migrated.posY).toBe(126)
@@ -286,7 +286,36 @@ describe('migrate', () => {
     expect((result.items as Item[])[0].posX).toBe(42)
   })
 
-  test('version: 4 → no changes applied', () => {
+  test('version: 4 → bumped to 5, backfills gridless: false on drawers', () => {
+    // Arrange
+    const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200,
+      gridCols: 7, gridRows: 4, cabinetX: 0, cabinetY: 0 }
+    const input = { version: 4, drawers: [drawer], items: [], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    expect(result.version).toBe(5)
+    const d = (result.drawers as Record<string, unknown>[])[0]
+    expect(d.gridless).toBe(false)
+  })
+
+  test('version: 4 → preserves existing gridless: true if already set', () => {
+    // Arrange
+    const drawer = { id: 'd-1', name: 'Test', width: 300, height: 80, depth: 200,
+      gridCols: 7, gridRows: 4, cabinetX: 0, cabinetY: 0, gridless: true }
+    const input = { version: 4, drawers: [drawer], items: [], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    const d = (result.drawers as Record<string, unknown>[])[0]
+    expect(d.gridless).toBe(true)
+  })
+
+  test('version: 4 → item fields preserved through 4→5 migration', () => {
     // Arrange
     const item = { id: 'i-1', name: 'W', width: 42, height: 42, depth: 42,
       drawerId: null, rotation: 'h-up', locked: false, categoryId: null,
@@ -297,8 +326,19 @@ describe('migrate', () => {
     const result = migrate(input)
 
     // Assert
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     expect((result.items as Item[])[0].posX).toBe(84)
     expect((result.items as Item[])[0].posY).toBe(126)
+  })
+
+  test('version: 5 → no changes applied', () => {
+    // Arrange
+    const input = { version: 5, drawers: [], items: [], categories: [] }
+
+    // Act
+    const result = migrate(input)
+
+    // Assert
+    expect(result.version).toBe(5)
   })
 })
