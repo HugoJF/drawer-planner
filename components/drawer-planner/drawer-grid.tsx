@@ -16,14 +16,12 @@ import {
 } from '@/lib/gridfinity'
 import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2, Lock, Unlock, Tag } from 'lucide-react'
 import {
-  ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-  ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +37,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Drawer, Item, GridfinityConfig, Category } from '@/lib/types'
 import { formatDimension, getCategoryColor, UNCATEGORIZED_COLOR, GridColorMode, FootprintMode } from '@/lib/types'
+import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
+import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
+import { ItemCanvas } from '@/components/canvas/item-canvas'
+import { GridAdapter } from '@/components/canvas/grid-adapter'
+import type { ItemRenderCtx } from '@/components/canvas/coord-adapter'
+
+// ---------------------------------------------------------------------------
+// Color helpers
+// ---------------------------------------------------------------------------
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
@@ -47,12 +54,7 @@ function lerp(a: number, b: number, t: number) {
 function heightToColor(ratio: number): string {
   const blue = { r: 0, g: 120, b: 255 }
   const red  = { r: 255, g: 60,  b: 60 }
-
-  const r = Math.round(lerp(blue.r, red.r, ratio))
-  const g = Math.round(lerp(blue.g, red.g, ratio))
-  const b = Math.round(lerp(blue.b, red.b, ratio))
-
-  return `rgb(${r}, ${g}, ${b})`
+  return `rgb(${Math.round(lerp(blue.r, red.r, ratio))}, ${Math.round(lerp(blue.g, red.g, ratio))}, ${Math.round(lerp(blue.b, red.b, ratio))})`
 }
 
 function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
@@ -60,9 +62,9 @@ function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, cate
   if (mode === GridColorMode.Height) {
     const { heightUnits } = calculateItemGridDimensions(item, config)
     const maxUnits = Math.ceil(drawer.height / config.heightUnit)
-    const ratio = maxUnits > 0 ? Math.min(1, heightUnits / maxUnits) : 0
-    return heightToColor(ratio)
-  } else if (mode === GridColorMode.Density) {
+    return heightToColor(maxUnits > 0 ? Math.min(1, heightUnits / maxUnits) : 0)
+  }
+  if (mode === GridColorMode.Density) {
     const dims = getRotatedDimensions(item)
     const { gridWidth, gridDepth, heightUnits } = calculateItemGridDimensions(item, config)
     const realVol = dims.width * dims.depth * dims.height
@@ -70,13 +72,14 @@ function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, cate
     if (realVol === 0 || footprintVol === 0) {
       return UNCATEGORIZED_COLOR
     }
-    const density = Math.min(1, realVol / footprintVol)
-    return heightToColor(1 - density)
+    return heightToColor(1 - Math.min(1, realVol / footprintVol))
   }
   return getCategoryColor(item.categoryId, categories)
 }
-import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
-import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 interface DrawerGridProps {
   drawer: Drawer
@@ -85,189 +88,101 @@ interface DrawerGridProps {
   onAddItemAtCell: (posX: number, posY: number, initialCols: number, initialRows: number) => void
 }
 
-interface DrawState {
-  startX: number
-  startY: number
-  endX: number
-  endY: number
-}
-
-interface ResizeState {
-  itemId: string
-  handle: 'e' | 's' | 'se'
-  startMouseX: number
-  startMouseY: number
-  startGridWidth: number
-  startGridDepth: number
-  previewWidth: number
-  previewDepth: number
-}
-
-interface DragState {
-  itemId: string
-  grabPxX: number  // pixel offset within the item where the drag started
-  grabPxY: number
-  gridWidth: number
-  gridDepth: number
-  itemOffsets: { id: string; dx: number; dy: number }[]
-  dragCells: Set<string>  // all occupied cells relative to anchor, as "dx,dy"
-  minDx: number  // leftmost offset (for clamping)
-  minDy: number
-  maxRight: number  // rightmost extent from anchor (for clamping)
-  maxBottom: number
-}
-
-const CELL_SIZE = 40 // px per grid cell for visualization
-const gridPos  = (n: number) => n * (CELL_SIZE + 1) + 1
-const gridSize = (n: number) => n * (CELL_SIZE + 1) - 1
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }: DrawerGridProps) {
-  const config = useDrawerStore(s => s.config)
-  const drawers = useDrawerStore(s => s.drawers)
+  const config          = useDrawerStore(s => s.config)
+  const drawers         = useDrawerStore(s => s.drawers)
   const selectedItemIds = useDrawerStore(s => s.selectedItemIds)
-  const allItems = useDrawerStore(s => s.items)
-  const categories = useDrawerStore(s => s.categories)
-  const items = useMemo(() => allItems.filter(i => i.drawerId === drawer.id), [allItems, drawer.id])
-  const moveItem = useDrawerStore(s => s.moveItem)
-  const repositionItems = useDrawerStore(s => s.repositionItems)
-  const deleteItem = useDrawerStore(s => s.deleteItem)
-  const deleteItems = useDrawerStore(s => s.deleteItems)
-  const setItemsLocked = useDrawerStore(s => s.setItemsLocked)
-  const duplicateItem = useDrawerStore(s => s.duplicateItem)
-  const deleteDrawer = useDrawerStore(s => s.deleteDrawer)
-  const duplicateDrawer = useDrawerStore(s => s.duplicateDrawer)
-  const updateItem = useDrawerStore(s => s.updateItem)
-  const selectItem = useDrawerStore(s => s.selectItem)
-  const selectItems = useDrawerStore(s => s.selectItems)
+  const allItems        = useDrawerStore(s => s.items)
+  const categories      = useDrawerStore(s => s.categories)
+  const items           = useMemo(() => allItems.filter(i => i.drawerId === drawer.id), [allItems, drawer.id])
+
+  const moveItem         = useDrawerStore(s => s.moveItem)
+  const repositionItems  = useDrawerStore(s => s.repositionItems)
+  const deleteItem       = useDrawerStore(s => s.deleteItem)
+  const deleteItems      = useDrawerStore(s => s.deleteItems)
+  const setItemsLocked   = useDrawerStore(s => s.setItemsLocked)
+  const duplicateItem    = useDrawerStore(s => s.duplicateItem)
+  const deleteDrawer     = useDrawerStore(s => s.deleteDrawer)
+  const duplicateDrawer  = useDrawerStore(s => s.duplicateDrawer)
+  const updateItem       = useDrawerStore(s => s.updateItem)
+  const selectItem       = useDrawerStore(s => s.selectItem)
+  const selectItems      = useDrawerStore(s => s.selectItems)
   const toggleItemSelection = useDrawerStore(s => s.toggleItemSelection)
-  const searchTerm = useDrawerStore(s => s.searchQuery).toLowerCase().trim()
+  const searchTerm       = useDrawerStore(s => s.searchQuery).toLowerCase().trim()
 
   const { toast } = useToast()
-  const [dragState, setDragState] = useState<DragState | null>(null)
-  const [pendingDrag, setPendingDrag] = useState<{
-    item: Item
-    startClientX: number
-    startClientY: number
-    grabPxX: number
-    grabPxY: number
+  const [pendingDelete, setPendingDelete] = useState<{
+    type: 'drawer' | 'item'
+    id: string
+    ids?: string[]
+    name: string
   } | null>(null)
-  const [dropTarget, setDropTarget] = useState<{ x: number; y: number } | null>(null)
-  const [drawState, setDrawState] = useState<DrawState | null>(null)
-  const [boxSelectState, setBoxSelectState] = useState<DrawState | null>(null)
-  const [resizeState, setResizeState] = useState<ResizeState | null>(null)
-  const [contextItem, setContextItem] = useState<Item | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<{ type: 'drawer' | 'item'; id: string; ids?: string[]; name: string } | null>(null)
-  const gridRef = React.useRef<HTMLDivElement>(null)
-  const suppressNextClick = React.useRef(false)
 
-  // Create grid occupancy map
-  const occupancyMap = useMemo(() => {
-    const map = new Map<string, string>() // "x,y" -> itemId
-    const draggingIds = new Set(dragState?.itemOffsets.map(o => o.id) ?? [])
-    items.forEach(item => {
-      if (draggingIds.has(item.id)) {
-        return // skip all co-dragged items
+  const adapter = useMemo(() => new GridAdapter(drawer, config), [drawer, config])
+
+  // ---------------------------------------------------------------------------
+  // ItemCanvas callbacks
+  // ---------------------------------------------------------------------------
+
+  const handleDragCommit = useCallback((updates: { id: string; posX: number; posY: number }[]) => {
+    if (updates.length > 1) {
+      repositionItems(updates.map(u => ({ ...u, drawerId: drawer.id })))
+    } else {
+      moveItem(updates[0].id, drawer.id, updates[0].posX, updates[0].posY)
+    }
+  }, [drawer.id, moveItem, repositionItems])
+
+  const handleResizeCommit = useCallback((id: string, partial: Partial<Item>) => {
+    const item = items.find(i => i.id === id)
+    if (item) {
+      updateItem({ ...item, ...partial })
+    }
+  }, [items, updateItem])
+
+  const handleSelectChange = useCallback((ids: string[]) => {
+    if (ids.length > 0) {
+      selectItems(ids)
+    } else {
+      selectItem(null)
+    }
+  }, [selectItems, selectItem])
+
+  const handleItemClick = useCallback((id: string, ctrl: boolean) => {
+    if (ctrl) {
+      toggleItemSelection(id)
+    } else {
+      selectItem(id)
+    }
+  }, [selectItem, toggleItemSelection])
+
+  const handleItemDoubleClick = useCallback((id: string) => {
+    const item = items.find(i => i.id === id)
+    if (item) {
+      onEditItem(item)
+    }
+  }, [items, onEditItem])
+
+  const handleContextMenu = useCallback((itemId: string | null) => {
+    if (itemId) {
+      const item = items.find(i => i.id === itemId)
+      if (item && !selectedItemIds.has(item.id)) {
+        selectItem(item.id)
       }
-      const dims = calculateItemGridDimensions(item, config)
-      const cellX = Math.round(item.posX / config.cellSize)
-      const cellY = Math.round(item.posY / config.cellSize)
-      for (let x = cellX; x < cellX + dims.gridWidth; x++) {
-        for (let y = cellY; y < cellY + dims.gridDepth; y++) {
-          map.set(`${x},${y}`, item.id)
-        }
-      }
-    })
-    return map
-  }, [items, config, dragState])
+    }
+  }, [items, selectedItemIds, selectItem])
 
-  const cellStep = CELL_SIZE + 1 // cell width + 1px gap
+  // ---------------------------------------------------------------------------
+  // Helpers used inside renderItem
+  // ---------------------------------------------------------------------------
 
-  const computeDropPosition = useCallback((clientX: number, clientY: number) => {
-    if (!dragState || !gridRef.current) {
-      return null
-    }
-    const gridRect = gridRef.current.getBoundingClientRect()
-    const cellX = Math.round((clientX - gridRect.left - dragState.grabPxX) / cellStep)
-    const cellY = Math.round((clientY - gridRect.top  - dragState.grabPxY) / cellStep)
-    return {
-      x: Math.max(-dragState.minDx, Math.min(cellX, drawer.gridCols - dragState.maxRight)),
-      y: Math.max(-dragState.minDy, Math.min(cellY, drawer.gridRows - dragState.maxBottom)),
-    }
-  }, [dragState, drawer.gridCols, drawer.gridRows, cellStep])
-
-  const promotePendingDrag = useCallback((pd: NonNullable<typeof pendingDrag>, clientX: number, clientY: number) => {
-    const item = pd.item
-    const dims = calculateItemGridDimensions(item, config)
-    const anchorCellX = Math.round(item.posX / config.cellSize)
-    const anchorCellY = Math.round(item.posY / config.cellSize)
-    const coDragged = selectedItemIds.has(item.id)
-      ? items.filter(i => selectedItemIds.has(i.id) && !i.locked)
-      : [item]
-    const itemOffsets = coDragged.map(i => ({
-      id: i.id,
-      dx: Math.round(i.posX / config.cellSize) - anchorCellX,
-      dy: Math.round(i.posY / config.cellSize) - anchorCellY,
-    }))
-    const dragCells = new Set<string>()
-    let minDx = 0, minDy = 0, maxRight = dims.gridWidth, maxBottom = dims.gridDepth
-    for (const di of coDragged) {
-      const diDims = calculateItemGridDimensions(di, config)
-      const odx = Math.round(di.posX / config.cellSize) - anchorCellX
-      const ody = Math.round(di.posY / config.cellSize) - anchorCellY
-      for (let cx = odx; cx < odx + diDims.gridWidth; cx++) {
-        for (let cy = ody; cy < ody + diDims.gridDepth; cy++) {
-          dragCells.add(`${cx},${cy}`)
-        }
-      }
-      minDx = Math.min(minDx, odx)
-      minDy = Math.min(minDy, ody)
-      maxRight = Math.max(maxRight, odx + diDims.gridWidth)
-      maxBottom = Math.max(maxBottom, ody + diDims.gridDepth)
-    }
-    const pos = { x: anchorCellX, y: anchorCellY }
-    setDropTarget(pos)
-    setDragState({
-      itemId: item.id,
-      grabPxX: pd.grabPxX,
-      grabPxY: pd.grabPxY,
-      gridWidth: dims.gridWidth,
-      gridDepth: dims.gridDepth,
-      itemOffsets,
-      dragCells,
-      minDx,
-      minDy,
-      maxRight,
-      maxBottom,
-    })
-    setPendingDrag(null)
-    suppressNextClick.current = true
-    // Immediately update drop target from current mouse position
-    if (gridRef.current) {
-      const gridRect = gridRef.current.getBoundingClientRect()
-      const cellX = Math.round((clientX - gridRect.left - pd.grabPxX) / cellStep)
-      const cellY = Math.round((clientY - gridRect.top  - pd.grabPxY) / cellStep)
-      setDropTarget({
-        x: Math.max(-minDx, Math.min(cellX, drawer.gridCols - maxRight)),
-        y: Math.max(-minDy, Math.min(cellY, drawer.gridRows - maxBottom)),
-      })
-    }
-  }, [config, items, selectedItemIds, cellStep, drawer.gridCols, drawer.gridRows])
-
-  const handleItemMouseDown = useCallback((e: React.MouseEvent, item: Item) => {
-    if (e.button !== 0 || item.locked || resizeState || drawState || boxSelectState) {
-      return
-    }
-    e.preventDefault()
-    e.stopPropagation() // prevent grid's handleGridMouseDown from also firing
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setPendingDrag({
-      item,
-      startClientX: e.clientX,
-      startClientY: e.clientY,
-      grabPxX: e.clientX - rect.left,
-      grabPxY: e.clientY - rect.top,
-    })
-  }, [resizeState, drawState, boxSelectState])
+  const getSuitableDrawers = useCallback((item: Item) => {
+    const rotatedDims = getRotatedDimensions(item)
+    return drawers.filter(d => d.height >= rotatedDims.height && d.id !== drawer.id)
+  }, [drawers, drawer.id])
 
   const handleRotate = useCallback((item: Item) => {
     updateItem({ ...item, ...applyNextRotation(item) })
@@ -277,621 +192,264 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     moveItem(item.id, targetDrawerId, 0, 0)
   }, [moveItem])
 
-  // Get suitable drawers for an oversized item
-  const getSuitableDrawers = useCallback((item: Item) => {
-    return drawers.filter(d => {
-      const rotatedDims = getRotatedDimensions(item)
-      return d.height >= rotatedDims.height && d.id !== drawer.id
-    })
-  }, [drawers, drawer.id])
+  // ---------------------------------------------------------------------------
+  // renderItem — item visual content (no position/size — handled by ItemCanvas)
+  // ---------------------------------------------------------------------------
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    let el = e.target as HTMLElement | null
-    while (el && el !== e.currentTarget) {
-      if (el.dataset.itemId) {
-        const found = items.find(i => i.id === el!.dataset.itemId) ?? null
-        setContextItem(found)
-        if (found && !selectedItemIds.has(found.id)) {
-          selectItem(found.id)
-        }
-        return
-      }
-      el = el.parentElement
-    }
-    setContextItem(null)
-  }, [items, selectedItemIds, selectItem])
+  const renderItem = useCallback((item: Item, ctx: ItemRenderCtx) => {
+    const { isSelected, isResizing, isSearchMatch, cardRect } = ctx
+    const baseDims = calculateItemGridDimensions(item, config)
+    const oversized = isItemOversized(item, drawer)
+    const footprintOverflow = isItemFootprintOverflow(item, config)
+    const overlapping = findOverlappingItems(item, items, config)
+    const hasOverlap = overlapping.length > 0
+    const suitableDrawers = oversized ? getSuitableDrawers(item) : []
+    const rotatedDims = getRotatedDimensions(item)
+    const isManual = item.footprintMode === FootprintMode.Manual
+    const color = getItemColor(item, drawer, config, categories)
 
-  const handleGridMouseMove = useCallback((e: React.MouseEvent) => {
-    if (pendingDrag) {
-      const dx = Math.abs(e.clientX - pendingDrag.startClientX)
-      const dy = Math.abs(e.clientY - pendingDrag.startClientY)
-      if (dx > 3 || dy > 3) {
-        promotePendingDrag(pendingDrag, e.clientX, e.clientY)
-      }
-      return
-    }
-    if (dragState) {
-      const pos = computeDropPosition(e.clientX, e.clientY)
-      if (pos) {
-        setDropTarget(pos)
-      }
-      return
-    }
-    if (boxSelectState && gridRef.current) {
-      const gridRect = gridRef.current.getBoundingClientRect()
-      const gx = Math.max(0, Math.min(drawer.gridCols - 1, Math.floor((e.clientX - gridRect.left) / cellStep)))
-      const gy = Math.max(0, Math.min(drawer.gridRows - 1, Math.floor((e.clientY - gridRect.top) / cellStep)))
-      setBoxSelectState(s => s ? { ...s, endX: gx, endY: gy } : null)
-      const selX1 = Math.min(boxSelectState.startX, gx)
-      const selY1 = Math.min(boxSelectState.startY, gy)
-      const selX2 = Math.max(boxSelectState.startX, gx)
-      const selY2 = Math.max(boxSelectState.startY, gy)
-      const itemsInBox = items.filter(i => {
-        const dims = calculateItemGridDimensions(i, config)
-        const cellX = Math.round(i.posX / config.cellSize)
-        const cellY = Math.round(i.posY / config.cellSize)
-        return cellX <= selX2 && cellX + dims.gridWidth - 1 >= selX1
-            && cellY <= selY2 && cellY + dims.gridDepth - 1 >= selY1
-      })
-      if (itemsInBox.length > 0) {
-        selectItems(itemsInBox.map(i => i.id))
-      } else {
-        selectItem(null)
-      }
-    }
-    if (!resizeState) {
-      return
-    }
-    const dx = Math.round((e.clientX - resizeState.startMouseX) / cellStep)
-    const dy = Math.round((e.clientY - resizeState.startMouseY) / cellStep)
-    const newW = Math.max(1, resizeState.startGridWidth + (resizeState.handle !== 's' ? dx : 0))
-    const newD = Math.max(1, resizeState.startGridDepth + (resizeState.handle !== 'e' ? dy : 0))
-    setResizeState(s => s ? { ...s, previewWidth: newW, previewDepth: newD } : null)
-  }, [pendingDrag, dragState, boxSelectState, resizeState, cellStep, drawer.gridCols, drawer.gridRows, items, config, selectItems, selectItem, promotePendingDrag, computeDropPosition])
+    const insetPxW = rotatedDims.width > 0 && rotatedDims.depth > 0
+      ? Math.min(rotatedDims.width / (baseDims.gridWidth * config.cellSize), 1) * cardRect.width
+      : null
+    const insetPxH = rotatedDims.width > 0 && rotatedDims.depth > 0
+      ? Math.min(rotatedDims.depth / (baseDims.gridDepth * config.cellSize), 1) * cardRect.height
+      : null
 
-  const handleGridMouseUp = useCallback((e: React.MouseEvent) => {
-    if (pendingDrag) {
-      // Mouse released without crossing drag threshold — treat as click
-      setPendingDrag(null)
-      const item = pendingDrag.item
-      if (e.ctrlKey || e.metaKey || selectedItemIds.has(item.id)) {
-        toggleItemSelection(item.id)
-      } else {
-        selectItem(item.id)
-      }
-      return
-    }
-    if (dragState) {
-      const pos = computeDropPosition(e.clientX, e.clientY)
-      if (pos) {
-        if (dragState.itemOffsets.length > 1) {
-          repositionItems(dragState.itemOffsets.map(({ id, dx, dy }) => ({
-            id,
-            drawerId: drawer.id,
-            posX: (pos.x + dx) * config.cellSize,
-            posY: (pos.y + dy) * config.cellSize,
-          })))
-        } else {
-          moveItem(dragState.itemId, drawer.id, pos.x * config.cellSize, pos.y * config.cellSize)
-        }
-      }
-      setDragState(null)
-      setDropTarget(null)
-      return
-    }
-    if (resizeState) {
-      const item = items.find(i => i.id === resizeState.itemId)
-      if (item) {
-        updateItem({
-          ...item,
-          footprintMode: FootprintMode.Manual,
-          footprintW: resizeState.previewWidth * config.cellSize,
-          footprintH: resizeState.previewDepth * config.cellSize,
-        })
-      }
-      setResizeState(null)
-      return
-    }
-    if (boxSelectState) {
-      if (boxSelectState.startX === boxSelectState.endX && boxSelectState.startY === boxSelectState.endY) {
-        selectItem(null)
-      }
-      setBoxSelectState(null)
-      return
-    }
-    if (!drawState) {
-      return
-    }
-    const gx = Math.min(drawState.startX, drawState.endX)
-    const gy = Math.min(drawState.startY, drawState.endY)
-    const cols = Math.abs(drawState.endX - drawState.startX) + 1
-    const rows = Math.abs(drawState.endY - drawState.startY) + 1
-    setDrawState(null)
-    onAddItemAtCell(gx * config.cellSize, gy * config.cellSize, cols, rows)
-  }, [pendingDrag, dragState, resizeState, boxSelectState, drawState, items, updateItem, selectItem, toggleItemSelection, selectedItemIds, computeDropPosition, drawer.id, moveItem, repositionItems, onAddItemAtCell])
+    return (
+      <div
+        className={cn(
+          "absolute inset-0 flex flex-col items-center justify-center gap-0.5 border rounded-sm overflow-hidden",
+          searchTerm && !isSearchMatch && "opacity-20",
+          oversized && "border-destructive",
+          hasOverlap && !oversized && "border-amber-500",
+          !oversized && !hasOverlap && "border-black/10",
+          hasOverlap && "opacity-60",
+        )}
+        style={{ backgroundColor: color }}
+      >
+        {/* Inset: physical item footprint within allocated grid cells */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-[2px]">
+          {insetPxW !== null && insetPxH !== null ? (
+            <div
+              style={{
+                width: insetPxW,
+                height: insetPxH,
+                minWidth: 3,
+                minHeight: 3,
+                backgroundColor: `color-mix(in oklch, black 28%, ${color})`,
+                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 6px)',
+                borderRadius: 2,
+              }}
+            />
+          ) : isManual ? (
+            <span className="text-white/40 text-base font-bold select-none">?</span>
+          ) : null}
+        </div>
 
-  const handleGridMouseLeave = useCallback(() => {
-    setPendingDrag(null)
-    setDragState(null)
-    setDropTarget(null)
-    setDrawState(null)
-    setBoxSelectState(null)
-    setResizeState(null)
-  }, [])
+        {/* Item content */}
+        <span className="relative z-10 text-xs font-medium text-white drop-shadow-md truncate px-1 max-w-full">
+          {item.name}
+        </span>
+        <span className="relative z-10 text-[10px] text-white/80 drop-shadow-md">
+          {baseDims.gridWidth}×{baseDims.gridDepth}
+        </span>
 
-  const handleGridMouseDown = useCallback((e: React.MouseEvent) => {
-    const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
-    if (!target || dragState || resizeState) {
-      return
-    }
-    const gx = parseInt(target.dataset.gx!)
-    const gy = parseInt(target.dataset.gy!)
-    e.preventDefault()
-    if (e.ctrlKey || e.metaKey) {
-      if (occupancyMap.has(`${gx},${gy}`)) {
-        return
+        {/* Overlap warning */}
+        {hasOverlap && !oversized && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="absolute -top-1 -left-1 z-20 p-1 rounded-full bg-amber-500 text-white">
+                <AlertTriangle className="h-3 w-3" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">Overlapping with another item</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Footprint overflow warning */}
+        {footprintOverflow && !oversized && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="absolute -bottom-1 -left-1 z-20 p-1 rounded-full bg-orange-500 text-white">
+                <Maximize2 className="h-3 w-3" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Item is physically larger than its grid footprint</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Oversized warning */}
+        {oversized && (
+          <div className="absolute -top-1 -right-1 z-20">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors">
+                  <AlertTriangle className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  Item is too tall for this drawer ({formatDimension(getRotatedDimensions(item).height, config.displayUnit)} {">"} {formatDimension(drawer.height, config.displayUnit)})
+                </div>
+                {suitableDrawers.length > 0 ? (
+                  <>
+                    <div className="px-2 py-1 text-xs font-medium">Move to:</div>
+                    {suitableDrawers.map(d => (
+                      <DropdownMenuItem key={d.id} onClick={() => handleMoveToDrawer(item, d.id)}>
+                        <Move className="h-4 w-4" />{d.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                ) : (
+                  <div className="px-2 py-1.5 text-xs text-destructive">
+                    No suitable drawers available. Try rotating.
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {/* Lock badge */}
+        {item.locked && (
+          <div className="absolute -bottom-1 -right-1 z-20 p-1 rounded-full bg-slate-600 text-white pointer-events-none">
+            <Lock className="h-2.5 w-2.5" />
+          </div>
+        )}
+
+        {/* Rotate button — visible when selected */}
+        {isSelected && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleRotate(item) }}
+                className="absolute -top-1 -right-1 z-20 p-1 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                <RotateCw className="h-3 w-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              Rotate ({getRotationLabel(item.rotation, item, config)})
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    )
+  }, [config, drawer, categories, items, searchTerm, selectedItemIds, getSuitableDrawers, handleRotate, handleMoveToDrawer])
+
+  // ---------------------------------------------------------------------------
+  // renderContextMenu
+  // ---------------------------------------------------------------------------
+
+  const renderContextMenu = useCallback((itemId: string | null) => {
+    const contextItem = itemId ? (items.find(i => i.id === itemId) ?? null) : null
+
+    if (contextItem) {
+      if (selectedItemIds.size > 1 && selectedItemIds.has(contextItem.id)) {
+        const selectedItems = items.filter(i => selectedItemIds.has(i.id))
+        const allLocked = selectedItems.every(i => i.locked)
+        return (
+          <ContextMenuContent className="w-48">
+            <ContextMenuItem disabled className="text-muted-foreground text-xs">
+              {selectedItemIds.size} items selected
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => setItemsLocked([...selectedItemIds], !allLocked)}>
+              {allLocked ? <><Unlock className="h-4 w-4" />Unlock all</> : <><Lock className="h-4 w-4" />Lock all</>}
+            </ContextMenuItem>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <ArrowRightLeft className="h-4 w-4" />Move to
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="max-h-60 overflow-auto">
+                <ContextMenuItem onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: null, posX: 0, posY: 0 })))}>
+                  <Package className="h-4 w-4" />Unassigned
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                {drawers.map(d => (
+                  <ContextMenuItem key={d.id} onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: d.id, posX: 0, posY: 0 })))} disabled={d.id === drawer.id}>
+                    <FolderOpen className="h-4 w-4" />{d.name}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'item', id: '__multi__', ids: [...selectedItemIds], name: `${selectedItemIds.size} items` })}>
+              <Trash2 className="h-4 w-4" />Delete {selectedItemIds.size} items
+            </ContextMenuItem>
+          </ContextMenuContent>
+        )
       }
-      setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
-    } else {
-      setBoxSelectState({ startX: gx, startY: gy, endX: gx, endY: gy })
+      return (
+        <ContextMenuContent className="w-48">
+          <ItemMenuActions
+            variant="context"
+            item={contextItem}
+            allDrawers={drawers}
+            categories={categories}
+            config={config}
+            onEdit={() => onEditItem(contextItem)}
+            onDuplicate={() => {
+              const placed = duplicateItem(contextItem.id)
+              if (!placed) {
+                toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
+              }
+            }}
+            onToggleLock={() => updateItem({ ...contextItem, locked: !contextItem.locked })}
+            onDelete={() => setPendingDelete({ type: 'item', id: contextItem.id, name: contextItem.name })}
+            onMoveToDrawer={(drawerId) => moveItem(contextItem.id, drawerId, 0, 0)}
+            onMoveToCategory={(categoryId) => updateItem({ ...contextItem, categoryId })}
+            onRotateTo={(rotation) => updateItem({ ...contextItem, rotation })}
+          />
+        </ContextMenuContent>
+      )
     }
-  }, [dragState, resizeState, occupancyMap])
 
-  const handleGridMouseOver = useCallback((e: React.MouseEvent) => {
-    if (!drawState && !boxSelectState) {
-      return
-    }
-    const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
-    if (!target) {
-      return
-    }
-    const gx = parseInt(target.dataset.gx!)
-    const gy = parseInt(target.dataset.gy!)
-    if (drawState) {
-      setDrawState(s => s ? { ...s, endX: gx, endY: gy } : null)
-    }
-    if (boxSelectState) {
-      setBoxSelectState(s => s ? { ...s, endX: gx, endY: gy } : null)
-    }
-  }, [drawState, boxSelectState])
+    return (
+      <ContextMenuContent className="w-44">
+        <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
+          <Pencil className="h-4 w-4" />Edit drawer
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => duplicateDrawer(drawer.id)}>
+          <Copy className="h-4 w-4" />Duplicate drawer
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}>
+          <Trash2 className="h-4 w-4" />Delete drawer
+        </ContextMenuItem>
+      </ContextMenuContent>
+    )
+  }, [items, selectedItemIds, drawers, drawer, categories, config, onEditItem, onEditDrawer,
+      moveItem, repositionItems, updateItem, duplicateItem, duplicateDrawer, setItemsLocked, toast])
 
-  const handleResizeStart = useCallback((e: React.MouseEvent, item: Item, handle: ResizeState['handle']) => {
-    e.stopPropagation()
-    e.preventDefault()
-    const dims = calculateItemGridDimensions(item, config)
-    setResizeState({
-      itemId: item.id,
-      handle,
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startGridWidth: dims.gridWidth,
-      startGridDepth: dims.gridDepth,
-      previewWidth: dims.gridWidth,
-      previewDepth: dims.gridDepth,
-    })
-  }, [config])
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
     <div className="relative h-full flex flex-col">
-      {/* Grid container */}
-      <ContextMenu>
-        <ContextMenuTrigger
-          className="flex-1 min-h-0 flex flex-col"
+      <div
+        className="flex-1 min-h-0 flex flex-col bg-secondary/30 rounded-lg p-2 overflow-auto"
+        style={{ maxWidth: '100%' }}
+      >
+        <ItemCanvas
+          adapter={adapter}
+          items={items}
+          selectedItemIds={selectedItemIds}
+          searchTerm={searchTerm}
+          canDraw
+          canResize
+          onDragCommit={handleDragCommit}
+          onResizeCommit={handleResizeCommit}
+          onSelectChange={handleSelectChange}
+          onItemClick={handleItemClick}
+          onItemDoubleClick={handleItemDoubleClick}
+          onDrawComplete={onAddItemAtCell}
           onContextMenu={handleContextMenu}
-        >
-          <div
-            className="flex-1 relative bg-secondary/30 rounded-lg p-2 overflow-auto"
-            style={{ maxWidth: '100%' }}
-          >
-        <div
-          ref={gridRef}
-          className="relative"
-          onMouseMove={handleGridMouseMove}
-          onMouseUp={handleGridMouseUp}
-          onMouseLeave={handleGridMouseLeave}
-          onMouseDown={handleGridMouseDown}
-          onMouseOver={handleGridMouseOver}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${drawer.gridCols}, ${CELL_SIZE}px)`,
-            gridTemplateRows: `repeat(${drawer.gridRows}, ${CELL_SIZE}px)`,
-            gap: '1px',
-            width: 'fit-content',
-          }}
-        >
-          {/* Render grid cells */}
-          {Array.from({ length: drawer.gridRows }).map((_, y) =>
-            Array.from({ length: drawer.gridCols }).map((_, x) => {
-              const isOccupied = occupancyMap.has(`${x},${y}`)
-
-              const isInDrawPreview = drawState && !isOccupied && (
-                x >= Math.min(drawState.startX, drawState.endX) &&
-                x <= Math.max(drawState.startX, drawState.endX) &&
-                y >= Math.min(drawState.startY, drawState.endY) &&
-                y <= Math.max(drawState.startY, drawState.endY)
-              )
-
-              return (
-                <div
-                  key={`${x}-${y}`}
-                  data-gx={x}
-                  data-gy={y}
-                  className={cn(
-                    "transition-colors duration-100",
-                    isOccupied
-                      ? "bg-muted/20"
-                      : isInDrawPreview
-                        ? "bg-emerald-500/25"
-                        : "bg-border/20 hover:bg-border/40",
-                  )}
-                  style={{
-                    width: CELL_SIZE,
-                    height: CELL_SIZE,
-                    cursor: isOccupied ? 'default' : (drawState || boxSelectState) ? 'crosshair' : 'cell',
-                  }}
-                />
-              )
-            })
-          )}
-
-          {/* Drag ghost overlays — all co-dragged items follow the drop target */}
-          {dragState && dropTarget && dragState.itemOffsets.map(({ id, dx, dy }) => {
-            const di = items.find(i => i.id === id)
-            if (!di) {
-              return null
-            }
-            const diDims = calculateItemGridDimensions(di, config)
-            const w = gridSize(diDims.gridWidth)
-            const h = gridSize(diDims.gridDepth)
-            return (
-              <div
-                key={`ghost-${id}`}
-                className="absolute rounded-sm pointer-events-none z-20"
-                style={{
-                  left: gridPos(dropTarget.x + dx),
-                  top: gridPos(dropTarget.y + dy),
-                  width: w,
-                  height: h,
-                  backgroundColor: getItemColor(di, drawer, config, categories),
-                  opacity: 0.7,
-                  outline: '2px solid rgba(255,255,255,0.4)',
-                }}
-              />
-            )
-          })}
-
-          {/* Box-select overlay */}
-          {boxSelectState && (() => {
-            const x1 = Math.min(boxSelectState.startX, boxSelectState.endX)
-            const y1 = Math.min(boxSelectState.startY, boxSelectState.endY)
-            const x2 = Math.max(boxSelectState.startX, boxSelectState.endX)
-            const y2 = Math.max(boxSelectState.startY, boxSelectState.endY)
-            const w = gridSize(x2 - x1 + 1)
-            const h = gridSize(y2 - y1 + 1)
-            return (
-              <div
-                className="absolute pointer-events-none z-20"
-                style={{
-                  left: gridPos(x1),
-                  top: gridPos(y1),
-                  width: w,
-                  height: h,
-                  border: '2px dashed var(--primary)',
-                  background: 'color-mix(in oklch, var(--primary) 10%, transparent)',
-                }}
-              />
-            )
-          })()}
-
-          {/* Resize ghost overlay */}
-          {resizeState && (() => {
-            const item = items.find(i => i.id === resizeState.itemId)
-            if (!item) {
-              return null
-            }
-            const w = gridSize(resizeState.previewWidth)
-            const h = gridSize(resizeState.previewDepth)
-            return (
-              <div
-                className="absolute rounded-sm pointer-events-none z-30"
-                style={{
-                  left: gridPos(Math.round(item.posX / config.cellSize)),
-                  top: gridPos(Math.round(item.posY / config.cellSize)),
-                  width: w,
-                  height: h,
-                  border: '2px dashed var(--primary)',
-                  background: 'color-mix(in oklch, var(--primary) 10%, transparent)',
-                }}
-              >
-                <span
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary text-primary-foreground whitespace-nowrap"
-                >
-                  {resizeState.previewWidth} × {resizeState.previewDepth}
-                </span>
-              </div>
-            )
-          })()}
-
-          {items.map(item => {
-            const isResizing = resizeState?.itemId === item.id
-            const baseDims = calculateItemGridDimensions(item, config)
-            // Item stays frozen at original size during resize; the ghost overlay shows the preview
-            const visW = baseDims.gridWidth
-            const visD = baseDims.gridDepth
-            const oversized = isItemOversized(item, drawer)
-            const footprintOverflow = isItemFootprintOverflow(item, config)
-            const isSelected = selectedItemIds.has(item.id)
-            const isDragging = dragState?.itemOffsets.some(o => o.id === item.id) ?? false
-            const isSearchMatch = searchTerm !== '' && item.name.toLowerCase().includes(searchTerm)
-            const isLocked = item.locked
-            const overlapping = findOverlappingItems(item, items, config)
-            const hasOverlap = overlapping.length > 0
-            const suitableDrawers = oversized ? getSuitableDrawers(item) : []
-
-            // Inset box: physical item dimensions as a fraction of the grid footprint
-            const rotatedDims = getRotatedDimensions(item)
-            const physW = rotatedDims.width
-            const physD = rotatedDims.depth
-            const hasRealDims = physW > 0 && physD > 0
-            const isManual = item.footprintMode === FootprintMode.Manual
-            const itemCardW = gridSize(visW)
-            const itemCardH = gridSize(visD)
-            const insetPxW = hasRealDims
-              ? Math.min(physW / (visW * config.cellSize), 1) * itemCardW
-              : null
-            const insetPxH = hasRealDims
-              ? Math.min(physD / (visD * config.cellSize), 1) * itemCardH
-              : null
-
-            return (
-              <div
-                key={item.id}
-                onMouseDown={(e) => handleItemMouseDown(e, item)}
-                onClick={(e) => {
-                  if (suppressNextClick.current) { suppressNextClick.current = false; return }
-                  e.ctrlKey || e.metaKey || isSelected ? toggleItemSelection(item.id) : selectItem(item.id)
-                }}
-                onDoubleClick={() => onEditItem(item)}
-                data-item-id={item.id}
-                className={cn(
-                  "absolute rounded-sm transition-all",
-                  isLocked ? "cursor-default" : "cursor-move",
-                  "flex flex-col items-center justify-center gap-0.5",
-                  "border",
-                  isSelected && !isResizing && "ring-1 ring-primary ring-offset-1 ring-offset-background",
-                  searchTerm && !isSearchMatch && "opacity-20",
-                  oversized && "border-destructive",
-                  hasOverlap && !oversized && "border-amber-500",
-                  !oversized && !hasOverlap && "border-black/10",
-                  hasOverlap && "opacity-60",
-                  isDragging && "opacity-0",
-                  !isSelected && !isDragging && selectedItemIds.size > 0 && "opacity-50",
-                  isResizing && "opacity-40"
-                )}
-                style={{
-                  left: gridPos(Math.round(item.posX / config.cellSize)),
-                  top: gridPos(Math.round(item.posY / config.cellSize)),
-                  width: gridSize(visW),
-                  height: gridSize(visD),
-                  backgroundColor: getItemColor(item, drawer, config, categories),
-                  zIndex: isSelected ? 10 : 1,
-                  pointerEvents: drawState || pendingDrag || (dragState && dragState.itemId !== item.id) || (resizeState && resizeState.itemId !== item.id) ? 'none' : undefined,
-                  transition: isResizing ? 'none' : 'opacity 0.1s',
-                }}
-              >
-                {/* Inset: physical item footprint within allocated grid cells */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-[2px]">
-                  {insetPxW !== null && insetPxH !== null ? (
-                    <div
-                      style={{
-                        width: insetPxW,
-                        height: insetPxH,
-                        minWidth: 3,
-                        minHeight: 3,
-                        backgroundColor: `color-mix(in oklch, black 28%, ${getItemColor(item, drawer, config, categories)})`,
-                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 6px)',
-                        borderRadius: 2,
-                      }}
-                    />
-                  ) : isManual ? (
-                    <span className="text-white/40 text-base font-bold select-none">?</span>
-                  ) : null}
-                </div>
-
-                {/* Item content */}
-                <span className="relative z-10 text-xs font-medium text-white drop-shadow-md truncate px-1 max-w-full">
-                  {item.name}
-                </span>
-                <span className="relative z-10 text-[10px] text-white/80 drop-shadow-md">
-                  {visW}×{visD}
-                </span>
-
-                {/* Overlap warning */}
-                {hasOverlap && !oversized && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="absolute -top-1 -left-1 z-20 p-1 rounded-full bg-amber-500 text-white">
-                        <AlertTriangle className="h-3 w-3" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Overlapping with another item</TooltipContent>
-                  </Tooltip>
-                )}
-
-                {/* Footprint overflow warning (physical item larger than manual grid allocation) */}
-                {footprintOverflow && !oversized && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="absolute -bottom-1 -left-1 z-20 p-1 rounded-full bg-orange-500 text-white">
-                        <Maximize2 className="h-3 w-3" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Item is physically larger than its grid footprint</TooltipContent>
-                  </Tooltip>
-                )}
-
-                {/* Oversized warning */}
-                {oversized && (
-                  <div className="absolute -top-1 -right-1 z-20">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors">
-                          <AlertTriangle className="h-3 w-3" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                          Item is too tall for this drawer ({formatDimension(getRotatedDimensions(item).height, config.displayUnit)} {">"} {formatDimension(drawer.height, config.displayUnit)})
-                        </div>
-                        {suitableDrawers.length > 0 ? (
-                          <>
-                            <div className="px-2 py-1 text-xs font-medium">Move to:</div>
-                            {suitableDrawers.map(d => (
-                              <DropdownMenuItem
-                                key={d.id}
-                                onClick={() => handleMoveToDrawer(item, d.id)}
-                              >
-                                <Move className="h-4 w-4 " />
-                                {d.name}
-                              </DropdownMenuItem>
-                            ))}
-                          </>
-                        ) : (
-                          <div className="px-2 py-1.5 text-xs text-destructive">
-                            No suitable drawers available. Try rotating.
-                          </div>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )}
-
-                {/* Lock badge */}
-                {isLocked && (
-                  <div className="absolute -bottom-1 -right-1 z-20 p-1 rounded-full bg-slate-600 text-white pointer-events-none">
-                    <Lock className="h-2.5 w-2.5" />
-                  </div>
-                )}
-
-                {/* Rotate button - visible when selected */}
-                {isSelected && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleRotate(item)
-                        }}
-                        className="absolute -top-1 -right-1 z-20 p-1 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                      >
-                        <RotateCw className="h-3 w-3" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      Rotate ({getRotationLabel(item.rotation, item, config)})
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
-                {/* Resize handles - visible when selected and not locked */}
-                {isSelected && !isLocked && (
-                  <>
-                    {/* East handle */}
-                    <div
-                      className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 w-2.5 h-2.5 bg-white border border-primary cursor-e-resize z-20"
-                      onMouseDown={(e) => handleResizeStart(e, item, 'e')}
-                    />
-                    {/* South handle */}
-                    <div
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-white border border-primary cursor-s-resize z-20"
-                      onMouseDown={(e) => handleResizeStart(e, item, 's')}
-                    />
-                    {/* Southeast handle */}
-                    <div
-                      className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-white border border-primary cursor-se-resize z-20"
-                      onMouseDown={(e) => handleResizeStart(e, item, 'se')}
-                    />
-                  </>
-                )}
-              </div>
-            )
-          })}
-        </div>
-          </div>
-        </ContextMenuTrigger>
-        {contextItem ? (
-          selectedItemIds.size > 1 && selectedItemIds.has(contextItem.id) ? (() => {
-            const selectedItems = items.filter(i => selectedItemIds.has(i.id))
-            const allLocked = selectedItems.every(i => i.locked)
-            return (
-            <ContextMenuContent className="w-48">
-              <ContextMenuItem disabled className="text-muted-foreground text-xs">
-                {selectedItemIds.size} items selected
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem onClick={() => setItemsLocked([...selectedItemIds], !allLocked)}>
-                {allLocked ? <><Unlock className="h-4 w-4" />Unlock all</> : <><Lock className="h-4 w-4" />Lock all</>}
-              </ContextMenuItem>
-              <ContextMenuSub>
-                <ContextMenuSubTrigger>
-                  <ArrowRightLeft className="h-4 w-4" />Move to
-                </ContextMenuSubTrigger>
-                <ContextMenuSubContent className="max-h-60 overflow-auto">
-                  <ContextMenuItem onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: null, posX: 0, posY: 0 })))}>
-                    <Package className="h-4 w-4" />Unassigned
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  {drawers.map(d => (
-                    <ContextMenuItem key={d.id} onClick={() => repositionItems([...selectedItemIds].map(id => ({ id, drawerId: d.id, posX: 0, posY: 0 })))} disabled={d.id === drawer.id}>
-                      <FolderOpen className="h-4 w-4" />{d.name}
-                    </ContextMenuItem>
-                  ))}
-                </ContextMenuSubContent>
-              </ContextMenuSub>
-              <ContextMenuSeparator />
-              <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'item', id: '__multi__', ids: [...selectedItemIds], name: `${selectedItemIds.size} items` })}>
-                <Trash2 className="h-4 w-4" />Delete {selectedItemIds.size} items
-              </ContextMenuItem>
-            </ContextMenuContent>
-            )
-          })() : (
-          <ContextMenuContent className="w-48">
-            <ItemMenuActions
-              variant="context"
-              item={contextItem}
-              allDrawers={drawers}
-              categories={categories}
-              config={config}
-              onEdit={() => onEditItem(contextItem)}
-              onDuplicate={() => {
-                const placed = duplicateItem(contextItem.id)
-                if (!placed) {
-                  toast({ title: 'No space available', description: 'Item was placed at the same position as the original.' })
-                }
-              }}
-              onToggleLock={() => updateItem({ ...contextItem, locked: !contextItem.locked })}
-              onDelete={() => setPendingDelete({ type: 'item', id: contextItem.id, name: contextItem.name })}
-              onMoveToDrawer={(drawerId) => moveItem(contextItem.id, drawerId, 0, 0)}
-              onMoveToCategory={(categoryId) => updateItem({ ...contextItem, categoryId })}
-              onRotateTo={(rotation) => updateItem({ ...contextItem, rotation })}
-            />
-          </ContextMenuContent>
-          )
-        ) : (
-          <ContextMenuContent className="w-44">
-            <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
-              <Pencil className="h-4 w-4 " />Edit drawer
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => duplicateDrawer(drawer.id)}>
-              <Copy className="h-4 w-4 " />Duplicate drawer
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive" onClick={() => setPendingDelete({ type: 'drawer', id: drawer.id, name: drawer.name })}>
-              <Trash2 className="h-4 w-4 " />Delete drawer
-            </ContextMenuItem>
-          </ContextMenuContent>
-        )}
-      </ContextMenu>
+          renderItem={renderItem}
+          renderContextMenu={renderContextMenu}
+        />
+      </div>
 
       <DeleteConfirmDialog
         key={pendingDelete?.id ?? 'none'}
@@ -913,7 +471,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         }}
         onCancel={() => setPendingDelete(null)}
       />
-
     </div>
   )
 }

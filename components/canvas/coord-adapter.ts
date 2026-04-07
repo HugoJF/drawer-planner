@@ -145,6 +145,13 @@ export interface CoordAdapter {
   drawRangeToArgs(start: ACoord, end: ACoord): { posX: number; posY: number; cols: number; rows: number }
 
   /**
+   * CSS properties for the canvas container div.
+   * Grid mode: display:grid with template columns/rows.
+   * Free mode: fixed pixel size with position:relative.
+   */
+  containerStyle(): React.CSSProperties
+
+  /**
    * Render the canvas background (grid cells, dot pattern, etc.).
    * Receives the occupancy map so cells can show occupied state.
    */
