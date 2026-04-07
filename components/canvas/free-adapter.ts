@@ -219,8 +219,9 @@ export class FreeAdapter implements CoordAdapter {
     return new Map()  // unused in free mode
   }
 
-  drawRangeToArgs(start: ACoord, _end: ACoord) {
-    return { posX: start.x, posY: start.y, cols: 1, rows: 1 }  // canDraw=false in free mode
+  drawRangeToArgs(_start: ACoord, _end: ACoord): never {
+    // FreeAdapter is used in cabinet view where canDraw=false; this should never be called.
+    throw new Error('drawRangeToArgs is not supported in FreeAdapter (canDraw must be false)')
   }
 
   // ---------------------------------------------------------------------------
