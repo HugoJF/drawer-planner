@@ -154,6 +154,10 @@ export class FreeAdapter implements CoordAdapter {
     }
   }
 
+  resizeLabel(dims: ASize): string {
+    return `${Math.round(dims.w)} × ${Math.round(dims.h)} mm`
+  }
+
   resizeGhostRect(item: Item, previewDims: ASize): ItemRect {
     return {
       left:   item.posX * this.scale,

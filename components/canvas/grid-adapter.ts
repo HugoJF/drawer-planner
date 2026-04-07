@@ -121,6 +121,10 @@ export class GridAdapter implements CoordAdapter {
     }
   }
 
+  resizeLabel(dims: ASize): string {
+    return `${dims.w} × ${dims.h} cells`
+  }
+
   resizeGhostRect(item: Item, previewDims: ASize): ItemRect {
     const cellX = Math.round(item.posX / this.config.cellSize)
     const cellY = Math.round(item.posY / this.config.cellSize)

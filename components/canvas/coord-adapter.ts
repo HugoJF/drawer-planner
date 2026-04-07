@@ -114,6 +114,9 @@ export interface CoordAdapter {
   /** Ghost overlay rect for the resize preview. */
   resizeGhostRect(item: Item, previewDims: ASize): ItemRect
 
+  /** Human-readable size label shown in the resize popover (e.g. "84 × 42mm" or "2 × 1 cells"). */
+  resizeLabel(dims: ASize): string
+
   /** Convert confirmed resize preview to item update fields. */
   applyResize(item: Item, previewDims: ASize): Partial<Item>
 
