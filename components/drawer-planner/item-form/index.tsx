@@ -56,11 +56,18 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const [rotation, setRotation]   = useState<ItemRotation>(item?.rotation ?? ItemRotation.HeightUp)
   const [drawerId, setDrawerId]   = useState<string | null>(item?.drawerId ?? selectedDrawerId)
   const [footprintMode, setFootprintMode] = useState<FootprintMode>(item?.footprintMode ?? (initialGridDimensions ? FootprintMode.Manual : FootprintMode.Auto))
+  // Grid mode: footprint in cells
   const [manualCols, setManualCols] = useState(item?.footprintW != null ? Math.round(item.footprintW / config.cellSize) : (initialGridDimensions?.cols ?? 1))
   const [manualRows, setManualRows] = useState(item?.footprintH != null ? Math.round(item.footprintH / config.cellSize) : (initialGridDimensions?.rows ?? 1))
+  // Gridless mode: footprint in mm (initialGridDimensions.cols/rows carry raw mm from DrawerFreeAdapter)
+  const [manualW, setManualW] = useState(item?.footprintW ?? (initialGridDimensions?.cols ?? config.cellSize))
+  const [manualH, setManualH] = useState(item?.footprintH ?? (initialGridDimensions?.rows ?? config.cellSize))
   const [notes, setNotes]         = useState(item?.notes ?? '')
   const [newCatName, setNewCatName] = useState('')
   const newCatInputRef = useRef<HTMLInputElement>(null)
+
+  const currentDrawer = useMemo(() => drawers.find(d => d.id === drawerId) ?? null, [drawers, drawerId])
+  const isGridless = currentDrawer?.gridless ?? false
 
   // Preview calculations
   const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
@@ -88,7 +95,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
   const previewItem: Item = {
     id: 'preview', name, width: widthMm, height: heightMm, depth: depthMm,
     categoryId, rotation: effectiveRotation, drawerId: null, posX: 0, posY: 0, footprintMode,
-    footprintW: manualCols * config.cellSize, footprintH: manualRows * config.cellSize, locked: false,
+    footprintW: isGridless ? manualW : manualCols * config.cellSize,
+    footprintH: isGridless ? manualH : manualRows * config.cellSize,
+    locked: false,
   }
 
   const previewDims = (footprintMode === FootprintMode.Auto ? hasPhysical : true)
@@ -116,14 +125,20 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
 
   const handleFootprintModeChange = (newMode: FootprintMode) => {
     if (newMode === FootprintMode.Manual && footprintMode === FootprintMode.Auto) {
-      const widthMm  = fromDisplayUnit(parseFloat(width) || 0, unit)
-      const heightMm = fromDisplayUnit(parseFloat(height) || 0, unit)
-      const depthMm  = fromDisplayUnit(parseFloat(depth) || 0, unit)
-      if (widthMm > 0 && depthMm > 0) {
-        const fakeItem: Item = { id: '', name, width: widthMm, height: heightMm, depth: depthMm, categoryId, rotation, drawerId, posX: 0, posY: 0, footprintMode: FootprintMode.Auto, locked: false }
-        const dims = calculateItemGridDimensions(fakeItem, config)
-        setManualCols(dims.gridWidth)
-        setManualRows(dims.gridDepth)
+      const wMm = fromDisplayUnit(parseFloat(width) || 0, unit)
+      const hMm = fromDisplayUnit(parseFloat(height) || 0, unit)
+      const dMm = fromDisplayUnit(parseFloat(depth) || 0, unit)
+      if (wMm > 0 && dMm > 0) {
+        if (isGridless) {
+          const d = getRotatedDimensions({ width: wMm, height: hMm, depth: dMm, rotation, id: '', name, categoryId, drawerId, posX: 0, posY: 0, footprintMode: FootprintMode.Auto, locked: false } as Item)
+          setManualW(Math.round(d.width))
+          setManualH(Math.round(d.depth))
+        } else {
+          const fakeItem: Item = { id: '', name, width: wMm, height: hMm, depth: dMm, categoryId, rotation, drawerId, posX: 0, posY: 0, footprintMode: FootprintMode.Auto, locked: false }
+          const dims = calculateItemGridDimensions(fakeItem, config)
+          setManualCols(dims.gridWidth)
+          setManualRows(dims.gridDepth)
+        }
       }
     }
     setFootprintMode(newMode)
@@ -156,8 +171,8 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
       rotation: effectiveRotation,
       drawerId,
       footprintMode,
-      footprintW: manualCols * config.cellSize,
-      footprintH: manualRows * config.cellSize,
+      footprintW: isGridless ? manualW : manualCols * config.cellSize,
+      footprintH: isGridless ? manualH : manualRows * config.cellSize,
       notes: notes.trim() || undefined,
     }
 
@@ -176,7 +191,9 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
           <DialogTitle>{isEditing ? 'Edit Item' : 'Add Item'}</DialogTitle>
           <DialogDescription>
             {footprintMode === FootprintMode.Manual
-              ? 'Set grid footprint directly. Physical dimensions are optional.'
+              ? isGridless
+                ? 'Set footprint size in mm. Physical dimensions are optional.'
+                : 'Set grid footprint directly. Physical dimensions are optional.'
               : `Enter the item's physical dimensions in ${unit}.`}
           </DialogDescription>
         </DialogHeader>
@@ -242,17 +259,17 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {distinctRotations.map(r => (
-                    <SelectItem key={r} value={r}>{getRotationLabel(r, previewItem, config)}</SelectItem>
+                    <SelectItem key={r} value={r}>{getRotationLabel(r, previewItem, config, isGridless)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Grid Settings */}
+          {/* Footprint Settings */}
           <div className="rounded-md bg-secondary/30 p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium">Grid Footprint</span>
+              <span className="text-xs font-medium">{isGridless ? 'Footprint' : 'Grid Footprint'}</span>
               <div className="flex rounded-md border border-input overflow-hidden text-xs">
                 {([FootprintMode.Auto, FootprintMode.Manual] as const).map(mode => (
                   <button key={mode} type="button"
@@ -266,18 +283,39 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
             </div>
 
             {footprintMode === FootprintMode.Manual ? (
-              <div className="flex items-center gap-2">
+              isGridless ? (
                 <div className="flex items-center gap-1.5">
-                  <Input type="number" min="1" step="1" value={manualCols}
-                    onChange={e => setManualCols(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 h-7 text-center text-sm" />
+                  <Input type="number" min="1" step="1" value={manualW}
+                    onChange={e => setManualW(Math.max(1, parseFloat(e.target.value) || 1))}
+                    className="w-20 h-7 text-center text-sm" />
                   <span className="text-muted-foreground text-sm">×</span>
-                  <Input type="number" min="1" step="1" value={manualRows}
-                    onChange={e => setManualRows(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 h-7 text-center text-sm" />
-                  <span className="text-xs text-muted-foreground">cells</span>
+                  <Input type="number" min="1" step="1" value={manualH}
+                    onChange={e => setManualH(Math.max(1, parseFloat(e.target.value) || 1))}
+                    className="w-20 h-7 text-center text-sm" />
+                  <span className="text-xs text-muted-foreground">mm</span>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Input type="number" min="1" step="1" value={manualCols}
+                      onChange={e => setManualCols(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 h-7 text-center text-sm" />
+                    <span className="text-muted-foreground text-sm">×</span>
+                    <Input type="number" min="1" step="1" value={manualRows}
+                      onChange={e => setManualRows(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 h-7 text-center text-sm" />
+                    <span className="text-xs text-muted-foreground">cells</span>
+                  </div>
+                </div>
+              )
+            ) : isGridless ? (
+              rotatedDims ? (
+                <p className="text-sm text-muted-foreground">
+                  Calculated: <span className="font-medium text-foreground">{Math.round(rotatedDims.width)} × {Math.round(rotatedDims.depth)}</span> mm
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Fill physical dimensions above to see calculated footprint.</p>
+              )
             ) : previewDims ? (
               <p className="text-sm text-muted-foreground">
                 Calculated: <span className="font-medium text-foreground">{previewDims.gridWidth} × {previewDims.gridDepth}</span> cells
@@ -286,18 +324,30 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
               <p className="text-xs text-muted-foreground">Fill physical dimensions above to see calculated grid size.</p>
             )}
 
-            {previewDims && previewDims.heightUnits > 0 && (
+            {rotatedDims && rotatedDims.height > 0 && (
               <p className="text-sm text-muted-foreground">
-                Height: <span className="font-medium text-foreground">{previewDims.heightUnits} U</span>
-                {rotatedDims && <span className="text-xs ml-1">({rotatedDims.height}mm)</span>}
+                Height: {isGridless ? (
+                  <span className="font-medium text-foreground">{Math.round(rotatedDims.height)}mm</span>
+                ) : (
+                  <>
+                    {previewDims && previewDims.heightUnits > 0 && (
+                      <span className="font-medium text-foreground">{previewDims.heightUnits} U</span>
+                    )}
+                    <span className="text-xs ml-1">({rotatedDims.height}mm)</span>
+                  </>
+                )}
               </p>
             )}
             {footprintMode === 'manual' && !hasPhysical && (
-              <p className="text-xs text-muted-foreground">Add physical dimensions to see height units and inset visualization.</p>
+              <p className="text-xs text-muted-foreground">
+                {isGridless
+                  ? 'Add physical dimensions to see height and inset visualization.'
+                  : 'Add physical dimensions to see height units and inset visualization.'}
+              </p>
             )}
-            {previewDims && (
+            {(isGridless ? rotatedDims : previewDims) && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <RotateCw className="h-3 w-3" />{getRotationLabel(rotation, previewItem, config)}
+                <RotateCw className="h-3 w-3" />{getRotationLabel(rotation, previewItem, config, isGridless)}
               </p>
             )}
           </div>
