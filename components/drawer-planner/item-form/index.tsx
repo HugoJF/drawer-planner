@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useDrawerStore } from '@/lib/store'
-import { calculateItemGridDimensions, getRotatedDimensions, getDistinctRotations, getRotationLabel } from '@/lib/gridfinity'
+import { calculateItemGridDimensions, getRotatedDimensions, getDistinctRotations, getRotationLabel, findMatchingRotation } from '@/lib/gridfinity'
 import { cn } from '@/lib/utils'
 import type { Item } from '@/lib/types'
 import { ITEM_COLORS, toDisplayUnit, fromDisplayUnit, ItemRotation, FootprintMode } from '@/lib/types'
@@ -84,12 +84,10 @@ export function ItemForm({ open, onOpenChange, item, initialPosition, initialGri
     if (distinctRotations.includes(rotation)) {
       return rotation
     }
-    const dimKey = (r: ItemRotation) => {
-      const d = getRotatedDimensions({ width: widthMm, height: heightMm, depth: depthMm } as Item, r)
-      return `${d.width}|${d.depth}|${d.height}`
-    }
-    const currentKey = dimKey(rotation)
-    return distinctRotations.find(r => dimKey(r) === currentKey) ?? distinctRotations[0]
+    return findMatchingRotation(
+      distinctRotations,
+      { width: widthMm, height: heightMm, depth: depthMm, rotation } as Item,
+    )
   }, [distinctRotations, rotation, widthMm, heightMm, depthMm])
 
   const previewItem: Item = {

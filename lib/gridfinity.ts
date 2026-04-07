@@ -131,23 +131,31 @@ export function getRotationLabel(rotation: ItemRotation, item: Item, config: Gri
 }
 
 /**
+ * From a list of distinct rotations, find the one whose rotated dimensions match
+ * the item's current rotation. Falls back to the first entry.
+ * Used by the item form to keep the displayed rotation consistent when dimensions change.
+ */
+export function findMatchingRotation(rotations: ItemRotation[], item: Item): ItemRotation {
+  const current = getRotatedDimensions(item)
+  const key = `${current.width}|${current.depth}|${current.height}`
+  return rotations.find(r => {
+    const d = getRotatedDimensions(item, r)
+    return `${d.width}|${d.depth}|${d.height}` === key
+  }) ?? rotations[0]
+}
+
+/**
  * Build the rotation update patch when cycling from one rotation to the next.
  * Handles manual-mode col/row swap when the footprint axes transpose.
  */
 export function applyNextRotation(item: Item): Partial<Item> {
   const distinct = getDistinctRotations(item)
-  const currentDims = getRotatedDimensions(item)
-  const currentKey = `${currentDims.width}|${currentDims.depth}|${currentDims.height}`
-  let idx = distinct.findIndex(r => {
-    const d = getRotatedDimensions(item, r)
-    return `${d.width}|${d.depth}|${d.height}` === currentKey
-  })
-  if (idx === -1) {
-    idx = 0
-  }
+  const current = findMatchingRotation(distinct, item)
+  const idx = distinct.indexOf(current)
   const next = distinct[(idx + 1) % distinct.length]
 
   const isManual = item.footprintMode === FootprintMode.Manual
+  const currentDims = getRotatedDimensions(item, current)
   const newDims = getRotatedDimensions(item, next)
   const shouldSwap = isManual
     && currentDims.width === newDims.depth
