@@ -68,6 +68,7 @@ export function ItemCanvas({
   const [boxSelectState, setBoxSelectState] = useState<DrawState | null>(null)
   const [drawState, setDrawState]         = useState<DrawState | null>(null)
   const [contextItemId, setContextItemId] = useState<string | null>(null)
+  const [dragOverlay, setDragOverlay]     = useState<React.ReactNode>(null)
   const containerRef   = React.useRef<HTMLDivElement>(null)
   const suppressNextClick = React.useRef(false)
 
@@ -166,6 +167,9 @@ export function ItemCanvas({
       if (drop) {
         setDropCoord(drop)
       }
+      if (adapter.getOverlay) {
+        setDragOverlay(adapter.getOverlay())
+      }
       return
     }
     if (resizeState) {
@@ -205,6 +209,7 @@ export function ItemCanvas({
       )
       setDragState(null)
       setDropCoord(null)
+      setDragOverlay(null)
       return
     }
     if (resizeState) {
@@ -237,28 +242,40 @@ export function ItemCanvas({
     setPendingDrag(null)
     setDragState(null)
     setDropCoord(null)
+    setDragOverlay(null)
     setDrawState(null)
     setBoxSelectState(null)
     setResizeState(null)
   }, [])
 
-  // handleGridMouseDown: starts draw or box-select when clicking a background cell
+  // handleGridMouseDown: starts draw or box-select when clicking a background cell.
+  // Falls back to mouse-coord-based box-select for adapters without data-gx cells (free mode).
   const handleGridMouseDown = useCallback((e: React.MouseEvent) => {
-    const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
-    if (!target || dragState || resizeState) {
+    if (dragState || resizeState) {
       return
     }
-    const gx = parseInt(target.dataset.gx!)
-    const gy = parseInt(target.dataset.gy!)
-    e.preventDefault()
-    if (canDraw && (e.ctrlKey || e.metaKey)) {
-      if (!occupancyMap.has(`${gx},${gy}`)) {
-        setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
+    const target = (e.target as HTMLElement).closest('[data-gx]') as HTMLElement | null
+    if (target) {
+      // Grid mode: cell-based start
+      const gx = parseInt(target.dataset.gx!)
+      const gy = parseInt(target.dataset.gy!)
+      e.preventDefault()
+      if (canDraw && (e.ctrlKey || e.metaKey)) {
+        if (!occupancyMap.has(`${gx},${gy}`)) {
+          setDrawState({ startX: gx, startY: gy, endX: gx, endY: gy })
+        }
+      } else {
+        setBoxSelectState({ startX: gx, startY: gy, endX: gx, endY: gy })
       }
-    } else {
-      setBoxSelectState({ startX: gx, startY: gy, endX: gx, endY: gy })
+      return
     }
-  }, [dragState, resizeState, canDraw, occupancyMap])
+    // Free mode: no grid cells — start box-select from mouse position if not on an item
+    if (containerRef.current && !(e.target as HTMLElement).closest('[data-item-id]')) {
+      const coord = adapter.mouseToCoord(e.clientX, e.clientY, containerRef.current)
+      e.preventDefault()
+      setBoxSelectState({ startX: coord.x, startY: coord.y, endX: coord.x, endY: coord.y })
+    }
+  }, [dragState, resizeState, canDraw, occupancyMap, adapter])
 
   // handleGridMouseOver: extends draw/box-select range as mouse moves over cells
   const handleGridMouseOver = useCallback((e: React.MouseEvent) => {
@@ -314,6 +331,9 @@ export function ItemCanvas({
         >
           {/* Background (grid cells, dot pattern, etc.) */}
           {adapter.renderBackground(occupancyMap, drawState)}
+
+          {/* Adapter drag overlay (e.g. snap guides in free mode) */}
+          {dragOverlay}
 
           {/* Drag ghost overlays */}
           {dragState && dropCoord && dragState.offsets.map(({ id, dx, dy }) => {

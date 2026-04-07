@@ -152,6 +152,13 @@ export interface CoordAdapter {
   containerStyle(): React.CSSProperties
 
   /**
+   * Optional overlay rendered on top of items during an active drag.
+   * Used by FreeAdapter to render snap guide lines.
+   * Called after every computeDrop; return null when there is nothing to show.
+   */
+  getOverlay?(): React.ReactNode
+
+  /**
    * Render the canvas background (grid cells, dot pattern, etc.).
    * Receives the occupancy map so cells can show occupied state.
    */
