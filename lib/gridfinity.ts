@@ -6,8 +6,9 @@ import type {
   Item,
   ItemGridDimensions,
   DrawerStats,
+  Category,
 } from './types'
-import { ItemRotation, FootprintMode } from './types'
+import { ItemRotation, FootprintMode, GridColorMode, getCategoryColor, UNCATEGORIZED_COLOR } from './types'
 
 /**
  * Calculate how many Gridfinity cells fit in a drawer dimension
@@ -387,5 +388,47 @@ export function calculateDrawerStats(
  */
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
+// ---------------------------------------------------------------------------
+// Color helpers
+// ---------------------------------------------------------------------------
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t
+}
+
+/** Map a 0–1 ratio to a blue→red gradient color. */
+export function ratioToColor(ratio: number): string {
+  const blue = { r: 0, g: 120, b: 255 }
+  const red  = { r: 255, g: 60,  b: 60 }
+  return `rgb(${Math.round(lerp(blue.r, red.r, ratio))}, ${Math.round(lerp(blue.g, red.g, ratio))}, ${Math.round(lerp(blue.b, red.b, ratio))})`
+}
+
+/**
+ * Resolve the display color for an item based on the active color mode.
+ * Height mode: blue (short) → red (tall).
+ * Density mode: blue (dense/efficient) → red (wasteful).
+ * Category mode: category color, falling back to UNCATEGORIZED_COLOR.
+ */
+export function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
+  const mode = config.gridColorMode
+  if (mode === GridColorMode.Height) {
+    const { heightUnits } = calculateItemGridDimensions(item, config)
+    const maxUnits = Math.ceil(drawer.height / config.heightUnit)
+    return ratioToColor(maxUnits > 0 ? Math.min(1, heightUnits / maxUnits) : 0)
+  }
+  if (mode === GridColorMode.Density) {
+    const dims = getRotatedDimensions(item)
+    const fp = getItemFootprintMm(item)
+    const effectiveH = dims.height > 0 ? dims.height : drawer.height
+    const realVol = dims.width * dims.depth * dims.height
+    const footprintVol = fp.w * fp.h * effectiveH
+    if (realVol === 0 || footprintVol === 0) {
+      return UNCATEGORIZED_COLOR
+    }
+    return ratioToColor(1 - Math.min(1, realVol / footprintVol))
+  }
+  return getCategoryColor(item.categoryId, categories)
 }
 

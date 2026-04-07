@@ -14,8 +14,9 @@ import {
   getRotationLabel,
   applyNextRotation,
   isItemFootprintOverflow,
+  getItemColor,
 } from '@/lib/gridfinity'
-import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2, Lock, Unlock, Tag } from 'lucide-react'
+import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2, Lock, Unlock } from 'lucide-react'
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -24,7 +25,6 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from '@/components/ui/context-menu'
-import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
@@ -36,48 +36,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { Drawer, Item, GridfinityConfig, Category } from '@/lib/types'
-import { formatDimension, getCategoryColor, UNCATEGORIZED_COLOR, GridColorMode, FootprintMode } from '@/lib/types'
+import type { Drawer, Item } from '@/lib/types'
+import { formatDimension, FootprintMode } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
 import { ItemCanvas } from '@/components/canvas/item-canvas'
 import { GridAdapter } from '@/components/canvas/grid-adapter'
 import { DrawerFreeAdapter } from '@/components/canvas/drawer-free-adapter'
 import type { ItemRenderCtx } from '@/components/canvas/coord-adapter'
-
-// ---------------------------------------------------------------------------
-// Color helpers
-// ---------------------------------------------------------------------------
-
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t
-}
-
-function heightToColor(ratio: number): string {
-  const blue = { r: 0, g: 120, b: 255 }
-  const red  = { r: 255, g: 60,  b: 60 }
-  return `rgb(${Math.round(lerp(blue.r, red.r, ratio))}, ${Math.round(lerp(blue.g, red.g, ratio))}, ${Math.round(lerp(blue.b, red.b, ratio))})`
-}
-
-function getItemColor(item: Item, drawer: Drawer, config: GridfinityConfig, categories: Category[]): string {
-  const mode = config.gridColorMode
-  if (mode === GridColorMode.Height) {
-    const { heightUnits } = calculateItemGridDimensions(item, config)
-    const maxUnits = Math.ceil(drawer.height / config.heightUnit)
-    return heightToColor(maxUnits > 0 ? Math.min(1, heightUnits / maxUnits) : 0)
-  }
-  if (mode === GridColorMode.Density) {
-    const dims = getRotatedDimensions(item)
-    const { gridWidth, gridDepth, heightUnits } = calculateItemGridDimensions(item, config)
-    const realVol = dims.width * dims.depth * dims.height
-    const footprintVol = gridWidth * config.cellSize * gridDepth * config.cellSize * heightUnits * config.heightUnit
-    if (realVol === 0 || footprintVol === 0) {
-      return UNCATEGORIZED_COLOR
-    }
-    return heightToColor(1 - Math.min(1, realVol / footprintVol))
-  }
-  return getCategoryColor(item.categoryId, categories)
-}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -204,7 +170,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   // ---------------------------------------------------------------------------
 
   const renderItem = useCallback((item: Item, ctx: ItemRenderCtx) => {
-    const { isSelected, isResizing, isSearchMatch, cardRect } = ctx
+    const { isSelected, isSearchMatch, cardRect } = ctx
     const baseDims = calculateItemGridDimensions(item, config)
     const oversized = isItemOversized(item, drawer)
     const footprintOverflow = isItemFootprintOverflow(item, config)
