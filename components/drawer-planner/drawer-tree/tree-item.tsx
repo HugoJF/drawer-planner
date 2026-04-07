@@ -30,7 +30,7 @@ export function TreeItem({
   const isOversized = drawer ? isItemOversized(item, drawer) : false
   const dims = calculateItemGridDimensions(item, config)
   const heightLabel = drawer?.gridless
-    ? (() => { const { w, h } = getItemFootprintMm(item); return `${Math.round(w)}×${Math.round(h)}mm` })()
+    ? (() => { const { w, h } = getItemFootprintMm(item); return `${formatDimension(w, displayUnit)}×${formatDimension(h, displayUnit)}` })()
     : config.itemSizeDisplay === ItemSizeDisplay.Dimensions
       ? `${dims.gridWidth}×${dims.gridDepth}`
       : `${dims.gridWidth * dims.gridDepth}U`
