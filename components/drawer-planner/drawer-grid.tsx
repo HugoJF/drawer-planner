@@ -345,6 +345,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           <Tooltip>
             <TooltipTrigger asChild>
               <button
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); handleRotate(item) }}
                 className="absolute -top-1 -right-1 z-20 p-1 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
               >
