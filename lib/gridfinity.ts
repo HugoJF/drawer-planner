@@ -114,12 +114,15 @@ const ROTATION_BASE_NAMES: Record<ItemRotation, string> = {
  * Human-readable label for a rotation, including computed footprint/height when dimensions are known.
  * e.g. "Lay flat (5×25, 5U tall)"
  */
-export function getRotationLabel(rotation: ItemRotation, item: Item, config: GridfinityConfig): string {
+export function getRotationLabel(rotation: ItemRotation, item: Item, config: GridfinityConfig, isGridless = false): string {
   const base = ROTATION_BASE_NAMES[rotation]
   if (item.width <= 0 || item.height <= 0 || item.depth <= 0) {
     return base
   }
   const d = getRotatedDimensions(item, rotation)
+  if (isGridless) {
+    return `${base} (${Math.round(d.width)}×${Math.round(d.depth)}mm, ${Math.round(d.height)}mm tall)`
+  }
   const cols = Math.ceil(d.width / config.cellSize)
   const rows = Math.ceil(d.depth / config.cellSize)
   const heightU = Math.ceil(d.height / config.heightUnit)
@@ -291,17 +294,17 @@ export function checkOverlap(
 
   const dims1 = calculateItemGridDimensions(item1, config)
   const dims2 = calculateItemGridDimensions(item2, config)
-  // Convert footprint from cells to mm for AABB test
-  const w1 = dims1.gridWidth * config.cellSize
-  const h1 = dims1.gridDepth * config.cellSize
-  const w2 = dims2.gridWidth * config.cellSize
-  const h2 = dims2.gridDepth * config.cellSize
+  // Snap positions to cell grid (same as every other grid-mode helper)
+  const cellX1 = Math.round(item1.posX / config.cellSize)
+  const cellY1 = Math.round(item1.posY / config.cellSize)
+  const cellX2 = Math.round(item2.posX / config.cellSize)
+  const cellY2 = Math.round(item2.posY / config.cellSize)
 
   return !(
-    item1.posX + w1 <= item2.posX ||
-    item2.posX + w2 <= item1.posX ||
-    item1.posY + h1 <= item2.posY ||
-    item2.posY + h2 <= item1.posY
+    cellX1 + dims1.gridWidth  <= cellX2 ||
+    cellX2 + dims2.gridWidth  <= cellX1 ||
+    cellY1 + dims1.gridDepth  <= cellY2 ||
+    cellY2 + dims2.gridDepth  <= cellY1
   )
 }
 
