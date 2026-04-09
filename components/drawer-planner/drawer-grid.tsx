@@ -218,9 +218,12 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
           !oversized && !hasOverlap && "border-black/10",
           hasOverlap && "opacity-60",
         )}
-        style={{ backgroundColor: color }}
+        style={{
+          backgroundColor: `color-mix(in oklch, black 28%, ${color})`,
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 6px)',
+        }}
       >
-        {/* Inset: physical item footprint within allocated grid cells */}
+        {/* Inset: actual item within allocated footprint — solid color on physical area, dashed pattern in margin */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-[2px]">
           {insetPxW !== null && insetPxH !== null ? (
             <div
@@ -229,8 +232,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
                 height: insetPxH,
                 minWidth: 3,
                 minHeight: 3,
-                backgroundColor: `color-mix(in oklch, black 28%, ${color})`,
-                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 6px)',
+                backgroundColor: color,
                 borderRadius: 2,
               }}
             />
