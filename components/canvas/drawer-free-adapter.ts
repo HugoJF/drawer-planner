@@ -30,6 +30,8 @@ export class DrawerFreeAdapter implements CoordAdapter {
   private readonly scale: number
   /** Snap guides computed during the last computeDrop call. */
   private _snapGuides: SnapGuide[] = []
+  /** Item position captured at resize start, for clamping to drawer bounds. */
+  private _resizingItemPos = { posX: 0, posY: 0 }
 
   constructor(
     private readonly drawer: Drawer,
@@ -164,13 +166,16 @@ export class DrawerFreeAdapter implements CoordAdapter {
   // ---------------------------------------------------------------------------
 
   initResizeDims(item: Item): ASize {
+    this._resizingItemPos = { posX: item.posX, posY: item.posY }
     return getItemFootprintMm(item)
   }
 
   computeResizePreview(handle: 'e' | 's' | 'se', startDims: ASize, dxPx: number, dyPx: number): ASize {
+    const maxW = this.drawer.width - this._resizingItemPos.posX
+    const maxH = this.drawer.depth - this._resizingItemPos.posY
     return {
-      w: Math.max(1, startDims.w + (handle !== 's' ? dxPx / this.scale : 0)),
-      h: Math.max(1, startDims.h + (handle !== 'e' ? dyPx / this.scale : 0)),
+      w: Math.min(maxW, Math.max(1, startDims.w + (handle !== 's' ? dxPx / this.scale : 0))),
+      h: Math.min(maxH, Math.max(1, startDims.h + (handle !== 'e' ? dyPx / this.scale : 0))),
     }
   }
 
@@ -187,10 +192,12 @@ export class DrawerFreeAdapter implements CoordAdapter {
     }
   }
 
-  applyResize(_item: Item, previewDims: ASize): Partial<Item> {
+  applyResize(item: Item, previewDims: ASize): Partial<Item> {
+    const maxW = this.drawer.width - item.posX
+    const maxH = this.drawer.depth - item.posY
     return {
-      footprintW: Math.max(1, Math.round(previewDims.w)),
-      footprintH: Math.max(1, Math.round(previewDims.h)),
+      footprintW: Math.min(maxW, Math.max(1, Math.round(previewDims.w))),
+      footprintH: Math.min(maxH, Math.max(1, Math.round(previewDims.h))),
       footprintMode: FootprintMode.Manual,
     }
   }
