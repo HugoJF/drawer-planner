@@ -116,6 +116,13 @@ export interface Item {
   notes?: string
 }
 
+export interface PendingItem {
+  id: string
+  name: string
+  categoryId: string | null
+  notes?: string
+}
+
 export interface ItemGridDimensions {
   gridWidth: number      // cells required (X axis)
   gridDepth: number      // cells required (Y axis)

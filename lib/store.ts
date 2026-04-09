@@ -8,8 +8,9 @@ import type {
   Category,
   ExportData,
   ProjectData,
+  PendingItem,
 } from '@/lib/types'
-import { DEFAULT_CONFIG, CURRENT_VERSION } from '@/lib/types'
+import { DEFAULT_CONFIG, CURRENT_VERSION, ItemRotation, FootprintMode } from '@/lib/types'
 import { migrate } from '@/lib/migrations'
 import {
   calculateDrawerGrid,
@@ -19,7 +20,7 @@ import {
 } from '@/lib/gridfinity'
 import { indexById, toggleInSet } from '@/lib/utils'
 
-export type Snapshot = { drawers: Drawer[]; items: Item[]; categories: Category[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string>; selectedCabinetDrawerIds: Set<string> }
+export type Snapshot = { drawers: Drawer[]; items: Item[]; categories: Category[]; config: GridfinityConfig; selectedDrawerId: string | null; selectedItemIds: Set<string>; selectedCabinetDrawerIds: Set<string>; pendingItems: PendingItem[] }
 
 export interface DrawerStore {
   // State
@@ -27,6 +28,7 @@ export interface DrawerStore {
   drawers: Drawer[]
   items: Item[]
   categories: Category[]
+  pendingItems: PendingItem[]
   selectedDrawerId: string | null
   selectedItemIds: Set<string>
   selectedCabinetDrawerIds: Set<string>
@@ -60,6 +62,10 @@ export interface DrawerStore {
   addCategory: (name: string, color: string) => string
   updateCategory: (category: Category) => void
   deleteCategory: (id: string) => void
+  addPendingItem: (data: Omit<PendingItem, 'id'>) => string
+  updatePendingItem: (item: PendingItem) => void
+  deletePendingItem: (id: string) => void
+  measurePendingItem: (id: string, dims: { width: number; height: number; depth: number }) => void
   selectDrawer: (id: string | null) => void
   undo: () => void
   redo: () => void
@@ -83,8 +89,8 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
     persist(
       (set, get) => {
         const snap = (): Snapshot => {
-          const { drawers, items, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds } = get()
-          return { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds), selectedCabinetDrawerIds: new Set(selectedCabinetDrawerIds) }
+          const { drawers, items, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds, pendingItems } = get()
+          return { drawers, items, categories, config, selectedDrawerId, selectedItemIds: new Set(selectedItemIds), selectedCabinetDrawerIds: new Set(selectedCabinetDrawerIds), pendingItems }
         }
 
         const push = () => {
@@ -98,6 +104,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           drawers: [],
           items: [],
           categories: [],
+          pendingItems: [],
           selectedDrawerId: null,
           selectedItemIds: new Set(),
           selectedCabinetDrawerIds: new Set(),
@@ -348,6 +355,52 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
             set((state) => ({
               categories: state.categories.filter(c => c.id !== id),
               items: state.items.map(i => i.categoryId === id ? { ...i, categoryId: null } : i),
+              pendingItems: state.pendingItems.map(p => p.categoryId === id ? { ...p, categoryId: null } : p),
+            }))
+          },
+
+          addPendingItem: (data) => {
+            push()
+            const id = generateId()
+            set((state) => ({ pendingItems: [...state.pendingItems, { ...data, id }] }))
+            return id
+          },
+
+          updatePendingItem: (item) => {
+            push()
+            set((state) => ({ pendingItems: state.pendingItems.map(p => p.id === item.id ? item : p) }))
+          },
+
+          deletePendingItem: (id) => {
+            push()
+            set((state) => ({ pendingItems: state.pendingItems.filter(p => p.id !== id) }))
+          },
+
+          measurePendingItem: (id, dims) => {
+            push()
+            const { pendingItems } = get()
+            const pending = pendingItems.find(p => p.id === id)
+            if (!pending) {
+              return
+            }
+            const newItem: Item = {
+              id: generateId(),
+              locked: false,
+              name: pending.name,
+              categoryId: pending.categoryId,
+              notes: pending.notes,
+              width: dims.width,
+              height: dims.height,
+              depth: dims.depth,
+              rotation: ItemRotation.HeightUp,
+              drawerId: null,
+              posX: 0,
+              posY: 0,
+              footprintMode: FootprintMode.Auto,
+            }
+            set((state) => ({
+              pendingItems: state.pendingItems.filter(p => p.id !== id),
+              items: [...state.items, newItem],
             }))
           },
 
@@ -371,6 +424,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               selectedDrawerId: prev.selectedDrawerId,
               selectedItemIds: prev.selectedItemIds,
               selectedCabinetDrawerIds: prev.selectedCabinetDrawerIds,
+              pendingItems: prev.pendingItems,
             })
           },
 
@@ -390,6 +444,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               selectedDrawerId: next.selectedDrawerId,
               selectedItemIds: next.selectedItemIds,
               selectedCabinetDrawerIds: next.selectedCabinetDrawerIds,
+              pendingItems: next.pendingItems,
             })
           },
 
@@ -410,6 +465,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               selectedDrawerId: target.selectedDrawerId,
               selectedItemIds: target.selectedItemIds,
               selectedCabinetDrawerIds: target.selectedCabinetDrawerIds,
+              pendingItems: target.pendingItems,
             })
           },
 
@@ -430,6 +486,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               selectedDrawerId: target.selectedDrawerId,
               selectedItemIds: target.selectedItemIds,
               selectedCabinetDrawerIds: target.selectedCabinetDrawerIds,
+              pendingItems: target.pendingItems,
             })
           },
 
@@ -502,6 +559,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
           drawers: state.drawers,
           items: state.items,
           categories: state.categories,
+          pendingItems: state.pendingItems,
           selectedDrawerId: state.selectedDrawerId,
         }),
         onRehydrateStorage: () => (state) => {

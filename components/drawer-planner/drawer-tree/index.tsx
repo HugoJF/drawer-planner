@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useMemo, useCallback } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search, X, Ruler } from 'lucide-react'
 import { useDrawerStore } from '@/lib/store'
 import { useToast } from '@/hooks/use-toast'
 import { cn, toggleInSet } from '@/lib/utils'
@@ -15,6 +15,7 @@ import { ITEM_COLORS, CategoryExpansion, CategoryExpansionMode } from '@/lib/typ
 import { DrawersTab } from './drawers-tab'
 import { CategoriesTab } from './categories-tab'
 import { DrawerScopedTab } from './drawer-scoped-tab'
+import { MeasurementsSheet } from '@/components/drawer-planner/measurements-sheet'
 import { nextAvailableColor } from './types'
 import type { SidebarTab } from './types'
 
@@ -52,6 +53,8 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const updateCategory     = useDrawerStore(s => s.updateCategory)
   const deleteCategory     = useDrawerStore(s => s.deleteCategory)
 
+  const pendingItemCount = useDrawerStore(s => s.pendingItems.length)
+
   const [activeTab, setActiveTab] = useState<SidebarTab>('drawers')
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [manualOverrides, setManualOverrides] = useState<Map<string, boolean>>(new Map())
@@ -60,6 +63,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [categoryFormOpen, setCategoryFormOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [measurementsOpen, setMeasurementsOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const lastClickRef = useRef<{ id: string; time: number } | null>(null)
 
@@ -280,7 +284,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
     <ScrollArea className="h-full">
       {sidebarVersion === 'v1' && (
         /* Tabs */
-        <div className="flex border-b border-border shrink-0">
+        <div className="flex items-center border-b border-border shrink-0">
           <button
             className={cn(
               'flex-1 py-2 text-xs font-medium transition-colors',
@@ -298,6 +302,18 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             onClick={() => setActiveTab('categories')}
           >
             Categories
+          </button>
+          <button
+            onClick={() => setMeasurementsOpen(true)}
+            className="relative px-2 py-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            title="Needs measurement"
+          >
+            <Ruler className="h-3.5 w-3.5" />
+            {pendingItemCount > 0 && (
+              <span className="absolute top-1 right-0.5 h-3.5 min-w-3.5 rounded-full bg-primary text-primary-foreground text-[9px] font-medium flex items-center justify-center px-0.5 leading-none">
+                {pendingItemCount}
+              </span>
+            )}
           </button>
         </div>
       )}
@@ -321,6 +337,23 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
+          </div>
+        )}
+
+        {sidebarVersion === 'v2' && (
+          <div className="flex justify-end mb-1">
+            <button
+              onClick={() => setMeasurementsOpen(true)}
+              className="relative flex items-center gap-1 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+              title="Needs measurement"
+            >
+              <Ruler className="h-3.5 w-3.5" />
+              {pendingItemCount > 0 && (
+                <span className="h-3.5 min-w-3.5 rounded-full bg-primary text-primary-foreground text-[9px] font-medium flex items-center justify-center px-0.5 leading-none">
+                  {pendingItemCount}
+                </span>
+              )}
+            </button>
           </div>
         )}
 
@@ -401,6 +434,8 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
           />
         )}
       </div>
+
+      <MeasurementsSheet open={measurementsOpen} onOpenChange={setMeasurementsOpen} />
 
       <CategoryForm
         key={categoryFormOpen ? (editingCategory?.id ?? 'new') : 'closed'}

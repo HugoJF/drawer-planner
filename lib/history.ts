@@ -75,6 +75,21 @@ export function labelAction(before: Snapshot, after: Snapshot): string {
     return `Edited drawer "${editedDrawer.name}"`
   }
 
+  // Pending item changes
+  const beforePending = indexById(before.pendingItems)
+  const afterPending  = indexById(after.pendingItems)
+  const addedPending   = after.pendingItems.filter(p => !beforePending.has(p.id))
+  const removedPending = before.pendingItems.filter(p => !afterPending.has(p.id))
+  if (addedPending.length === 1 && removedPending.length === 0 && before.items.length === after.items.length) {
+    return `Tracked "${addedPending[0].name}" for measurement`
+  }
+  if (removedPending.length === 1 && addedPending.length === 0 && before.items.length === after.items.length) {
+    return `Removed "${removedPending[0].name}" from pending`
+  }
+  if (removedPending.length === 1 && addedPending.length === 0 && after.items.length === before.items.length + 1) {
+    return `Measured "${removedPending[0].name}"`
+  }
+
   // Item changes
   const beforeItems = indexById(before.items)
   const afterItems  = indexById(after.items)

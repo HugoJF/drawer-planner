@@ -12,15 +12,6 @@ bun test           # run all tests (Bun, not vitest)
 bun test lib/__tests__/store.items.test.ts  # run a single test file
 ```
 
-Tests use `bun:test` — never run them with `npx vitest`. TypeScript checking: `npx tsc --noEmit`.
-
-## Architecture
-
-### Tech stack
-React + Vite, Zustand (state), Tailwind + shadcn/ui (`components/ui/`), Bun for tests.
-
-### State (`lib/store.ts`)
-Single Zustand store (`drawerStore` singleton, `createDrawerStore` factory for tests). All mutations call `push()` first to snapshot undo history. State persisted to `localStorage` via `partialize` (excludes selection and undo stacks). `onRehydrateStorage` runs migrations on load.
 
 **`Snapshot` type** captures the full undoable state: `drawers`, `items`, `categories`, `config`, `pendingItems`, selection sets. When adding a new field that should be undoable, add it to `Snapshot`, `snap()`, and all four of `undo`/`redo`/`jumpToHistory`/`jumpToFuture`.
 

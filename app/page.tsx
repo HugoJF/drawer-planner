@@ -55,6 +55,7 @@ function DashboardContent() {
   const selectedItemIds  = useDrawerStore(s => s.selectedItemIds)
   const allItems         = useDrawerStore(s => s.items)
   const categories       = useDrawerStore(s => s.categories)
+  const pendingItems     = useDrawerStore(s => s.pendingItems)
 
   // Store — actions
   const undo             = useDrawerStore(s => s.undo)
@@ -115,12 +116,12 @@ function DashboardContent() {
     [drawers]
   )
   const undoLabel = useMemo(
-    () => canUndo ? labelAction(past[past.length - 1], { drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds }) : null,
-    [canUndo, past, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds]
+    () => canUndo ? labelAction(past[past.length - 1], { drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds, pendingItems }) : null,
+    [canUndo, past, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds, pendingItems]
   )
   const redoLabel = useMemo(
-    () => canRedo ? labelAction({ drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds }, future[0]) : null,
-    [canRedo, future, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds]
+    () => canRedo ? labelAction({ drawers, items: allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds, pendingItems }, future[0]) : null,
+    [canRedo, future, drawers, allItems, categories, config, selectedDrawerId, selectedItemIds, selectedCabinetDrawerIds, pendingItems]
   )
 
   const { toast } = useToast()
