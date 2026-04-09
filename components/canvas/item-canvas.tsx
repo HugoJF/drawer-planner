@@ -191,6 +191,7 @@ export function ItemCanvas({
 
   const handleGridMouseUp = useCallback((e: React.MouseEvent) => {
     if (pendingDrag) {
+      suppressNextClick.current = true
       setPendingDrag(null)
       onItemClick(pendingDrag.item.id, e.ctrlKey || e.metaKey || selectedItemIds.has(pendingDrag.item.id))
       return
