@@ -1,6 +1,6 @@
 import React from 'react'
 import { computeSnap, type SnapGuide } from '@/lib/cabinet-snap'
-import { getItemFootprintMm } from '@/lib/gridfinity'
+import { getItemFootprintMm, getRotatedDimensions } from '@/lib/gridfinity'
 import { FootprintMode } from '@/lib/types'
 import type { Item, Drawer, GridfinityConfig } from '@/lib/types'
 import type {
@@ -30,8 +30,9 @@ export class DrawerFreeAdapter implements CoordAdapter {
   private readonly scale: number
   /** Snap guides computed during the last computeDrop call. */
   private _snapGuides: SnapGuide[] = []
-  /** Item position captured at resize start, for clamping to drawer bounds. */
+  /** Item data captured at resize start, for clamping. */
   private _resizingItemPos = { posX: 0, posY: 0 }
+  private _resizingItemMinDims = { w: 1, h: 1 }
 
   constructor(
     private readonly drawer: Drawer,
@@ -167,15 +168,19 @@ export class DrawerFreeAdapter implements CoordAdapter {
 
   initResizeDims(item: Item): ASize {
     this._resizingItemPos = { posX: item.posX, posY: item.posY }
+    const rotated = getRotatedDimensions(item)
+    this._resizingItemMinDims = { w: rotated.width, h: rotated.depth }
     return getItemFootprintMm(item)
   }
 
   computeResizePreview(handle: 'e' | 's' | 'se', startDims: ASize, dxPx: number, dyPx: number): ASize {
+    const minW = this._resizingItemMinDims.w
+    const minH = this._resizingItemMinDims.h
     const maxW = this.drawer.width - this._resizingItemPos.posX
     const maxH = this.drawer.depth - this._resizingItemPos.posY
     return {
-      w: Math.min(maxW, Math.max(1, startDims.w + (handle !== 's' ? dxPx / this.scale : 0))),
-      h: Math.min(maxH, Math.max(1, startDims.h + (handle !== 'e' ? dyPx / this.scale : 0))),
+      w: Math.min(maxW, Math.max(minW, startDims.w + (handle !== 's' ? dxPx / this.scale : 0))),
+      h: Math.min(maxH, Math.max(minH, startDims.h + (handle !== 'e' ? dyPx / this.scale : 0))),
     }
   }
 
@@ -193,11 +198,14 @@ export class DrawerFreeAdapter implements CoordAdapter {
   }
 
   applyResize(item: Item, previewDims: ASize): Partial<Item> {
+    const rotated = getRotatedDimensions(item)
+    const minW = rotated.width
+    const minH = rotated.depth
     const maxW = this.drawer.width - item.posX
     const maxH = this.drawer.depth - item.posY
     return {
-      footprintW: Math.min(maxW, Math.max(1, Math.round(previewDims.w))),
-      footprintH: Math.min(maxH, Math.max(1, Math.round(previewDims.h))),
+      footprintW: Math.min(maxW, Math.max(minW, Math.round(previewDims.w))),
+      footprintH: Math.min(maxH, Math.max(minH, Math.round(previewDims.h))),
       footprintMode: FootprintMode.Manual,
     }
   }
