@@ -187,7 +187,11 @@ export function ItemCanvas({
       )
       onSelectChange(matched.length > 0 ? matched.map(i => i.id) : [])
     }
-  }, [pendingDrag, dragState, resizeState, boxSelectState, adapter, items, onSelectChange, promotePendingDrag])
+    if (drawState && containerRef.current) {
+      const coord = adapter.mouseToCoord(e.clientX, e.clientY, containerRef.current)
+      setDrawState(s => s ? { ...s, endX: coord.x, endY: coord.y } : null)
+    }
+  }, [pendingDrag, dragState, resizeState, boxSelectState, drawState, adapter, items, onSelectChange, promotePendingDrag])
 
   const handleGridMouseUp = useCallback((e: React.MouseEvent) => {
     if (pendingDrag) {
@@ -265,11 +269,15 @@ export function ItemCanvas({
       }
       return
     }
-    // Free mode: no grid cells — start box-select from mouse position if not on an item
+    // Free mode: no grid cells — Ctrl+drag draws, plain drag box-selects
     if (containerRef.current && !(e.target as HTMLElement).closest('[data-item-id]')) {
       const coord = adapter.mouseToCoord(e.clientX, e.clientY, containerRef.current)
       e.preventDefault()
-      setBoxSelectState({ startX: coord.x, startY: coord.y, endX: coord.x, endY: coord.y })
+      if (canDraw && (e.ctrlKey || e.metaKey)) {
+        setDrawState({ startX: coord.x, startY: coord.y, endX: coord.x, endY: coord.y })
+      } else {
+        setBoxSelectState({ startX: coord.x, startY: coord.y, endX: coord.x, endY: coord.y })
+      }
     }
   }, [dragState, resizeState, canDraw, occupancyMap, adapter])
 
@@ -323,7 +331,7 @@ export function ItemCanvas({
           onMouseLeave={handleGridMouseLeave}
           onMouseDown={handleGridMouseDown}
           onMouseOver={handleGridMouseOver}
-          style={adapter.containerStyle()}
+          style={{ ...adapter.containerStyle(), ...(drawState ? { cursor: 'crosshair' } : {}) }}
         >
           {/* Background (grid cells, dot pattern, etc.) */}
           {adapter.renderBackground(occupancyMap, drawState)}
@@ -368,6 +376,25 @@ export function ItemCanvas({
                   width: rect.width, height: rect.height,
                   border: '2px dashed var(--primary)',
                   background: 'color-mix(in oklch, var(--primary) 10%, transparent)',
+                }}
+              />
+            )
+          })()}
+
+          {/* Draw rect overlay (free mode) */}
+          {drawState && (() => {
+            const rect = adapter.boxSelectRect(
+              { x: drawState.startX, y: drawState.startY },
+              { x: drawState.endX,   y: drawState.endY   },
+            )
+            return (
+              <div
+                className="absolute pointer-events-none z-20"
+                style={{
+                  left: rect.left, top: rect.top,
+                  width: rect.width, height: rect.height,
+                  border: '2px dashed var(--primary)',
+                  background: 'color-mix(in oklch, var(--primary) 20%, transparent)',
                 }}
               />
             )
