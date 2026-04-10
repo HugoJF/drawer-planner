@@ -16,7 +16,7 @@ import {
   isItemFootprintOverflow,
   getItemColor,
 } from '@/lib/gridfinity'
-import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2, Lock, Unlock } from 'lucide-react'
+import { AlertTriangle, RotateCw, Move, Pencil, Trash2, ArrowRightLeft, FolderOpen, Package, Copy, Maximize2, Lock, Unlock, Check, Plus } from 'lucide-react'
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -36,7 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { Drawer, Item } from '@/lib/types'
+import type { Drawer, Item, ItemRotation, GridfinityConfig } from '@/lib/types'
 import { formatDimension, FootprintMode } from '@/lib/types'
 import { DeleteConfirmDialog } from '@/components/drawer-planner/delete-confirm-dialog'
 import { ItemMenuActions } from '@/components/drawer-planner/item-menu-actions'
@@ -54,6 +54,52 @@ interface PendingDelete {
   id: string
   ids?: string[]
   name: string
+}
+
+// ---------------------------------------------------------------------------
+// RotationButton — left-click cycles, right-click opens menu
+// ---------------------------------------------------------------------------
+
+interface RotationButtonProps {
+  item: Item
+  config: GridfinityConfig
+  isGridless: boolean
+  onRotateCycle: () => void
+  onRotateTo: (rotation: ItemRotation) => void
+  onPreview: (rotation: ItemRotation | null) => void
+}
+
+function RotationButton({ item, config, isGridless, onRotateCycle, onRotateTo, onPreview }: RotationButtonProps) {
+  const [open, setOpen] = useState(false)
+  return (
+    <DropdownMenu open={open} onOpenChange={(o) => { if (!o) { setOpen(false); onPreview(null) } }}>
+      <DropdownMenuTrigger asChild>
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onRotateCycle() }}
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true) }}
+          className="absolute -top-1 -right-1 z-20 p-1 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+        >
+          <RotateCw className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" align="start" className="w-52">
+        {getDistinctRotations(item).map(r => (
+          <DropdownMenuItem
+            key={r}
+            onClick={() => onRotateTo(r)}
+            onPointerEnter={() => onPreview(r)}
+            onPointerLeave={() => onPreview(null)}
+          >
+            <span className="mr-2 w-4 flex-shrink-0">
+              {item.rotation === r && <Check className="h-3.5 w-3.5" />}
+            </span>
+            {getRotationLabel(r, item, config, isGridless)}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +125,16 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
   const categories      = useDrawerStore(s => s.categories)
   const items           = useMemo(() => allItems.filter(i => i.drawerId === drawer.id), [allItems, drawer.id])
 
+  const [previewRotation, setPreviewRotation] = useState<{ itemId: string; rotation: ItemRotation } | null>(null)
+  const displayItems = useMemo(() => {
+    if (!previewRotation) {
+      return items
+    }
+    return items.map(i =>
+      i.id === previewRotation.itemId ? { ...i, rotation: previewRotation.rotation } : i
+    )
+  }, [items, previewRotation])
+
   const moveItem         = useDrawerStore(s => s.moveItem)
   const repositionItems  = useDrawerStore(s => s.repositionItems)
   const deleteItem       = useDrawerStore(s => s.deleteItem)
@@ -98,9 +154,9 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   const adapter = useMemo(
     () => drawer.gridless
-      ? new DrawerFreeAdapter(drawer, config, items)
+      ? new DrawerFreeAdapter(drawer, config, displayItems)
       : new GridAdapter(drawer, config),
-    [drawer, config, items],
+    [drawer, config, displayItems],
   )
 
   // ---------------------------------------------------------------------------
@@ -163,10 +219,6 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
     return drawers.filter(d => d.height >= rotatedDims.height && d.id !== drawer.id)
   }, [drawers, drawer.id])
 
-  const handleRotate = useCallback((item: Item) => {
-    updateItem({ ...item, ...applyNextRotation(item) })
-  }, [updateItem])
-
   const handleMoveToDrawer = useCallback((item: Item, targetDrawerId: string) => {
     moveItem(item.id, targetDrawerId, 0, 0)
   }, [moveItem])
@@ -177,6 +229,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
   const renderItem = useCallback((item: Item, ctx: ItemRenderCtx) => {
     const { isSelected, isSearchMatch, cardRect } = ctx
+    const actualItem = items.find(i => i.id === item.id) ?? item
     const baseDims = calculateItemGridDimensions(item, config)
     const oversized = isItemOversized(item, drawer)
     const footprintOverflow = isItemFootprintOverflow(item, config)
@@ -316,24 +369,18 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
         {/* Rotate button — visible when selected */}
         {isSelected && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => { e.stopPropagation(); handleRotate(item) }}
-                className="absolute -top-1 -right-1 z-20 p-1 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-              >
-                <RotateCw className="h-3 w-3" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              Rotate ({getRotationLabel(item.rotation, item, config, drawer.gridless)})
-            </TooltipContent>
-          </Tooltip>
+          <RotationButton
+            item={actualItem}
+            config={config}
+            isGridless={drawer.gridless}
+            onRotateCycle={() => updateItem({ ...actualItem, ...applyNextRotation(actualItem) })}
+            onRotateTo={(r) => updateItem({ ...actualItem, rotation: r })}
+            onPreview={(r) => setPreviewRotation(r ? { itemId: actualItem.id, rotation: r } : null)}
+          />
         )}
       </div>
     )
-  }, [config, drawer, categories, items, searchTerm, selectedItemIds, getSuitableDrawers, handleRotate, handleMoveToDrawer])
+  }, [config, drawer, categories, items, searchTerm, selectedItemIds, getSuitableDrawers, handleMoveToDrawer, updateItem, setPreviewRotation])
 
   // ---------------------------------------------------------------------------
   // renderContextMenu
@@ -405,6 +452,10 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
 
     return (
       <ContextMenuContent className="w-44">
+        <ContextMenuItem onClick={() => onAddItemAtCell(0, 0, 0, 0)}>
+          <Plus className="h-4 w-4" />Add item
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onEditDrawer(drawer)}>
           <Pencil className="h-4 w-4" />Edit drawer
         </ContextMenuItem>
@@ -417,7 +468,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         </ContextMenuItem>
       </ContextMenuContent>
     )
-  }, [items, selectedItemIds, drawers, drawer, categories, config, onEditItem, onEditDrawer,
+  }, [items, selectedItemIds, drawers, drawer, categories, config, onEditItem, onEditDrawer, onAddItemAtCell,
       moveItem, repositionItems, updateItem, duplicateItem, duplicateDrawer, setItemsLocked, toast])
 
   // ---------------------------------------------------------------------------
@@ -432,7 +483,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
       >
         <ItemCanvas
           adapter={adapter}
-          items={items}
+          items={displayItems}
           selectedItemIds={selectedItemIds}
           searchTerm={searchTerm}
           canDraw
