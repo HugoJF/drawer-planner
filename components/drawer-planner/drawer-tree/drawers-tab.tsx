@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Plus,
   Check,
+  Filter,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -51,7 +52,7 @@ export function DrawersTab({
   effectiveExpanded, isCategoryGroupOpen, sortMode, setSortMode, searchTerm,
   searchQuery, draggedItem, allExpanded, selectedDrawerId, toggleAll, toggleDrawer, selectDrawer, toggleCategoryGroup,
   onAddDrawer, onEditDrawer, duplicateDrawer, onEditCategory, onDeleteCategory, setPendingDelete,
-  handleDragOver, handleDropOnDrawer, itemProps, config,
+  handleDragOver, handleDropOnDrawer, itemProps, config, fitCheckEnabled, onToggleFitCheck,
 }: DrawersTabProps) {
   return (
     <>
@@ -89,6 +90,24 @@ export function DrawersTab({
               <TooltipContent side="right">{allExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
             </Tooltip>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleFitCheck}
+                disabled={!selectedDrawerId}
+                className={cn(
+                  'cursor-pointer transition-colors',
+                  !selectedDrawerId && 'opacity-30 cursor-not-allowed',
+                  fitCheckEnabled && selectedDrawerId ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Filter className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {selectedDrawerId ? (fitCheckEnabled ? 'Show all unassigned items' : 'Hide items that don\'t fit selected drawer') : 'Select a drawer to use fit check'}
+            </TooltipContent>
+          </Tooltip>
           <button onClick={onAddDrawer} className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
             <Plus className="h-3.5 w-3.5" />
           </button>

@@ -89,6 +89,8 @@ export interface DrawersTabProps {
   handleDropOnDrawer: (e: React.DragEvent, id: string | null) => void
   itemProps: (item: Item, drawer: Drawer | null) => TreeItemProps
   config: GridfinityConfig
+  fitCheckEnabled: boolean
+  onToggleFitCheck: () => void
 }
 
 export interface DrawerScopedTabProps {

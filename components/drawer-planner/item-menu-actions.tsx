@@ -16,9 +16,24 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from '@/components/ui/context-menu'
-import { isItemOversized, getDistinctRotations, getRotationLabel } from '@/lib/gridfinity'
+import { isItemOversized, getDistinctRotations, getRotationLabel, getRotatedDimensions } from '@/lib/gridfinity'
 import { getCategoryColor } from '@/lib/types'
 import type { Item, Drawer, Category, ItemRotation, GridfinityConfig } from '@/lib/types'
+
+function FootprintPreview({ w, h }: { w: number; h: number }) {
+  const MAX = 32
+  const scale = MAX / Math.max(w, h)
+  const pw = Math.max(4, Math.round(w * scale))
+  const ph = Math.max(4, Math.round(h * scale))
+  return (
+    <div className="flex items-center justify-center w-9 h-9 shrink-0 ml-2">
+      <div
+        className="bg-primary/20 border border-primary/50 rounded-sm"
+        style={{ width: pw, height: ph }}
+      />
+    </div>
+  )
+}
 
 export type MenuVariant = 'dropdown' | 'context'
 
@@ -47,6 +62,9 @@ export function ItemMenuActions({
   const SubTrigger    = (variant === 'dropdown' ? DropdownMenuSubTrigger : ContextMenuSubTrigger) as typeof DropdownMenuSubTrigger
   const SubContent    = (variant === 'dropdown' ? DropdownMenuSubContent : ContextMenuSubContent) as typeof DropdownMenuSubContent
 
+  const currentDrawer = item.drawerId ? allDrawers.find(d => d.id === item.drawerId) : undefined
+  const isGridless = currentDrawer?.gridless ?? false
+
   return (
     <>
       <MenuItem onClick={onEdit}><Pencil className="h-4 w-4 mr-2" />Edit</MenuItem>
@@ -54,14 +72,18 @@ export function ItemMenuActions({
       <Sub>
         <SubTrigger><RotateCw className="h-4 w-4 mr-2" />Rotate</SubTrigger>
         <SubContent>
-          {getDistinctRotations(item).map(r => (
-            <MenuItem key={r} onClick={() => onRotateTo(r)}>
-              <span className="mr-2 w-4 flex-shrink-0">
-                {item.rotation === r && <Check className="h-3.5 w-3.5" />}
-              </span>
-              {getRotationLabel(r, item, config)}
-            </MenuItem>
-          ))}
+          {getDistinctRotations(item).map(r => {
+            const d = getRotatedDimensions(item, r)
+            return (
+              <MenuItem key={r} onClick={() => onRotateTo(r)}>
+                <span className="mr-2 w-4 flex-shrink-0">
+                  {item.rotation === r && <Check className="h-3.5 w-3.5" />}
+                </span>
+                <span className="flex-1">{getRotationLabel(r, item, config, isGridless)}</span>
+                {d.width > 0 && d.depth > 0 && <FootprintPreview w={d.width} h={d.depth} />}
+              </MenuItem>
+            )
+          })}
         </SubContent>
       </Sub>
       <MenuItem onClick={onToggleLock}>

@@ -532,6 +532,7 @@ function DashboardContent() {
                   setPendingDeleteDrawer({ id: d.id, name: d.name })
                 }
               }}
+              onCreate={handleAddDrawer}
             />
           ) : selectedDrawer ? (
             <DrawerGrid

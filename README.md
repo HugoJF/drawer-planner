@@ -23,6 +23,9 @@ A visual planner for organizing [Gridfinity](https://www.youtube.com/watch?v=ra_
 - **Stats panel** — grid utilization, volume percentage, dead room (unused height), and height warnings per drawer
 - **Configurable sidebar** — toggle drawer/category item counts; choose between area (20U) or dimension (5×4) item size display; control category default expansion (none, categorized, all)
 - **Height heatmap** — optional grid coloring mode that shows item height as a heat gradient instead of category color
+- **Gridless drawers** — per-drawer option to switch from Gridfinity grid cells to free mm-based item positioning with snap guides
+- **Cabinet view** — top-level canvas showing all drawers arranged spatially; drag drawers to reposition them relative to each other
+- **Pending items** — add items by name before you have measurements; enter dimensions later in the measurements sheet to promote them to real items
 
 ## Keyboard Shortcuts
 

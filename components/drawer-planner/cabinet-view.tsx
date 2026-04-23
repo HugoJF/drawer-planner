@@ -6,7 +6,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu'
-import { Pencil, Copy, Trash2 } from 'lucide-react'
+import { Pencil, Copy, Trash2, FolderPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FootprintMode } from '@/lib/types'
 import type { CabinetItem } from '@/lib/types'
@@ -29,6 +29,7 @@ export interface CabinetViewProps {
   onEdit: (id: string) => void
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
+  onCreate: () => void
 }
 
 /** Map a CabinetItem to a fake Item so ItemCanvas + FreeAdapter can work with it. */
@@ -62,6 +63,7 @@ export function CabinetView({
   onEdit,
   onDuplicate,
   onDelete,
+  onCreate,
 }: CabinetViewProps) {
   // Map CabinetItem[] → fake Item[] for ItemCanvas
   const canvasItems = useMemo(() => items.map(toCanvasItem), [items])
@@ -160,13 +162,13 @@ export function CabinetView({
       }
       return (
         <ContextMenuContent className="w-44">
-          <ContextMenuItem disabled className="text-muted-foreground text-xs">
-            Cabinet view
+          <ContextMenuItem onClick={onCreate}>
+            <FolderPlus className="h-4 w-4" />Create drawer
           </ContextMenuItem>
         </ContextMenuContent>
       )
     },
-    [onEdit, onDuplicate, onDelete],
+    [onEdit, onDuplicate, onDelete, onCreate],
   )
 
   // ---------------------------------------------------------------------------

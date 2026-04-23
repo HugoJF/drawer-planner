@@ -16,6 +16,7 @@ import { DrawersTab } from './drawers-tab'
 import { CategoriesTab } from './categories-tab'
 import { DrawerScopedTab } from './drawer-scoped-tab'
 import { MeasurementsSheet } from '@/components/drawer-planner/measurements-sheet'
+import { doesItemFitInDrawer } from '@/lib/gridfinity'
 import { nextAvailableColor } from './types'
 import type { SidebarTab } from './types'
 
@@ -56,6 +57,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
   const pendingItemCount = useDrawerStore(s => s.pendingItems.length)
 
   const [activeTab, setActiveTab] = useState<SidebarTab>('drawers')
+  const [fitCheckEnabled, setFitCheckEnabled] = useState(false)
   const [expandedDrawers, setExpandedDrawers] = useState<Set<string>>(new Set())
   const [manualOverrides, setManualOverrides] = useState<Map<string, boolean>>(new Map())
   const [sortMode, setSortMode] = useState<'insertion' | 'name' | 'size' | 'y' | 'x'>('insertion')
@@ -130,6 +132,15 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
       filteredUnassigned: unassignedItems.filter(i => i.name.toLowerCase().includes(searchTerm)),
     }
   }, [searchTerm, drawers, itemsByDrawer, unassignedItems])
+
+  const selectedDrawer = drawers.find(d => d.id === selectedDrawerId) ?? null
+
+  const fitCheckFilteredUnassigned = useMemo(() => {
+    if (!fitCheckEnabled || !selectedDrawer) {
+      return filteredUnassigned
+    }
+    return filteredUnassigned.filter(item => doesItemFitInDrawer(item, selectedDrawer, config))
+  }, [fitCheckEnabled, selectedDrawer, filteredUnassigned, config])
 
   const effectiveExpanded = useMemo(() => {
     if (!searchTerm) {
@@ -277,7 +288,6 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
 
   const sidebarVersion = config.sidebarVersion
 
-  const selectedDrawer = drawers.find(d => d.id === selectedDrawerId) ?? null
   const v2DrawerItems = filteredItemsByDrawer.get(selectedDrawerId ?? '') ?? []
 
   return (
@@ -391,7 +401,7 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
           <DrawersTab
             filteredDrawers={filteredDrawers}
             filteredItemsByDrawer={filteredItemsByDrawer}
-            filteredUnassigned={filteredUnassigned}
+            filteredUnassigned={fitCheckFilteredUnassigned}
             drawers={drawers}
             categories={categories}
             effectiveExpanded={effectiveExpanded}
@@ -417,6 +427,8 @@ export function DrawerTree({ onEditDrawer, onEditItem, onAddDrawer }: DrawerTree
             handleDropOnDrawer={handleDropOnDrawer}
             itemProps={itemProps}
             config={config}
+            fitCheckEnabled={fitCheckEnabled}
+            onToggleFitCheck={() => setFitCheckEnabled(v => !v)}
           />
         ) : (
           <CategoriesTab

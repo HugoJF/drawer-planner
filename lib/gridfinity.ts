@@ -8,7 +8,7 @@ import type {
   DrawerStats,
   Category,
 } from './types'
-import { ItemRotation, FootprintMode, GridColorMode, getCategoryColor, UNCATEGORIZED_COLOR } from './types'
+import { ItemRotation, FootprintMode, GridColorMode, getCategoryColor, UNCATEGORIZED_COLOR, formatDimension } from './types'
 
 /**
  * Calculate how many Gridfinity cells fit in a drawer dimension
@@ -122,7 +122,8 @@ export function getRotationLabel(rotation: ItemRotation, item: Item, config: Gri
   }
   const d = getRotatedDimensions(item, rotation)
   if (isGridless) {
-    return `${base} (${Math.round(d.width)}×${Math.round(d.depth)}mm, ${Math.round(d.height)}mm tall)`
+    const u = config.displayUnit
+    return `${base} (${formatDimension(d.width, u)}×${formatDimension(d.depth, u)}, ${formatDimension(d.height, u)} tall)`
   }
   const cols = Math.ceil(d.width / config.cellSize)
   const rows = Math.ceil(d.depth / config.cellSize)
@@ -225,6 +226,34 @@ export function isItemFootprintOverflow(item: Item, config: GridfinityConfig): b
 export function isItemOversized(item: Item, drawer: Drawer): boolean {
   const dims = getRotatedDimensions(item)
   return dims.height > drawer.height
+}
+
+/**
+ * Check if an item can physically fit in a drawer in any orientation.
+ * Items with unknown dimensions (0) are considered fitting (can't know).
+ */
+export function doesItemFitInDrawer(item: Item, drawer: Drawer, config: GridfinityConfig): boolean {
+  if (item.width <= 0 || item.height <= 0 || item.depth <= 0) {
+    return true
+  }
+  for (const rotation of ALL_ROTATIONS) {
+    const dims = getRotatedDimensions(item, rotation)
+    if (dims.height > drawer.height) {
+      continue
+    }
+    if (drawer.gridless) {
+      if (dims.width <= drawer.width && dims.depth <= drawer.depth) {
+        return true
+      }
+    } else {
+      const gridW = Math.max(1, Math.ceil(dims.width / config.cellSize))
+      const gridD = Math.max(1, Math.ceil(dims.depth / config.cellSize))
+      if (gridW <= drawer.gridCols && gridD <= drawer.gridRows) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 /**
