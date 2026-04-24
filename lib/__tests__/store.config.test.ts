@@ -214,6 +214,18 @@ describe('exportData', () => {
     expect(data.drawers).toEqual([])
     expect(data.items).toEqual([])
   })
+
+  test('pendingItems matches current state', () => {
+    // Arrange
+    store.getState().addPendingItem({ name: 'Pending widget', categoryId: null })
+
+    // Act
+    const { pendingItems } = store.getState().exportData()
+
+    // Assert
+    expect(pendingItems).toEqual(store.getState().pendingItems)
+    expect(pendingItems).toHaveLength(1)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -328,6 +340,26 @@ describe('importData', () => {
 
     // Assert
     expect(store.getState().selectedItemIds.size).toBe(0)
+  })
+
+  test('replaces pendingItems with imported data', () => {
+    // Arrange
+    store.getState().addPendingItem({ name: 'Old pending', categoryId: null })
+    const data: ExportData = {
+      version: 5,
+      exportDate: new Date().toISOString(),
+      config: DEFAULT_CONFIG,
+      drawers: [],
+      items: [],
+      categories: [],
+      pendingItems: [{ id: 'pending-1', name: 'Imported pending', categoryId: null }],
+    }
+
+    // Act
+    store.getState().importData(data)
+
+    // Assert
+    expect(store.getState().pendingItems).toEqual([{ id: 'pending-1', name: 'Imported pending', categoryId: null }])
   })
 
   test('does nothing when version is missing', () => {

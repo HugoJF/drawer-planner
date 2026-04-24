@@ -42,6 +42,7 @@ const EMPTY_PROJECT_DATA: ProjectData = {
   drawers: [],
   items: [],
   categories: [],
+  pendingItems: [],
 }
 
 // ---- Store ----
@@ -102,8 +103,8 @@ const projectsStoreInstance = createStore<ProjectsStore>()(
         try {
           // Save current project before switching
           if (activeProjectId) {
-            const { drawers, items, config, categories } = drawerStore.getState()
-            saveProjectData(activeProjectId, { drawers, items, config, categories })
+            const { drawers, items, config, categories, pendingItems } = drawerStore.getState()
+            saveProjectData(activeProjectId, { drawers, items, config, categories, pendingItems })
           }
           // Update active ID before loadProject so the subscriber routes correctly
           set({ activeProjectId: id })
@@ -173,6 +174,7 @@ const projectsStoreInstance = createStore<ProjectsStore>()(
                   drawers: stored.drawers ?? [],
                   items: stored.items ?? [],
                   categories: stored.categories ?? [],
+                  pendingItems: stored.pendingItems ?? [],
                 }
                 saveProjectData(id, data)
                 const now = new Date().toISOString()
@@ -203,11 +205,12 @@ drawerStore.subscribe((state, prev) => {
     return
   }
   if (
-    state.drawers === prev.drawers &&
-    state.items === prev.items &&
-    state.config === prev.config &&
-    state.categories === prev.categories
-  ) return
+	    state.drawers === prev.drawers &&
+	    state.items === prev.items &&
+	    state.config === prev.config &&
+	    state.categories === prev.categories &&
+	    state.pendingItems === prev.pendingItems
+	  ) return
 
   const { activeProjectId, projects } = projectsStoreInstance.getState()
   if (!activeProjectId) {
@@ -219,6 +222,7 @@ drawerStore.subscribe((state, prev) => {
     drawers: state.drawers,
     items: state.items,
     categories: state.categories,
+    pendingItems: state.pendingItems,
   })
 
   const existing = projects.find((p) => p.id === activeProjectId)

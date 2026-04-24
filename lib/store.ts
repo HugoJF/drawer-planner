@@ -532,6 +532,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
               drawers: state.drawers,
               items: state.items,
               categories: state.categories,
+              pendingItems: state.pendingItems,
             }
           },
 
@@ -544,6 +545,7 @@ export function createDrawerStore(storage?: ReturnType<typeof createJSONStorage>
                 drawers: migrated.drawers as Drawer[],
                 items: migrated.items as Item[],
                 categories: migrated.categories as Category[],
+                pendingItems: (migrated.pendingItems ?? []) as PendingItem[],
                 selectedDrawerId: null,
                 selectedItemIds: new Set(),
                 selectedCabinetDrawerIds: new Set(),

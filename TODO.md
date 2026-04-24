@@ -23,3 +23,4 @@ Open questions:
 ## Code review follow-up
 
 - [x] Reset `pendingItems` when loading a project so pending measurements do not leak between projects.
+- [x] Persist and import/export `pendingItems` so pending measurements are not lost.

@@ -73,6 +73,7 @@ export function SettingsPanel() {
       drawers: data.drawers,
       items: data.items,
       categories: data.categories ?? [],
+      pendingItems: data.pendingItems ?? [],
     }
     saveProjectData(targetId, projectData)
     const existing = projects.find(p => p.id === targetId)
@@ -118,6 +119,7 @@ export function SettingsPanel() {
           drawers: data.drawers,
           items: data.items,
           categories: data.categories ?? [],
+          pendingItems: data.pendingItems ?? [],
         }
         createProject(data.name || file.name.replace('.json', ''), projectData)
       } catch (error) {
@@ -150,6 +152,7 @@ export function SettingsPanel() {
       drawers: pendingImport.drawers,
       items: pendingImport.items,
       categories: pendingImport.categories ?? [],
+      pendingItems: pendingImport.pendingItems ?? [],
     }
     createProject(pendingImport.name ? `${pendingImport.name} (imported)` : 'Imported project', projectData)
     setConflictOpen(false)

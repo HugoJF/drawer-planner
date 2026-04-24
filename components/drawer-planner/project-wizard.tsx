@@ -37,6 +37,7 @@ export function ProjectWizard() {
           drawers: data.drawers,
           items: data.items,
           categories: data.categories ?? [],
+          pendingItems: data.pendingItems ?? [],
         }
         createProject(data.name || file.name.replace('.json', ''), projectData)
       } catch {
