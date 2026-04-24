@@ -241,7 +241,11 @@ function DashboardContent() {
   // Delete selected item(s)
   const deleteSelected = useCallback(() => {
     const ids = [...selectedItemIds]
-    ids.length === 1 ? deleteItem(ids[0]) : deleteItems(ids)
+    if (ids.length === 1) {
+      deleteItem(ids[0])
+    } else {
+      deleteItems(ids)
+    }
   }, [selectedItemIds, deleteItem, deleteItems])
   useKeyboardShortcut({ ...SHORTCUTS.delete,    enabled: !isFormOpen && hasSelection }, deleteSelected)
   useKeyboardShortcut({ ...SHORTCUTS.backspace, enabled: !isFormOpen && hasSelection }, deleteSelected)

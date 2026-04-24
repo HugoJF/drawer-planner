@@ -380,7 +380,7 @@ export function DrawerGrid({ drawer, onEditDrawer, onEditItem, onAddItemAtCell }
         )}
       </div>
     )
-  }, [config, drawer, categories, items, searchTerm, selectedItemIds, getSuitableDrawers, handleMoveToDrawer, updateItem, setPreviewRotation])
+  }, [config, drawer, categories, items, searchTerm, getSuitableDrawers, handleMoveToDrawer, updateItem, setPreviewRotation])
 
   // ---------------------------------------------------------------------------
   // renderContextMenu

@@ -3,6 +3,7 @@
 
 # Build output
 dist/
+tsconfig.tsbuildinfo
 
 # Dependencies
 node_modules
@@ -19,3 +20,6 @@ __v0_jsx-dev-runtime.ts
 .v0-trash/
 .vercel/
 next.user-config.*
+
+# Codex workspace metadata
+.codex

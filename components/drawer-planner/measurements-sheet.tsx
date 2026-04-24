@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useDrawerStore } from '@/lib/store'
-import { toDisplayUnit, fromDisplayUnit } from '@/lib/types'
+import { fromDisplayUnit } from '@/lib/types'
 import type { PendingItem, Category, DimensionUnit } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
