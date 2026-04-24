@@ -26,3 +26,4 @@ Open questions:
 - [x] Persist and import/export `pendingItems` so pending measurements are not lost.
 - [x] Reload the active project after replace-import so imported data cannot be overwritten by stale UI state.
 - [x] Clamp gridless multi-item drags by the full selected group bounds.
+- [x] Replace broken ESLint script with a working local typecheck command.
