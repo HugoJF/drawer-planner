@@ -189,6 +189,7 @@ export interface ProjectData {
   drawers: Drawer[]
   items: Item[]
   categories: Category[]
+  pendingItems?: PendingItem[]
 }
 
 // Export/Import data structure
@@ -203,6 +204,7 @@ export interface ExportData {
   drawers: Drawer[]
   items: Item[]
   categories?: Category[]
+  pendingItems?: PendingItem[]
 }
 
 export const ITEM_COLORS = [

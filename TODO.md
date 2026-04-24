@@ -19,3 +19,7 @@ Open questions:
 - How to create/name groups (item form field vs. "group selected items" button in bulk context menu?)
 - Show group membership visually on the grid (e.g. shared border/outline color)?
 - Sidebar: show group as a sub-level, or just a badge on the item row?
+
+## Code review follow-up
+
+- [x] Reset `pendingItems` when loading a project so pending measurements do not leak between projects.

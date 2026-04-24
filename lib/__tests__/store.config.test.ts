@@ -369,6 +369,52 @@ describe('importData', () => {
 })
 
 // ---------------------------------------------------------------------------
+// loadProject
+// ---------------------------------------------------------------------------
+
+describe('loadProject', () => {
+  let store: ReturnType<typeof freshStore>
+
+  beforeEach(() => {
+    store = freshStore()
+  })
+
+  test('replaces pendingItems from project data', () => {
+    // Arrange
+    store.getState().addPendingItem({ name: 'Old pending', categoryId: null })
+    const project = {
+      config: DEFAULT_CONFIG,
+      drawers: [],
+      items: [],
+      categories: [],
+      pendingItems: [{ id: 'pending-1', name: 'New pending', categoryId: null }],
+    }
+
+    // Act
+    store.getState().loadProject(project)
+
+    // Assert
+    expect(store.getState().pendingItems).toEqual(project.pendingItems)
+  })
+
+  test('clears pendingItems when project data omits them', () => {
+    // Arrange
+    store.getState().addPendingItem({ name: 'Old pending', categoryId: null })
+
+    // Act
+    store.getState().loadProject({
+      config: DEFAULT_CONFIG,
+      drawers: [],
+      items: [],
+      categories: [],
+    })
+
+    // Assert
+    expect(store.getState().pendingItems).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Getters
 // ---------------------------------------------------------------------------
 
