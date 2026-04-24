@@ -28,6 +28,7 @@ export function SettingsPanel() {
   const config = useDrawerStore(s => s.config)
   const updateConfig = useDrawerStore(s => s.updateConfig)
   const exportData = useDrawerStore(s => s.exportData)
+  const loadProject = useDrawerStore(s => s.loadProject)
 
   const projects = useProjectsStore(s => s.projects)
   const activeProjectId = useProjectsStore(s => s.activeProjectId)
@@ -85,7 +86,11 @@ export function SettingsPanel() {
         updatedAt: new Date().toISOString(),
       })
     }
-    switchProject(targetId)
+    if (targetId === activeProjectId) {
+      loadProject(projectData)
+    } else {
+      switchProject(targetId)
+    }
   }
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
