@@ -25,3 +25,4 @@ Open questions:
 - [x] Reset `pendingItems` when loading a project so pending measurements do not leak between projects.
 - [x] Persist and import/export `pendingItems` so pending measurements are not lost.
 - [x] Reload the active project after replace-import so imported data cannot be overwritten by stale UI state.
+- [x] Clamp gridless multi-item drags by the full selected group bounds.

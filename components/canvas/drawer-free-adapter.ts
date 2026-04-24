@@ -17,6 +17,8 @@ import { CELL_SIZE } from './grid-adapter'
 interface DrawerFreeAdapterData {
   minDx: number
   minDy: number
+  maxRight: number
+  maxBottom: number
 }
 
 /**
@@ -75,16 +77,21 @@ export class DrawerFreeAdapter implements CoordAdapter {
       dx: i.posX - anchorX,
       dy: i.posY - anchorY,
     }))
-    let minDx = 0, minDy = 0
-    for (const di of coDragged) {
-      minDx = Math.min(minDx, di.posX - anchorX)
-      minDy = Math.min(minDy, di.posY - anchorY)
-    }
     const { w: anchorW, h: anchorH } = getItemFootprintMm(item)
+    let minDx = 0, minDy = 0, maxRight = anchorW, maxBottom = anchorH
+    for (const di of coDragged) {
+      const { w, h } = getItemFootprintMm(di)
+      const dx = di.posX - anchorX
+      const dy = di.posY - anchorY
+      minDx = Math.min(minDx, dx)
+      minDy = Math.min(minDy, dy)
+      maxRight = Math.max(maxRight, dx + w)
+      maxBottom = Math.max(maxBottom, dy + h)
+    }
     return {
       anchorSize: { w: anchorW, h: anchorH },
       offsets,
-      adapterData: { minDx, minDy } satisfies DrawerFreeAdapterData,
+      adapterData: { minDx, minDy, maxRight, maxBottom } satisfies DrawerFreeAdapterData,
     }
   }
 
@@ -96,7 +103,7 @@ export class DrawerFreeAdapter implements CoordAdapter {
     dragState: CanvasDragState,
     containerEl: HTMLElement,
   ): ACoord | null {
-    const { minDx, minDy } = dragState.adapterData as DrawerFreeAdapterData
+    const { minDx, minDy, maxRight, maxBottom } = dragState.adapterData as DrawerFreeAdapterData
     const rect = containerEl.getBoundingClientRect()
     const rawX = (clientX - rect.left - grabPxX) / this.scale
     const rawY = (clientY - rect.top  - grabPxY) / this.scale
@@ -136,12 +143,12 @@ export class DrawerFreeAdapter implements CoordAdapter {
     const snap = computeSnap(preSnapDragged, statics, this.scale, this.config.cabinetSnapThresholdPx)
     this._snapGuides = snap.guides
 
-    // Clamp so the anchor item stays within drawer bounds
+    // Clamp so the selected group stays within drawer bounds.
     const snappedX = rawX + snap.deltaXMm
     const snappedY = rawY + snap.deltaYMm
     return {
-      x: Math.max(-minDx, Math.min(snappedX, this.drawer.width - dragState.anchorSize.w)),
-      y: Math.max(-minDy, Math.min(snappedY, this.drawer.depth - dragState.anchorSize.h)),
+      x: Math.max(-minDx, Math.min(snappedX, this.drawer.width - maxRight)),
+      y: Math.max(-minDy, Math.min(snappedY, this.drawer.depth - maxBottom)),
     }
   }
 
